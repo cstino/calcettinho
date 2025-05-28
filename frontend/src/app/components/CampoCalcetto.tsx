@@ -32,7 +32,7 @@ function PlayerImage({ player, teamColor, playerName }: PlayerImageProps) {
   const bgColor = teamColor === 'red' ? 'bg-red-500' : 'bg-blue-500';
 
   return (
-    <div className={`w-8 h-8 border-2 ${borderColor} rounded-full overflow-hidden shadow-lg bg-gray-200`}>
+    <div className={`w-12 h-12 border-2 ${borderColor} rounded-full overflow-hidden shadow-lg bg-gray-200`}>
       {!imageError ? (
         <img
           src={`/players/${player?.email}.jpg`}
@@ -49,7 +49,7 @@ function PlayerImage({ player, teamColor, playerName }: PlayerImageProps) {
         />
       ) : (
         <div className={`w-full h-full ${bgColor} flex items-center justify-center`}>
-          <span className="text-white text-xs font-bold">
+          <span className="text-white text-sm font-bold">
             {getInitials(playerName)}
           </span>
         </div>
@@ -138,7 +138,7 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
                   playerName={playerName} 
                 />
                 {/* Nome giocatore */}
-                <div className="mt-1 px-1 py-0.5 bg-black/70 text-white text-[10px] rounded font-runtime text-center min-w-max">
+                <div className="mt-1 px-2 py-1 bg-black/70 text-white text-xs rounded font-runtime text-center min-w-max">
                   {playerName}
                 </div>
               </div>
@@ -162,7 +162,7 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
               {/* Pallino giocatore con foto */}
               <div className="relative flex flex-col items-center">
                 {/* Nome giocatore */}
-                <div className="mb-1 px-1 py-0.5 bg-black/70 text-white text-[10px] rounded font-runtime text-center min-w-max">
+                <div className="mb-1 px-2 py-1 bg-black/70 text-white text-xs rounded font-runtime text-center min-w-max">
                   {playerName}
                 </div>
                 <PlayerImage 
@@ -177,14 +177,14 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
       </div>
 
       {/* Legenda */}
-      <div className="flex justify-center gap-4 mt-2">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-red-500 border border-white rounded-full"></div>
-          <span className="text-red-400 font-runtime font-semibold text-xs">{team1Name}</span>
+      <div className="flex justify-center gap-4 mt-3">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-500 border border-white rounded-full"></div>
+          <span className="text-red-400 font-runtime font-semibold text-sm">{team1Name}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-blue-500 border border-white rounded-full"></div>
-          <span className="text-blue-400 font-runtime font-semibold text-xs">{team2Name}</span>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-blue-500 border border-white rounded-full"></div>
+          <span className="text-blue-400 font-runtime font-semibold text-sm">{team2Name}</span>
         </div>
       </div>
     </div>

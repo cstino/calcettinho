@@ -4,17 +4,28 @@ import { useState, useEffect } from 'react';
 import Navigation from "../components/Navigation";
 import Logo from "../components/Logo";
 import CampoCalcetto from "../components/CampoCalcetto";
-import { Calendar, Users, Star } from 'lucide-react';
+import CreateMatchModal from "../components/CreateMatchModal";
+import MatchResultModal from "../components/MatchResultModal";
+import { Calendar, Users, Star, Plus, Trophy, Clock } from 'lucide-react';
 import { useAuth } from "../context/AuthContext";
 import { motion } from 'framer-motion';
+import ProtectedRoute from "../components/ProtectedRoute";
 
 interface Match {
   id: string;
+  matchId: string;
   date: string;
   teamA: string[];
   teamB: string[];
   location: string;
   completed: boolean;
+  scoreA?: number;
+  scoreB?: number;
+  teamAScorer?: string;
+  teamBScorer?: string;
+  assistA?: string;
+  assistB?: string;
+  status: 'scheduled' | 'completed';
 }
 
 interface CampoPlayer {
@@ -29,46 +40,38 @@ export default function Matches() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [testCount, setTestCount] = useState(0);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [isClient, setIsClient] = useState(false);
-
-  // Fix hydration - solo client side
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         
+        // Fetch players
         const playersResponse = await fetch('/api/players');
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
           setAllPlayers(playersData);
         }
         
+        // Fetch matches
         const matchesResponse = await fetch('/api/matches');
+        console.log('Response status:', matchesResponse.status);
+        
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json();
+          console.log('Matches data received:', matchesData);
           setMatches(matchesData);
         } else {
-          const mockMatches = [
-            {
-              id: '1',
-              date: '2024-01-15',
-              teamA: ['player1@test.com', 'player2@test.com'],
-              teamB: ['player3@test.com', 'player4@test.com'],
-              location: 'Campo Centrale',
-              completed: true
-            }
-          ];
-          setMatches(mockMatches);
+          console.log('Nessuna partita trovata, iniziando con lista vuota');
+          setMatches([]);
         }
         
       } catch (error) {
         console.error('Errore nel caricamento dei dati:', error);
+        setMatches([]);
       } finally {
         setLoading(false);
       }
@@ -76,6 +79,18 @@ export default function Matches() {
 
     fetchData();
   }, []);
+
+  const refreshMatches = async () => {
+    try {
+      const response = await fetch('/api/matches');
+      if (response.ok) {
+        const matchesData = await response.json();
+        setMatches(matchesData);
+      }
+    } catch (error) {
+      console.error('Errore nel refresh delle partite:', error);
+    }
+  };
 
   const getPlayerName = (email: string): string => {
     const player = allPlayers.find(p => p.email === email);
@@ -104,212 +119,359 @@ export default function Matches() {
   };
 
   const handleNewMatch = () => {
-    console.log('🎉 New match button clicked - Z-INDEX FIXED!');
+    console.log('🎯 Pulsante "Nuova Partita" cliccato!');
     setShowCreateModal(true);
   };
 
-  const handleMatchAction = (action: string, matchId: string) => {
-    console.log(`🎯 ${action} for match ${matchId} - Z-INDEX FIXED!`);
-    alert(`${action} partita ${matchId} - Pulsanti funzionanti!`);
-  };
+  const handleMatchAction = async (action: string, matchId: string) => {
+    console.log(`🎯 Azione "${action}" per partita ${matchId}`);
+    const match = matches.find(m => m.matchId === matchId);
+    
+    if (!match) {
+      alert('Partita non trovata!');
+      return;
+    }
 
-  const addLog = (message: string) => {
-    const newLog = `${logs.length + 1}: ${message}`;
-    setLogs(prev => [newLog, ...prev.slice(0, 4)]);
-    console.log(`🔥 ${message}`);
-  };
+    switch(action) {
+      case 'start':
+        setSelectedMatch(match);
+        setShowResultModal(true);
+        break;
+      case 'edit':
+        setSelectedMatch(match);
+        setShowEditModal(true);
+        break;
+      case 'view':
+        // Mostra dettagli partita
+        const details = `📊 Dettagli partita:
 
-  const handleTestClick = () => {
-    addLog(`TEST BUTTON CLICKED! Count: ${testCount}`);
-    alert(`Test clicked! Count: ${testCount}`);
-    setTestCount(testCount + 1);
-  };
+Data: ${formatDate(match.date)}
+Luogo: ${match.location}
+Squadra A: ${match.teamA.map(email => getPlayerName(email)).join(', ')}
+Squadra B: ${match.teamB.map(email => getPlayerName(email)).join(', ')}
 
-  const handleClearLogs = () => {
-    setLogs([]);
-    addLog('Logs cleared');
+${match.completed ? 
+  `Risultato: ${match.scoreA} - ${match.scoreB}
+Marcatori A: ${match.teamAScorer ? getPlayerName(match.teamAScorer) : 'Nessuno'}
+Marcatori B: ${match.teamBScorer ? getPlayerName(match.teamBScorer) : 'Nessuno'}
+Assist A: ${match.assistA ? getPlayerName(match.assistA) : 'Nessuno'}
+Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}` 
+  : 'Partita non ancora completata'}`;
+        alert(details);
+        break;
+      case 'delete':
+        if (confirm('Sei sicuro di voler eliminare questa partita?')) {
+          try {
+            const response = await fetch(`/api/matches/${matchId}`, {
+              method: 'DELETE'
+            });
+            
+            if (response.ok) {
+              alert('✅ Partita eliminata con successo!');
+              refreshMatches();
+            } else {
+              alert('❌ Errore nell\'eliminazione della partita');
+            }
+          } catch (error) {
+            console.error('Errore nell\'eliminazione:', error);
+            alert('❌ Errore nell\'eliminazione della partita');
+          }
+        }
+        break;
+      default:
+        alert(`🔧 Azione ${action} per partita ${matchId} - Funzione in sviluppo!`);
+    }
   };
-
-  const handleForceReload = () => {
-    addLog('Force reload triggered');
-    window.location.reload();
-  };
-
-  if (!isClient) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', 
-        backgroundColor: '#1f2937', 
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div>Loading...</div>
-      </div>
-    );
-  }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#1f2937', 
-      color: 'white'
-    }}>
-      
-      {/* Navigation */}
-      <Navigation />
-      
-      <div style={{
-        paddingTop: '100px',
-        padding: '20px',
-        maxWidth: '800px',
-        margin: '0 auto'
-      }}>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] pointer-events-none z-0"></div>
         
-        <h1 style={{ 
-          fontSize: '3rem', 
-          textAlign: 'center',
-          marginBottom: '30px',
-          color: '#EF4444'
-        }}>
-          🔧 HYDRATION FIXED
-        </h1>
-        
-        <div style={{
-          backgroundColor: '#374151',
-          padding: '20px',
-          borderRadius: '10px',
-          marginBottom: '30px',
-          textAlign: 'center'
-        }}>
-          <p style={{ fontSize: '1.2rem', marginBottom: '20px' }}>
-            Test Count: <span style={{ color: '#10B981', fontWeight: 'bold' }}>{testCount}</span>
-          </p>
+        <div className="relative z-10 pointer-events-auto">
+          <Navigation />
           
-          <div style={{ 
-            display: 'flex', 
-            gap: '15px', 
-            justifyContent: 'center',
-            flexWrap: 'wrap'
-          }}>
-            
-            <button 
-              onClick={handleTestClick}
-              style={{
-                backgroundColor: '#EF4444',
-                color: 'white',
-                padding: '15px 30px',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '16px'
-              }}
-            >
-              🔴 Test Counter ({testCount})
-            </button>
-            
-            <button 
-              onClick={handleClearLogs}
-              style={{
-                backgroundColor: '#F59E0B',
-                color: 'white',
-                padding: '15px 30px',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '16px'
-              }}
-            >
-              🧹 Clear Logs
-            </button>
-            
-            <button 
-              onClick={handleForceReload}
-              style={{
-                backgroundColor: '#3B82F6',
-                color: 'white',
-                padding: '15px 30px',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '16px'
-              }}
-            >
-              🔄 Reload
-            </button>
-            
-          </div>
-        </div>
-
-        {/* Live logs */}
-        <div style={{
-          backgroundColor: '#111827',
-          padding: '20px',
-          borderRadius: '10px',
-          marginBottom: '30px'
-        }}>
-          <h3 style={{ color: '#10B981', marginBottom: '15px' }}>📝 Live Logs:</h3>
-          {logs.length === 0 ? (
-            <p style={{ color: '#6B7280', fontStyle: 'italic' }}>Nessun log ancora...</p>
-          ) : (
-            <div style={{ fontSize: '14px', fontFamily: 'monospace' }}>
-              {logs.map((log, index) => (
-                <div key={index} style={{ 
-                  color: '#D1D5DB', 
-                  marginBottom: '5px',
-                  padding: '5px',
-                  backgroundColor: index === 0 ? '#1F2937' : 'transparent',
-                  borderRadius: '4px'
-                }}>
-                  {log}
-                </div>
-              ))}
+          {/* Header */}
+          <section className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-6xl mx-auto text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <h1 className="text-4xl md:text-6xl font-bold font-runtime text-white mb-6 drop-shadow-lg">
+                  Gestione <span className="text-green-400">Partite</span>
+                </h1>
+                <p className="text-xl text-gray-300 font-runtime max-w-3xl mx-auto drop-shadow-md">
+                  Organizza partite, forma squadre e tieni traccia di tutti i risultati
+                </p>
+              </motion.div>
             </div>
-          )}
+          </section>
+
+          {/* Tabs */}
+          <section className="pb-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex justify-center space-x-1 bg-gray-800/50 p-1 rounded-lg backdrop-blur-sm mb-6 relative z-20">
+                <button
+                  onClick={() => {
+                    console.log('🎯 Tab "Prossime" cliccata!');
+                    setActiveTab('upcoming');
+                  }}
+                  className={`px-6 py-3 rounded-md font-runtime font-semibold transition-all duration-300 cursor-pointer pointer-events-auto relative z-30 ${
+                    activeTab === 'upcoming' 
+                      ? 'bg-green-600 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  <Clock className="w-4 h-4 inline mr-2" />
+                  Prossime
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🎯 Tab "Completate" cliccata!');
+                    setActiveTab('completed');
+                  }}
+                  className={`px-6 py-3 rounded-md font-runtime font-semibold transition-all duration-300 cursor-pointer pointer-events-auto relative z-30 ${
+                    activeTab === 'completed' 
+                      ? 'bg-green-600 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  <Trophy className="w-4 h-4 inline mr-2" />
+                  Completate
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🎯 Tab "Tutte" cliccata!');
+                    setActiveTab('all');
+                  }}
+                  className={`px-6 py-3 rounded-md font-runtime font-semibold transition-all duration-300 cursor-pointer pointer-events-auto relative z-30 ${
+                    activeTab === 'all' 
+                      ? 'bg-green-600 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4 inline mr-2" />
+                  Tutte
+                </button>
+              </div>
+
+              {/* New Match Button */}
+              <div className="text-center mb-8 relative z-20">
+                <button
+                  onClick={handleNewMatch}
+                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 cursor-pointer pointer-events-auto relative z-30"
+                >
+                  <Plus className="w-5 h-5 inline mr-2" />
+                  Nuova Partita
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Matches List */}
+          <section className="pb-16 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-6xl mx-auto">
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
+                  <p className="text-gray-300 mt-4 font-runtime">Caricamento partite...</p>
+                </div>
+              ) : filteredMatches.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-runtime text-gray-300 mb-2">
+                    Nessuna partita {activeTab === 'upcoming' ? 'programmata' : activeTab === 'completed' ? 'completata' : 'trovata'}
+                  </h3>
+                  <p className="text-gray-500 font-runtime">
+                    {activeTab === 'upcoming' && 'Crea una nuova partita per iniziare!'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-6">
+                  {filteredMatches.map((match, index) => (
+                    <motion.div
+                      key={match.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: index * 0.1 }}
+                      className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700/50"
+                    >
+                      {/* Info partita sopra al campo */}
+                      <div className="flex justify-center items-center gap-8 mb-6">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-green-400" />
+                          <span className="text-gray-300 font-runtime text-sm">
+                            {formatDate(match.date)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-blue-400" />
+                          <span className="text-gray-300 font-runtime text-sm">
+                            {match.location}
+                          </span>
+                        </div>
+                        {match.completed && match.scoreA !== undefined && match.scoreB !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <Trophy className="w-4 h-4 text-yellow-400" />
+                            <span className="text-white font-runtime font-semibold">
+                              {match.scoreA} - {match.scoreB}
+                            </span>
+                          </div>
+                        )}
+                        <div className={`inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold ${
+                          match.completed 
+                            ? 'bg-green-900/50 text-green-400 border border-green-400/30' 
+                            : 'bg-blue-900/50 text-blue-400 border border-blue-400/30'
+                        }`}>
+                          {match.completed ? 'Completata' : 'Programmata'}
+                        </div>
+                      </div>
+
+                      {/* Layout principale: Team - Campo - Team */}
+                      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start mb-6">
+                        {/* Team Rosso (Squadra A) - Sinistra */}
+                        <div className="lg:col-span-1 bg-red-900/20 rounded-lg p-3 border border-red-500/30">
+                          <h3 className="text-base font-semibold text-red-400 mb-2 font-runtime text-center">
+                            Team Rosso
+                          </h3>
+                          <div className="space-y-1">
+                            {match.teamA.map((email, idx) => (
+                              <div key={idx} className="bg-red-900/30 p-2 rounded text-center">
+                                <span className="text-white text-xs font-runtime">
+                                  {getPlayerName(email)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {match.completed && match.teamAScorer && (
+                            <div className="mt-2 pt-2 border-t border-red-500/30">
+                              <div className="text-xs text-red-300 text-center">
+                                <div>⚽ {getPlayerName(match.teamAScorer)}</div>
+                                {match.assistA && (
+                                  <div>🅰️ {getPlayerName(match.assistA)}</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Campo Centrale */}
+                        <div className="lg:col-span-3 flex justify-center">
+                          <div className="w-full max-w-lg">
+                            <CampoCalcetto
+                              team1={convertEmailsToPlayers(match.teamA)}
+                              team2={convertEmailsToPlayers(match.teamB)}
+                              team1Name="Team Rosso"
+                              team2Name="Team Blu"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Team Blu (Squadra B) - Destra */}
+                        <div className="lg:col-span-1 bg-blue-900/20 rounded-lg p-3 border border-blue-500/30">
+                          <h3 className="text-base font-semibold text-blue-400 mb-2 font-runtime text-center">
+                            Team Blu
+                          </h3>
+                          <div className="space-y-1">
+                            {match.teamB.map((email, idx) => (
+                              <div key={idx} className="bg-blue-900/30 p-2 rounded text-center">
+                                <span className="text-white text-xs font-runtime">
+                                  {getPlayerName(email)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {match.completed && match.teamBScorer && (
+                            <div className="mt-2 pt-2 border-t border-blue-500/30">
+                              <div className="text-xs text-blue-300 text-center">
+                                <div>⚽ {getPlayerName(match.teamBScorer)}</div>
+                                {match.assistB && (
+                                  <div>🅰️ {getPlayerName(match.assistB)}</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Pulsanti sotto al campo, centrati */}
+                      <div className="flex justify-center">
+                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
+                          {!match.completed ? (
+                            <>
+                              <button
+                                onClick={() => handleMatchAction('start', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                <Trophy className="w-5 h-5" />
+                                Partita Terminata
+                              </button>
+                              <button
+                                onClick={() => handleMatchAction('edit', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                Modifica
+                              </button>
+                              <button
+                                onClick={() => handleMatchAction('delete', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                Elimina
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleMatchAction('view', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                <Star className="w-5 h-5" />
+                                Vedi Dettagli
+                              </button>
+                              <button
+                                onClick={() => handleMatchAction('edit', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                Modifica
+                              </button>
+                              <button
+                                onClick={() => handleMatchAction('delete', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                Elimina
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Footer spacer per navbar mobile */}
+          <div className="h-20 sm:h-8"></div>
         </div>
 
-        {/* Diagnostics */}
-        <div style={{
-          backgroundColor: '#16A34A',
-          padding: '20px',
-          borderRadius: '10px',
-          border: '1px solid #22C55E'
-        }}>
-          <h3 style={{ color: '#DCFCE7', marginBottom: '15px' }}>🎉 PROBLEMI RISOLTI:</h3>
-          
-          <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
-            <p style={{ margin: '5px 0' }}>
-              ✅ <strong>Hydration Error:</strong> FIXATO - no più Date.now()
-            </p>
-            <p style={{ margin: '5px 0' }}>
-              ✅ <strong>Z-Index:</strong> FIXATO - navbar z-10
-            </p>
-            <p style={{ margin: '5px 0' }}>
-              🔍 <strong>Test:</strong> Click sui pulsanti dovrebbe funzionare
-            </p>
-            <p style={{ margin: '5px 0' }}>
-              📊 <strong>Current Count:</strong> {testCount}
-            </p>
-          </div>
-        </div>
+        {/* Modali */}
+        <CreateMatchModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={refreshMatches}
+        />
 
-        {/* Quick restart guide */}
-        <div style={{
-          backgroundColor: '#1F2937',
-          padding: '15px',
-          borderRadius: '10px',
-          marginTop: '20px',
-          fontSize: '12px',
-          color: '#9CA3AF'
-        }}>
-          <p><strong>🚀 RESTART SERVER:</strong> Se ancora non funziona, riavvia il server completamente.</p>
-          <p>L'errore di hydration può persistere in cache fino al restart.</p>
-        </div>
+        <MatchResultModal
+          isOpen={showResultModal}
+          onClose={() => setShowResultModal(false)}
+          onSuccess={refreshMatches}
+          match={selectedMatch}
+        />
       </div>
-    </div>
+    </ProtectedRoute>
   );
 } 

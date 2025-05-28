@@ -103,26 +103,19 @@ export async function POST(request: NextRequest) {
     console.log('API Key presente:', !!process.env.AIRTABLE_API_KEY);
     console.log('Base ID presente:', !!process.env.AIRTABLE_BASE_ID);
 
-    try {
-      // Crea il record in Airtable
-      console.log('Tentativo di creazione record in Airtable...');
-      const record = await matchesTable.create({
-        IDmatch: matchId,
-        date: date,
-        teamA: teamA,
-        teamB: teamB,
-        completed: false,
-        ...(location && { location: location })
-      });
-      console.log('Record creato con successo in Airtable');
-    } catch (airtableError) {
-      console.error('Errore Airtable:', airtableError);
-      // Per ora restituiamo successo anche senza Airtable per testare
-      console.log('Continuando senza Airtable per test...');
-    }
+    // Crea il record in Airtable
+    console.log('Tentativo di creazione record in Airtable...');
+    const record = await matchesTable.create({
+      IDmatch: matchId,
+      date: date,
+      teamA: JSON.stringify(teamA),
+      teamB: JSON.stringify(teamB),
+      completed: false
+    });
+    console.log('Record creato con successo in Airtable:', (record as any).id);
 
     const newMatch = {
-      id: matchId,
+      id: (record as any).id,
       matchId: matchId,
       date: date,
       teamA: teamA,
@@ -142,6 +135,104 @@ export async function POST(request: NextRequest) {
     console.error('Errore generale nella creazione della partita:', error);
     return NextResponse.json(
       { error: `Errore nella creazione della partita: ${error instanceof Error ? error.message : 'Errore sconosciuto'}` },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    console.log('=== AGGIORNAMENTO PARTITA ===');
+    const body = await request.json();
+    console.log('Body ricevuto:', body);
+    
+    const { 
+      matchId, 
+      scoreA, 
+      scoreB, 
+      teamAScorer, 
+      teamBScorer, 
+      assistA, 
+      assistB, 
+      completed 
+    } = body;
+
+    if (!matchId) {
+      return NextResponse.json(
+        { error: 'ID partita mancante' },
+        { status: 400 }
+      );
+    }
+
+    // Trova il record in Airtable
+    const records = await matchesTable.select({
+      filterByFormula: `{IDmatch} = '${matchId}'`
+    }).all();
+
+    if (records.length === 0) {
+      return NextResponse.json(
+        { error: 'Partita non trovata' },
+        { status: 404 }
+      );
+    }
+
+    const record = records[0];
+    
+    // Prepara i dati da aggiornare
+    const updateData: any = {};
+    
+    if (body.date !== undefined) updateData.date = body.date;
+    if (body.teamA !== undefined) updateData.teamA = JSON.stringify(body.teamA);
+    if (body.teamB !== undefined) updateData.teamB = JSON.stringify(body.teamB);
+    if (scoreA !== undefined) updateData.scoreA = scoreA;
+    if (scoreB !== undefined) updateData.scoreB = scoreB;
+    if (teamAScorer !== undefined) updateData.teamAscorer = teamAScorer;
+    if (teamBScorer !== undefined) updateData.teamBscorer = teamBScorer;
+    if (assistA !== undefined) updateData.AssistA = assistA;
+    if (assistB !== undefined) updateData.AssistB = assistB;
+    if (completed !== undefined) updateData.completed = completed;
+
+    console.log('Dati da aggiornare:', updateData);
+
+    // Aggiorna il record in Airtable
+    const updatedRecord = await matchesTable.update(record.id, updateData);
+    console.log('Record aggiornato con successo');
+
+    // Restituisci i dati aggiornati
+    const updatedMatch = {
+      id: updatedRecord.id,
+      matchId: updatedRecord.get('IDmatch'),
+      date: updatedRecord.get('date'),
+      teamA: Array.isArray(updatedRecord.get('teamA')) 
+        ? updatedRecord.get('teamA') as string[]
+        : (typeof updatedRecord.get('teamA') === 'string' && updatedRecord.get('teamA') 
+          ? JSON.parse(updatedRecord.get('teamA') as string) 
+          : []),
+      teamB: Array.isArray(updatedRecord.get('teamB')) 
+        ? updatedRecord.get('teamB') as string[]
+        : (typeof updatedRecord.get('teamB') === 'string' && updatedRecord.get('teamB') 
+          ? JSON.parse(updatedRecord.get('teamB') as string) 
+          : []),
+      scoreA: updatedRecord.get('scoreA') ? Number(updatedRecord.get('scoreA')) : undefined,
+      scoreB: updatedRecord.get('scoreB') ? Number(updatedRecord.get('scoreB')) : undefined,
+      teamAScorer: updatedRecord.get('teamAscorer') || '',
+      teamBScorer: updatedRecord.get('teamBscorer') || '',
+      assistA: updatedRecord.get('AssistA') || '',
+      assistB: updatedRecord.get('AssistB') || '',
+      completed: updatedRecord.get('completed') === true,
+      location: updatedRecord.get('location') || 'Campo Centrale',
+      status: updatedRecord.get('completed') === true ? 'completed' : 'scheduled'
+    };
+
+    return NextResponse.json({
+      success: true,
+      match: updatedMatch
+    });
+
+  } catch (error) {
+    console.error('Errore nell\'aggiornamento della partita:', error);
+    return NextResponse.json(
+      { error: `Errore nell'aggiornamento della partita: ${error instanceof Error ? error.message : 'Errore sconosciuto'}` },
       { status: 500 }
     );
   }

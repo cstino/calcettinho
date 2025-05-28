@@ -16,16 +16,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  // Fix hydration - assicurati che siamo sul client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Verifica se l'utente è già loggato al caricamento
   useEffect(() => {
-    const savedEmail = localStorage.getItem('calcettinho_user_email');
-    if (savedEmail) {
-      setUserEmail(savedEmail);
-      setIsAuthenticated(true);
+    if (!isClient) return;
+    
+    try {
+      const savedEmail = localStorage.getItem('calcettinho_user_email');
+      if (savedEmail) {
+        setUserEmail(savedEmail);
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      console.error('Errore nel recupero dati localStorage:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
+  }, [isClient]);
 
   const login = async (email: string): Promise<boolean> => {
     try {
@@ -45,7 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.success && result.allowed) {
         setUserEmail(email);
         setIsAuthenticated(true);
-        localStorage.setItem('calcettinho_user_email', email);
+        if (isClient) {
+          localStorage.setItem('calcettinho_user_email', email);
+        }
         return true;
       }
 
@@ -61,7 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUserEmail(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('calcettinho_user_email');
+    if (isClient) {
+      localStorage.removeItem('calcettinho_user_email');
+    }
   };
 
   return (
