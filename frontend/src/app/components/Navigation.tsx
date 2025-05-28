@@ -8,7 +8,8 @@ import {
   Trophy, 
   Settings,
   LogOut,
-  User 
+  User,
+  UserCircle
 } from "lucide-react";
 import Logo from './Logo';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +38,11 @@ export default function Navigation() {
       url: "/stats",
       icon: Trophy
     },
+    ...(userEmail ? [{
+      name: "Profilo",
+      url: `/profile/${encodeURIComponent(userEmail)}`,
+      icon: UserCircle
+    }] : []),
     {
       name: "Admin",
       url: "/admin",
