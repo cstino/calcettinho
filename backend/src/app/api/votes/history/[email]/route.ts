@@ -24,34 +24,52 @@ export async function GET(
     const { email: emailParam } = await params;
     const email = decodeURIComponent(emailParam);
     
-    console.log('Ricerca storico votazioni per:', email);
+    console.log('Ricerca storico votazioni UP/DOWN per:', email);
 
-    // Recupera tutti i voti ricevuti da questo giocatore usando la struttura corretta
+    // Recupera tutti i voti ricevuti da questo giocatore usando la nuova struttura UP/DOWN
     const records = await base('votes').select({
       filterByFormula: `{toPlayerId} = "${email}"`,
       sort: [{ field: 'matchId', direction: 'desc' }]
     }).all();
 
-    console.log('Voti trovati:', records.length);
+    console.log('Voti UP/DOWN trovati:', records.length);
 
-    // Mappa i dati usando la struttura corretta
+    // Mappa i dati usando la nuova struttura UP/DOWN
     const votes = records.map(record => ({
       id: record.id,
       voterEmail: record.get('fromPlayerId'),
-      rating: record.get('value'),
+      voteType: record.get('voteType'), // 'UP' o 'DOWN'
       matchId: record.get('matchId'),
       toPlayerId: record.get('toPlayerId')
     }));
 
-    // Calcola statistiche
+    // Calcola statistiche UP/DOWN
     const totalVotes = votes.length;
-    const averageRating = totalVotes > 0 
-      ? (votes.reduce((sum, vote) => sum + (Number(vote.rating) || 0), 0) / totalVotes).toFixed(1)
-      : '0';
+    const upVotes = votes.filter(vote => vote.voteType === 'UP').length;
+    const downVotes = votes.filter(vote => vote.voteType === 'DOWN').length;
+    const netVotes = upVotes - downVotes;
+    const upPercentage = totalVotes > 0 ? ((upVotes / totalVotes) * 100).toFixed(1) : '0';
 
-    const ratingDistribution = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(rating => ({
-      rating,
-      count: votes.filter(vote => Number(vote.rating) === rating).length
+    // Statistiche per partita (raggruppa per matchId)
+    const votesByMatch = votes.reduce((acc, vote) => {
+      const matchId = vote.matchId as string;
+      if (!acc[matchId]) {
+        acc[matchId] = { up: 0, down: 0 };
+      }
+      if (vote.voteType === 'UP') {
+        acc[matchId].up++;
+      } else {
+        acc[matchId].down++;
+      }
+      return acc;
+    }, {} as Record<string, { up: number; down: number }>);
+
+    const matchResults = Object.entries(votesByMatch).map(([matchId, votes]) => ({
+      matchId,
+      upVotes: votes.up,
+      downVotes: votes.down,
+      netVotes: votes.up - votes.down,
+      isMotm: votes.up >= 7 // Potenziale Man of the Match se ha 7+ UP
     }));
 
     return NextResponse.json({
@@ -60,16 +78,21 @@ export async function GET(
       votes,
       statistics: {
         totalVotes,
-        averageRating: parseFloat(averageRating),
-        ratingDistribution
-      }
+        upVotes,
+        downVotes,
+        netVotes,
+        upPercentage: parseFloat(upPercentage),
+        totalMatches: Object.keys(votesByMatch).length,
+        potentialMotm: matchResults.filter(match => match.isMotm).length
+      },
+      matchResults: matchResults.slice(0, 10) // Ultimi 10 match
     });
 
   } catch (error) {
-    console.error('Errore nel recupero storico votazioni:', error);
+    console.error('Errore nel recupero storico votazioni UP/DOWN:', error);
     return NextResponse.json({
       success: false,
-      error: 'Errore nel recupero dello storico votazioni',
+      error: 'Errore nel recupero dello storico votazioni UP/DOWN',
       details: error instanceof Error ? error.message : 'Errore sconosciuto'
     }, { status: 500 });
   }

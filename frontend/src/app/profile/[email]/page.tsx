@@ -36,18 +36,26 @@ interface VoteHistory {
   votes: Array<{
     id: string;
     voterEmail: string;
-    rating: number;
+    voteType: string; // 'UP' o 'DOWN'
     matchId: string;
     toPlayerId: string;
   }>;
   statistics: {
     totalVotes: number;
-    averageRating: number;
-    ratingDistribution: Array<{
-      rating: number;
-      count: number;
-    }>;
+    upVotes: number;
+    downVotes: number;
+    netVotes: number;
+    upPercentage: number;
+    totalMatches: number;
+    potentialMotm: number;
   };
+  matchResults: Array<{
+    matchId: string;
+    upVotes: number;
+    downVotes: number;
+    netVotes: number;
+    isMotm: boolean;
+  }>;
 }
 
 export default function PlayerProfile() {
@@ -344,63 +352,82 @@ export default function PlayerProfile() {
                 <h2 className="text-2xl font-bold text-white font-runtime mb-6 text-center">Storico Votazioni</h2>
                 
                 {/* Statistiche Votazioni */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-blue-400 font-runtime">{voteHistory.statistics.totalVotes}</div>
                     <div className="text-gray-300 font-runtime">Voti Ricevuti</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-yellow-400 font-runtime">{voteHistory.statistics.averageRating}</div>
-                    <div className="text-gray-300 font-runtime">Media Voti</div>
+                    <div className="text-3xl font-bold text-green-400 font-runtime">{voteHistory.statistics.upVotes}</div>
+                    <div className="text-gray-300 font-runtime">Voti UP</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-green-400 font-runtime">
-                      {voteHistory.statistics.ratingDistribution.filter(r => r.rating >= 9).reduce((acc, r) => acc + r.count, 0)}
+                    <div className="text-3xl font-bold text-red-400 font-runtime">{voteHistory.statistics.downVotes}</div>
+                    <div className="text-gray-300 font-runtime">Voti DOWN</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-3xl font-bold font-runtime ${
+                      voteHistory.statistics.netVotes > 0 ? 'text-green-400' :
+                      voteHistory.statistics.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
+                    }`}>
+                      {voteHistory.statistics.netVotes > 0 ? '+' : ''}{voteHistory.statistics.netVotes}
                     </div>
-                    <div className="text-gray-300 font-runtime">Voti 9-10</div>
+                    <div className="text-gray-300 font-runtime">Net Votes</div>
                   </div>
                 </div>
 
-                {/* Distribuzione Voti */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white font-runtime mb-4">Distribuzione Voti</h3>
-                  <div className="space-y-2">
-                    {voteHistory.statistics.ratingDistribution.map(({ rating, count }) => (
-                      <div key={rating} className="flex items-center">
-                        <div className="flex items-center w-16 justify-center">
-                          <span className={`font-runtime font-bold text-sm px-2 py-1 rounded ${
-                            rating >= 9 ? 'bg-green-600 text-white' :
-                            rating >= 7 ? 'bg-yellow-600 text-white' :
-                            rating >= 5 ? 'bg-orange-600 text-white' :
-                            'bg-red-600 text-white'
-                          }`}>
-                            {rating}
-                          </span>
-                        </div>
-                        <div className="flex-1 mx-4">
-                          <div className="bg-gray-700 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full transition-all duration-300 ${
-                                rating >= 9 ? 'bg-green-400' :
-                                rating >= 7 ? 'bg-yellow-400' :
-                                rating >= 5 ? 'bg-orange-400' :
-                                'bg-red-400'
-                              }`}
-                              style={{ 
-                                width: voteHistory.statistics.totalVotes > 0 
-                                  ? `${(count / voteHistory.statistics.totalVotes) * 100}%` 
-                                  : '0%' 
-                              }}
-                            ></div>
+                {/* Percentuale UP e Man of the Match */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-purple-400 font-runtime">{voteHistory.statistics.upPercentage}%</div>
+                    <div className="text-gray-300 font-runtime">Percentuale UP</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-yellow-400 font-runtime">{voteHistory.statistics.potentialMotm}</div>
+                    <div className="text-gray-300 font-runtime">Man of the Match</div>
+                  </div>
+                </div>
+
+                {/* Risultati Partite Recenti */}
+                {voteHistory.matchResults && voteHistory.matchResults.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">Risultati Partite Recenti</h3>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {voteHistory.matchResults.map((match) => (
+                        <div key={match.matchId} className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
+                          <div className="flex items-center space-x-4">
+                            <div className="text-gray-300 font-runtime text-sm font-semibold">
+                              Match {match.matchId}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="bg-green-600 text-white px-2 py-1 rounded text-sm font-runtime">
+                                {match.upVotes} UP
+                              </span>
+                              <span className="bg-red-600 text-white px-2 py-1 rounded text-sm font-runtime">
+                                {match.downVotes} DOWN
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div className={`font-runtime font-bold ${
+                              match.netVotes > 0 ? 'text-green-400' :
+                              match.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
+                            }`}>
+                              {match.netVotes > 0 ? '+' : ''}{match.netVotes}
+                            </div>
+                            {match.isMotm && (
+                              <div className="bg-yellow-500 text-black px-2 py-1 rounded text-xs font-runtime font-bold">
+                                MotM
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <div className="text-gray-300 font-runtime w-8">{count}</div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Ultimi Voti */}
+                {/* Ultimi Voti Individuali */}
                 {voteHistory.votes.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold text-white font-runtime mb-4">Ultimi Voti Ricevuti</h3>
@@ -410,12 +437,9 @@ export default function PlayerProfile() {
                           <div className="flex items-center space-x-3">
                             <div className="flex items-center">
                               <span className={`font-runtime font-bold text-lg px-3 py-1 rounded ${
-                                vote.rating >= 9 ? 'bg-green-600 text-white' :
-                                vote.rating >= 7 ? 'bg-yellow-600 text-white' :
-                                vote.rating >= 5 ? 'bg-orange-600 text-white' :
-                                'bg-red-600 text-white'
+                                vote.voteType === 'UP' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
                               }`}>
-                                {vote.rating}/10
+                                {vote.voteType === 'UP' ? '👍 UP' : '👎 DOWN'}
                               </span>
                             </div>
                             <div className="text-gray-300 font-runtime text-sm">

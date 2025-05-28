@@ -27,37 +27,51 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    console.log('Ricevuta richiesta di votazione:', { voterEmail, matchId, votesCount: votes.length });
+    // Validazione: ogni voto deve essere 'UP' o 'DOWN'
+    const invalidVotes = votes.filter(vote => vote.voteType !== 'UP' && vote.voteType !== 'DOWN');
+    if (invalidVotes.length > 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Voti non validi: ogni voto deve essere UP o DOWN' 
+      }, { status: 400 });
+    }
 
-    // Usa il matchId fornito dal frontend
-    const finalMatchId = matchId;
+    // Validazione: deve esserci esattamente 9 voti (non può votare se stesso)
+    if (votes.length !== 9) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Devono esserci esattamente 9 voti (tutti i giocatori tranne il votante)' 
+      }, { status: 400 });
+    }
 
-    // Prepara i record da inserire usando la struttura corretta
+    console.log('Ricevuta richiesta di votazione UP/DOWN:', { voterEmail, matchId, votesCount: votes.length });
+
+    // Prepara i record da inserire con la nuova struttura UP/DOWN
     const voteRecords = votes.map(vote => ({
       fields: {
-        matchId: finalMatchId,
+        matchId: matchId,
         fromPlayerId: voterEmail, // Email del votante
         toPlayerId: vote.playerEmail, // Email del giocatore votato
-        value: vote.rating // Voto da 1 a 10
+        voteType: vote.voteType // 'UP' o 'DOWN'
       }
     }));
 
-    console.log('Records da inserire:', voteRecords);
+    console.log('Records UP/DOWN da inserire:', voteRecords);
 
     // Inserisce i voti nella tabella "votes" di Airtable
     const createdRecords = await base('votes').create(voteRecords);
     
-    console.log('Voti salvati con successo:', createdRecords.length);
+    console.log('Voti UP/DOWN salvati con successo:', createdRecords.length);
 
     return NextResponse.json({ 
       success: true, 
-      message: `${createdRecords.length} voti salvati con successo per la partita ${finalMatchId}`,
+      message: `${createdRecords.length} voti UP/DOWN salvati con successo per la partita ${matchId}`,
       votesSubmitted: createdRecords.length,
-      matchId: finalMatchId
+      matchId: matchId
     });
     
   } catch (error) {
-    console.error('Errore nel salvare i voti:', error);
+    console.error('Errore nel salvare i voti UP/DOWN:', error);
     return NextResponse.json({ 
       success: false, 
       error: 'Errore interno del server',
