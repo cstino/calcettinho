@@ -175,18 +175,6 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
           );
         })}
       </div>
-
-      {/* Legenda */}
-      <div className="flex justify-center gap-4 mt-3">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 border border-white rounded-full"></div>
-          <span className="text-red-400 font-runtime font-semibold text-sm">{team1Name}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 border border-white rounded-full"></div>
-          <span className="text-blue-400 font-runtime font-semibold text-sm">{team2Name}</span>
-        </div>
-      </div>
     </div>
   );
 } 

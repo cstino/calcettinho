@@ -11,16 +11,26 @@ const matchesTable = base('matches'); // Nome della tabella in Airtable
 
 export async function GET() {
   try {
-    console.log('=== GET PARTITE ===');
-    const records = await matchesTable.select({}).all();
-    console.log(`Trovati ${records.length} record in Airtable`);
+    console.log('=== RECUPERO PARTITE ===');
     
+    const records = await matchesTable.select().all();
+    console.log(`Record trovati: ${records.length}`);
+
     const matches = records.map((record) => {
       console.log(`Record ID: ${record.id}`);
-      console.log(`Date raw:`, record.get('date'));
-      console.log(`TeamA raw:`, record.get('teamA'));
-      console.log(`TeamB raw:`, record.get('teamB'));
+      console.log('Campi del record:', record.fields);
       
+      // Parse player stats se disponibili
+      let playerStats = {};
+      try {
+        if (record.get('playerStats')) {
+          playerStats = JSON.parse(record.get('playerStats') as string);
+        }
+      } catch (e) {
+        console.log('Errore nel parsing playerStats:', e);
+        playerStats = {};
+      }
+
       return {
       id: record.id,
       matchId: record.get('IDmatch') || record.id,
@@ -43,6 +53,7 @@ export async function GET() {
       assistB: record.get('AssistB') || '',
       completed: record.get('completed') === true || record.get('completed') === 'true',
       location: record.get('location') || 'Campo Centrale',
+      playerStats: playerStats, // Aggiungi le statistiche dei giocatori
       // Determina lo stato basandosi su completed e presenza di scores
       status: record.get('completed') === true || record.get('completed') === 'true' 
         ? 'completed' 
@@ -154,6 +165,7 @@ export async function PUT(request: NextRequest) {
       teamBScorer, 
       assistA, 
       assistB, 
+      playerStats,
       completed 
     } = body;
 
@@ -190,6 +202,7 @@ export async function PUT(request: NextRequest) {
     if (teamBScorer !== undefined) updateData.teamBscorer = teamBScorer;
     if (assistA !== undefined) updateData.AssistA = assistA;
     if (assistB !== undefined) updateData.AssistB = assistB;
+    if (playerStats !== undefined) updateData.playerStats = JSON.stringify(playerStats);
     if (completed !== undefined) updateData.completed = completed;
 
     console.log('Dati da aggiornare:', updateData);
@@ -197,6 +210,16 @@ export async function PUT(request: NextRequest) {
     // Aggiorna il record in Airtable
     const updatedRecord = await matchesTable.update(record.id, updateData);
     console.log('Record aggiornato con successo');
+
+    // Parse delle statistiche dei giocatori per la risposta
+    let parsedPlayerStats = {};
+    try {
+      if (updatedRecord.get('playerStats')) {
+        parsedPlayerStats = JSON.parse(updatedRecord.get('playerStats') as string);
+      }
+    } catch (e) {
+      console.log('Errore nel parsing playerStats nella risposta:', e);
+    }
 
     // Restituisci i dati aggiornati
     const updatedMatch = {
@@ -219,6 +242,7 @@ export async function PUT(request: NextRequest) {
       teamBScorer: updatedRecord.get('teamBscorer') || '',
       assistA: updatedRecord.get('AssistA') || '',
       assistB: updatedRecord.get('AssistB') || '',
+      playerStats: parsedPlayerStats,
       completed: updatedRecord.get('completed') === true,
       location: updatedRecord.get('location') || 'Campo Centrale',
       status: updatedRecord.get('completed') === true ? 'completed' : 'scheduled'

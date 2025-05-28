@@ -11,6 +11,13 @@ import { useAuth } from "../context/AuthContext";
 import { motion } from 'framer-motion';
 import ProtectedRoute from "../components/ProtectedRoute";
 
+interface PlayerMatchStats {
+  gol: number;
+  assist: number;
+  gialli: number;
+  rossi: number;
+}
+
 interface Match {
   id: string;
   matchId: string;
@@ -25,6 +32,7 @@ interface Match {
   teamBScorer?: string;
   assistA?: string;
   assistB?: string;
+  playerStats?: { [email: string]: PlayerMatchStats };
   status: 'scheduled' | 'completed';
 }
 
@@ -142,22 +150,62 @@ export default function Matches() {
         setShowEditModal(true);
         break;
       case 'view':
-        // Mostra dettagli partita
-        const details = `📊 Dettagli partita:
+        // Mostra dettagli partita con le nuove statistiche
+        let detailsText = `📊 Dettagli partita:
 
 Data: ${formatDate(match.date)}
 Luogo: ${match.location}
 Squadra A: ${match.teamA.map(email => getPlayerName(email)).join(', ')}
 Squadra B: ${match.teamB.map(email => getPlayerName(email)).join(', ')}
 
-${match.completed ? 
-  `Risultato: ${match.scoreA} - ${match.scoreB}
-Marcatori A: ${match.teamAScorer ? getPlayerName(match.teamAScorer) : 'Nessuno'}
+`;
+
+        if (match.completed) {
+          detailsText += `Risultato: ${match.scoreA} - ${match.scoreB}\n\n`;
+          
+          if (match.playerStats) {
+            // Statistiche Squadra A
+            detailsText += `🔴 SQUADRA A:\n`;
+            match.teamA.forEach(email => {
+              const playerName = getPlayerName(email);
+              const stats = match.playerStats![email];
+              if (stats && (stats.gol > 0 || stats.assist > 0 || stats.gialli > 0 || stats.rossi > 0)) {
+                detailsText += `  ${playerName}: `;
+                const statsList = [];
+                if (stats.gol > 0) statsList.push(`⚽${stats.gol}`);
+                if (stats.assist > 0) statsList.push(`🅰️${stats.assist}`);
+                if (stats.gialli > 0) statsList.push(`🟨${stats.gialli}`);
+                if (stats.rossi > 0) statsList.push(`🟥${stats.rossi}`);
+                detailsText += statsList.join(' ') + '\n';
+              }
+            });
+            
+            detailsText += `\n🔵 SQUADRA B:\n`;
+            match.teamB.forEach(email => {
+              const playerName = getPlayerName(email);
+              const stats = match.playerStats![email];
+              if (stats && (stats.gol > 0 || stats.assist > 0 || stats.gialli > 0 || stats.rossi > 0)) {
+                detailsText += `  ${playerName}: `;
+                const statsList = [];
+                if (stats.gol > 0) statsList.push(`⚽${stats.gol}`);
+                if (stats.assist > 0) statsList.push(`🅰️${stats.assist}`);
+                if (stats.gialli > 0) statsList.push(`🟨${stats.gialli}`);
+                if (stats.rossi > 0) statsList.push(`🟥${stats.rossi}`);
+                detailsText += statsList.join(' ') + '\n';
+              }
+            });
+          } else {
+            // Fallback per le partite con il vecchio sistema
+            detailsText += `Marcatori A: ${match.teamAScorer ? getPlayerName(match.teamAScorer) : 'Nessuno'}
 Marcatori B: ${match.teamBScorer ? getPlayerName(match.teamBScorer) : 'Nessuno'}
 Assist A: ${match.assistA ? getPlayerName(match.assistA) : 'Nessuno'}
-Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}` 
-  : 'Partita non ancora completata'}`;
-        alert(details);
+Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
+          }
+        } else {
+          detailsText += 'Partita non ancora completata';
+        }
+        
+        alert(detailsText);
         break;
       case 'delete':
         if (confirm('Sei sicuro di voler eliminare questa partita?')) {
@@ -313,14 +361,6 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`
                             {match.location}
                           </span>
                         </div>
-                        {match.completed && match.scoreA !== undefined && match.scoreB !== undefined && (
-                          <div className="flex items-center gap-2">
-                            <Trophy className="w-4 h-4 text-yellow-400" />
-                            <span className="text-white font-runtime font-semibold">
-                              {match.scoreA} - {match.scoreB}
-                            </span>
-                          </div>
-                        )}
                         <div className={`inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold ${
                           match.completed 
                             ? 'bg-green-900/50 text-green-400 border border-green-400/30' 
@@ -343,23 +383,69 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`
                                 <span className="text-white text-xs font-runtime">
                                   {getPlayerName(email)}
                                 </span>
+                                {/* Mostra statistiche se la partita è completata */}
+                                {match.completed && match.playerStats && match.playerStats[email] && (
+                                  <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                                    {match.playerStats[email].gol > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">⚽</div>
+                                        <div className="text-center">{match.playerStats[email].gol}</div>
+                                      </div>
+                                    )}
+                                    {match.playerStats[email].assist > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">
+                                          <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                        </div>
+                                        <div className="text-center">{match.playerStats[email].assist}</div>
+                                      </div>
+                                    )}
+                                    {match.playerStats[email].gialli > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">🟨</div>
+                                        <div className="text-center">{match.playerStats[email].gialli}</div>
+                                      </div>
+                                    )}
+                                    {match.playerStats[email].rossi > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">🟥</div>
+                                        <div className="text-center">{match.playerStats[email].rossi}</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
-                          {match.completed && match.teamAScorer && (
-                            <div className="mt-2 pt-2 border-t border-red-500/30">
-                              <div className="text-xs text-red-300 text-center">
-                                <div>⚽ {getPlayerName(match.teamAScorer)}</div>
-                                {match.assistA && (
-                                  <div>🅰️ {getPlayerName(match.assistA)}</div>
-                                )}
+                        </div>
+
+                        {/* Campo Centrale con Punteggio */}
+                        <div className="lg:col-span-3 flex flex-col items-center">
+                          {/* Punteggio Finale - Grande e Visibile */}
+                          {match.completed && match.scoreA !== undefined && match.scoreB !== undefined && (
+                            <div className="mb-4">
+                              <div className="flex items-center justify-center gap-6">
+                                <div className="text-center">
+                                  <div className="text-red-400 font-runtime font-semibold text-sm mb-1">Team Rosso</div>
+                                  <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
+                                    {match.scoreA}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <Trophy className="w-6 h-6 text-yellow-400 mb-1" />
+                                  <span className="text-xl md:text-2xl font-bold text-gray-400 font-runtime">VS</span>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-blue-400 font-runtime font-semibold text-sm mb-1">Team Blu</div>
+                                  <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
+                                    {match.scoreB}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}
-                        </div>
-
-                        {/* Campo Centrale */}
-                        <div className="lg:col-span-3 flex justify-center">
+                          
+                          {/* Campo da Calcetto */}
                           <div className="w-full max-w-lg">
                             <CampoCalcetto
                               team1={convertEmailsToPlayers(match.teamA)}
@@ -381,19 +467,40 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`
                                 <span className="text-white text-xs font-runtime">
                                   {getPlayerName(email)}
                                 </span>
+                                {/* Mostra statistiche se la partita è completata */}
+                                {match.completed && match.playerStats && match.playerStats[email] && (
+                                  <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                                    {match.playerStats[email].gol > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">⚽</div>
+                                        <div className="text-center">{match.playerStats[email].gol}</div>
+                                      </div>
+                                    )}
+                                    {match.playerStats[email].assist > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">
+                                          <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                        </div>
+                                        <div className="text-center">{match.playerStats[email].assist}</div>
+                                      </div>
+                                    )}
+                                    {match.playerStats[email].gialli > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">🟨</div>
+                                        <div className="text-center">{match.playerStats[email].gialli}</div>
+                                      </div>
+                                    )}
+                                    {match.playerStats[email].rossi > 0 && (
+                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                        <div className="text-center w-4 flex justify-center">🟥</div>
+                                        <div className="text-center">{match.playerStats[email].rossi}</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
-                          {match.completed && match.teamBScorer && (
-                            <div className="mt-2 pt-2 border-t border-blue-500/30">
-                              <div className="text-xs text-blue-300 text-center">
-                                <div>⚽ {getPlayerName(match.teamBScorer)}</div>
-                                {match.assistB && (
-                                  <div>🅰️ {getPlayerName(match.assistB)}</div>
-                                )}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
 

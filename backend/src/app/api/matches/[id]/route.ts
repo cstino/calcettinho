@@ -31,6 +31,18 @@ export async function GET(
     }
 
     const record = records[0];
+    
+    // Parse player stats se disponibili
+    let playerStats = {};
+    try {
+      if (record.get('playerStats')) {
+        playerStats = JSON.parse(record.get('playerStats') as string);
+      }
+    } catch (e) {
+      console.log('Errore nel parsing playerStats:', e);
+      playerStats = {};
+    }
+    
     const match = {
       id: record.id,
       matchId: record.get('IDmatch'),
@@ -51,6 +63,7 @@ export async function GET(
       teamBScorer: record.get('teamBscorer') || '',
       assistA: record.get('AssistA') || '',
       assistB: record.get('AssistB') || '',
+      playerStats: playerStats,
       completed: record.get('completed') === true,
       location: record.get('location') || 'Campo Centrale',
       status: record.get('completed') === true ? 'completed' : 'scheduled'
@@ -103,6 +116,7 @@ export async function PUT(
     if (body.teamBScorer !== undefined) updateData.teamBscorer = body.teamBScorer;
     if (body.assistA !== undefined) updateData.AssistA = body.assistA;
     if (body.assistB !== undefined) updateData.AssistB = body.assistB;
+    if (body.playerStats !== undefined) updateData.playerStats = JSON.stringify(body.playerStats);
     if (body.completed !== undefined) updateData.completed = body.completed;
     if (body.location !== undefined) updateData.location = body.location;
 
@@ -111,6 +125,16 @@ export async function PUT(
     // Aggiorna il record in Airtable
     const updatedRecord = await matchesTable.update(record.id, updateData);
     console.log('Record aggiornato con successo');
+
+    // Parse delle statistiche dei giocatori per la risposta
+    let parsedPlayerStats = {};
+    try {
+      if (updatedRecord.get('playerStats')) {
+        parsedPlayerStats = JSON.parse(updatedRecord.get('playerStats') as string);
+      }
+    } catch (e) {
+      console.log('Errore nel parsing playerStats nella risposta:', e);
+    }
 
     // Restituisci i dati aggiornati
     const updatedMatch = {
@@ -133,6 +157,7 @@ export async function PUT(
       teamBScorer: updatedRecord.get('teamBscorer') || '',
       assistA: updatedRecord.get('AssistA') || '',
       assistB: updatedRecord.get('AssistB') || '',
+      playerStats: parsedPlayerStats,
       completed: updatedRecord.get('completed') === true,
       location: updatedRecord.get('location') || 'Campo Centrale',
       status: updatedRecord.get('completed') === true ? 'completed' : 'scheduled'

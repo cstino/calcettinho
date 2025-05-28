@@ -19,6 +19,14 @@ interface Match {
   assistA?: string;
   assistB?: string;
   status: 'scheduled' | 'completed';
+  playerStats?: { [email: string]: PlayerMatchStats };
+}
+
+interface PlayerMatchStats {
+  gol: number;
+  assist: number;
+  gialli: number;
+  rossi: number;
 }
 
 interface Player {
@@ -40,23 +48,28 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
   const [formData, setFormData] = useState({
     scoreA: 0,
     scoreB: 0,
-    teamAScorer: '',
-    teamBScorer: '',
-    assistA: '',
-    assistB: ''
+    playerStats: {} as { [email: string]: PlayerMatchStats }
   });
 
   useEffect(() => {
     if (isOpen && match) {
       fetchPlayers();
-      // Pre-popola i dati se la partita ha già dei risultati
+      const allPlayers = [...match.teamA, ...match.teamB];
+      const initialPlayerStats: { [email: string]: PlayerMatchStats } = {};
+      
+      allPlayers.forEach(email => {
+        initialPlayerStats[email] = match.playerStats?.[email] || {
+          gol: 0,
+          assist: 0,
+          gialli: 0,
+          rossi: 0
+        };
+      });
+
       setFormData({
         scoreA: match.scoreA || 0,
         scoreB: match.scoreB || 0,
-        teamAScorer: match.teamAScorer || '',
-        teamBScorer: match.teamBScorer || '',
-        assistA: match.assistA || '',
-        assistB: match.assistB || ''
+        playerStats: initialPlayerStats
       });
     }
   }, [isOpen, match]);
@@ -87,10 +100,32 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
     }));
   };
 
+  const updatePlayerStats = (email: string, field: keyof PlayerMatchStats, value: number) => {
+    setFormData(prev => ({
+      ...prev,
+      playerStats: {
+        ...prev.playerStats,
+        [email]: {
+          ...prev.playerStats[email],
+          [field]: Math.max(0, value)
+        }
+      }
+    }));
+  };
+
+  const calculateTeamScore = (teamEmails: string[]) => {
+    return teamEmails.reduce((total, email) => {
+      return total + (formData.playerStats[email]?.gol || 0);
+    }, 0);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!match) return;
+
+    const calculatedScoreA = calculateTeamScore(match.teamA);
+    const calculatedScoreB = calculateTeamScore(match.teamB);
 
     setLoading(true);
     
@@ -102,7 +137,9 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
         },
         body: JSON.stringify({
           matchId: match.matchId,
-          ...formData,
+          scoreA: calculatedScoreA,
+          scoreB: calculatedScoreB,
+          playerStats: formData.playerStats,
           completed: true
         }),
       });
@@ -134,6 +171,10 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
     });
   };
 
+  const allPlayers = [...match.teamA, ...match.teamB];
+  const calculatedScoreA = calculateTeamScore(match.teamA);
+  const calculatedScoreB = calculateTeamScore(match.teamB);
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -141,7 +182,7 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="bg-gray-800 rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+          className="bg-gray-800 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
@@ -162,11 +203,11 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Punteggi */}
+            {/* Punteggio Calcolato Automaticamente */}
             <div className="bg-gray-700/30 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-white mb-4 font-runtime flex items-center">
                 <Trophy className="w-5 h-5 mr-2" />
-                Punteggio Finale
+                Punteggio Finale (Calcolato Automaticamente)
               </h3>
               <div className="grid grid-cols-3 gap-4 items-center">
                 {/* Squadra A */}
@@ -175,13 +216,9 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
                   <div className="text-sm text-gray-300 mb-2">
                     {getTeamPlayers('A').map(player => player.name).join(', ')}
                   </div>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.scoreA}
-                    onChange={(e) => setFormData(prev => ({ ...prev, scoreA: parseInt(e.target.value) || 0 }))}
-                    className="w-20 h-16 text-2xl font-bold text-center bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none"
-                  />
+                  <div className="w-20 h-16 text-2xl font-bold text-center bg-gray-700 text-red-400 rounded-lg border border-gray-600 flex items-center justify-center mx-auto">
+                    {calculatedScoreA}
+                  </div>
                 </div>
 
                 {/* VS */}
@@ -195,87 +232,96 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
                   <div className="text-sm text-gray-300 mb-2">
                     {getTeamPlayers('B').map(player => player.name).join(', ')}
                   </div>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.scoreB}
-                    onChange={(e) => setFormData(prev => ({ ...prev, scoreB: parseInt(e.target.value) || 0 }))}
-                    className="w-20 h-16 text-2xl font-bold text-center bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  />
+                  <div className="w-20 h-16 text-2xl font-bold text-center bg-gray-700 text-blue-400 rounded-lg border border-gray-600 flex items-center justify-center mx-auto">
+                    {calculatedScoreB}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Marcatori */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Marcatori Squadra A */}
-              <div className="bg-gray-700/30 rounded-lg p-4">
-                <h4 className="text-red-400 font-semibold mb-3 font-runtime flex items-center">
-                  <Target className="w-4 h-4 mr-2" />
-                  Marcatori Squadra A
-                </h4>
-                <select
-                  value={formData.teamAScorer}
-                  onChange={(e) => setFormData(prev => ({ ...prev, teamAScorer: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none"
-                >
-                  <option value="">Seleziona marcatore</option>
-                  {getTeamPlayers('A').map(player => (
-                    <option key={player.email} value={player.email}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="mt-2">
-                  <label className="block text-sm text-gray-400 mb-1">Assist</label>
-                  <select
-                    value={formData.assistA}
-                    onChange={(e) => setFormData(prev => ({ ...prev, assistA: e.target.value }))}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none"
-                  >
-                    <option value="">Seleziona assist-man</option>
-                    {getTeamPlayers('A').map(player => (
-                      <option key={player.email} value={player.email}>
-                        {player.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Statistiche Giocatori */}
+            <div className="bg-gray-700/30 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 font-runtime flex items-center">
+                <Users className="w-5 h-5 mr-2" />
+                Statistiche Giocatori
+              </h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-600">
+                      <th className="text-left py-3 px-2 text-gray-300 font-runtime">Giocatore</th>
+                      <th className="text-center py-3 px-2 text-gray-300 font-runtime">Squadra</th>
+                      <th className="text-center py-3 px-2 text-yellow-400 font-runtime">⚽ Gol</th>
+                      <th className="text-center py-3 px-2 text-blue-400 font-runtime">🅰️ Assist</th>
+                      <th className="text-center py-3 px-2 text-yellow-300 font-runtime">🟨 Gialli</th>
+                      <th className="text-center py-3 px-2 text-red-400 font-runtime">🟥 Rossi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allPlayers.map((email) => {
+                      const playerName = getPlayerName(email);
+                      const isTeamA = match.teamA.includes(email);
+                      const teamColor = isTeamA ? 'text-red-400' : 'text-blue-400';
+                      const teamName = isTeamA ? 'A' : 'B';
+                      
+                      return (
+                        <tr key={email} className="border-b border-gray-700/50 hover:bg-gray-700/20">
+                          <td className="py-3 px-2">
+                            <span className={`font-medium ${teamColor} font-runtime`}>
+                              {playerName}
+                            </span>
+                          </td>
+                          <td className="text-center py-3 px-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${isTeamA ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'} font-runtime`}>
+                              {teamName}
+                            </span>
+                          </td>
+                          <td className="text-center py-3 px-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData.playerStats[email]?.gol || 0}
+                              onChange={(e) => updatePlayerStats(email, 'gol', parseInt(e.target.value) || 0)}
+                              className="w-16 h-8 text-center bg-gray-600 text-white rounded border border-gray-500 focus:border-yellow-400 focus:outline-none"
+                            />
+                          </td>
+                          <td className="text-center py-3 px-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData.playerStats[email]?.assist || 0}
+                              onChange={(e) => updatePlayerStats(email, 'assist', parseInt(e.target.value) || 0)}
+                              className="w-16 h-8 text-center bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-400 focus:outline-none"
+                            />
+                          </td>
+                          <td className="text-center py-3 px-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData.playerStats[email]?.gialli || 0}
+                              onChange={(e) => updatePlayerStats(email, 'gialli', parseInt(e.target.value) || 0)}
+                              className="w-16 h-8 text-center bg-gray-600 text-white rounded border border-gray-500 focus:border-yellow-300 focus:outline-none"
+                            />
+                          </td>
+                          <td className="text-center py-3 px-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData.playerStats[email]?.rossi || 0}
+                              onChange={(e) => updatePlayerStats(email, 'rossi', parseInt(e.target.value) || 0)}
+                              className="w-16 h-8 text-center bg-gray-600 text-white rounded border border-gray-500 focus:border-red-400 focus:outline-none"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-
-              {/* Marcatori Squadra B */}
-              <div className="bg-gray-700/30 rounded-lg p-4">
-                <h4 className="text-blue-400 font-semibold mb-3 font-runtime flex items-center">
-                  <Target className="w-4 h-4 mr-2" />
-                  Marcatori Squadra B
-                </h4>
-                <select
-                  value={formData.teamBScorer}
-                  onChange={(e) => setFormData(prev => ({ ...prev, teamBScorer: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">Seleziona marcatore</option>
-                  {getTeamPlayers('B').map(player => (
-                    <option key={player.email} value={player.email}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="mt-2">
-                  <label className="block text-sm text-gray-400 mb-1">Assist</label>
-                  <select
-                    value={formData.assistB}
-                    onChange={(e) => setFormData(prev => ({ ...prev, assistB: e.target.value }))}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">Seleziona assist-man</option>
-                    {getTeamPlayers('B').map(player => (
-                      <option key={player.email} value={player.email}>
-                        {player.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              
+              <div className="mt-4 text-xs text-gray-400 font-runtime">
+                💡 Il punteggio finale viene calcolato automaticamente dalla somma dei gol di ogni squadra
               </div>
             </div>
 
