@@ -87,12 +87,12 @@ export default function PlayerProfile() {
           name: playerData.nome,
           email: playerData.email,
           overall: Math.round((playerData.ATT + playerData.DIF + playerData.VEL + playerData.FOR + playerData.PAS + playerData.POR) / 6),
-          att: playerData.ATT,
-          vel: playerData.VEL,
-          pas: playerData.PAS,
-          for: playerData.FOR,
-          dif: playerData.DIF,
-          por: playerData.POR
+          att: Math.round(playerData.ATT),
+          vel: Math.round(playerData.VEL),
+          pas: Math.round(playerData.PAS),
+          for: Math.round(playerData.FOR),
+          dif: Math.round(playerData.DIF),
+          por: Math.round(playerData.POR)
         };
         
         // Statistiche mock per ora

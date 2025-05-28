@@ -104,12 +104,12 @@ export async function GET(
 
       // Stats - versione semplificata
       const statsData = [
-        { label: 'ATT', value: playerData.ATT, x: 110, y: 715 },
-        { label: 'VEL', value: playerData.VEL, x: 110, y: 760 },
-        { label: 'PAS', value: playerData.PAS, x: 110, y: 805 },
-        { label: 'FOR', value: playerData.FOR, x: 370, y: 715 },
-        { label: 'DIF', value: playerData.DEF, x: 370, y: 760 },
-        { label: 'POR', value: playerData.POR, x: 370, y: 805 }
+        { label: 'ATT', value: Math.round(playerData.ATT), x: 110, y: 715 },
+        { label: 'VEL', value: Math.round(playerData.VEL), x: 110, y: 760 },
+        { label: 'PAS', value: Math.round(playerData.PAS), x: 110, y: 805 },
+        { label: 'FOR', value: Math.round(playerData.FOR), x: 370, y: 715 },
+        { label: 'DIF', value: Math.round(playerData.DEF), x: 370, y: 760 },
+        { label: 'POR', value: Math.round(playerData.POR), x: 370, y: 805 }
       ];
 
       ctx.font = 'bold 24px Arial';
@@ -173,16 +173,16 @@ export async function GET(
 
       // Stats - Colonna sinistra: ATT, VEL, PAS
       const leftStats = [
-        { label: 'ATT', value: playerData.ATT },
-        { label: 'VEL', value: playerData.VEL },
-        { label: 'PAS', value: playerData.PAS }
+        { label: 'ATT', value: Math.round(playerData.ATT) },
+        { label: 'VEL', value: Math.round(playerData.VEL) },
+        { label: 'PAS', value: Math.round(playerData.PAS) }
       ];
 
       // Stats - Colonna destra: FOR, DIF, POR  
       const rightStats = [
-        { label: 'FOR', value: playerData.FOR },
-        { label: 'DIF', value: playerData.DEF },
-        { label: 'POR', value: playerData.POR }
+        { label: 'FOR', value: Math.round(playerData.FOR) },
+        { label: 'DIF', value: Math.round(playerData.DEF) },
+        { label: 'POR', value: Math.round(playerData.POR) }
       ];
 
       const leftX = 110;

@@ -15,11 +15,37 @@ Gestione gratuita, su invito, di una lega di calcetto 5vs5!
 - **Range voti**: Min 9 DOWN, Max 9 UP per giocatore
 
 ### 📈 Evoluzione Statistiche
-- **Vittoria**: +1 a tutte le statistiche (ATT, DIF, VEL, PAS, FOR, POR)
-- **Sconfitta**: -1 a tutte le statistiche
+- **Vittoria**: +0.5 base a tutte le statistiche (ATT, DIF, VEL, PAS, FOR, POR)
+- **Sconfitta**: -0.5 base a tutte le statistiche
 - **Pareggio**: Nessun cambiamento
-- **Limiti**: 1-99 per ogni statistica
-- **Sistema Fair**: Giocatori con overall più basso salgono più velocemente e scendono più lentamente (algoritmo esponenziale)
+- **Voti UP/DOWN**: Modificatore aggiuntivo basato sui voti ricevuti
+- **Limiti**: 1.0-99.0 per ogni statistica (1 decimale)
+- **Sistema Fair**: Giocatori con overall più basso evolvono più velocemente
+
+### 🧮 Algoritmo Fair Dettagliato
+**Componenti del Cambiamento:**
+1. **Base Vittoria/Sconfitta**: ±0.5 punti
+2. **Bonus UP/DOWN**: NetVotes × 0.1 (range -0.9 a +0.9)
+3. **Moltiplicatore Fair**: Basato sull'overall del giocatore
+
+**Sistema di Voti (9 votanti):**
+- Range NetVotes: da -9 (0UP/9DOWN) a +9 (9UP/0DOWN)
+- Esempi: 8UP/1DOWN = +7, 6UP/3DOWN = +3, 4UP/5DOWN = -1
+
+**Moltiplicatore Fair:**
+- **Overall < 50**: Salita +30%, Discesa -20%
+- **Overall 50-69**: Salita +10%, Discesa -10%  
+- **Overall ≥ 70**: Normale (senza moltiplicatore)
+
+**Esempi Pratici:**
+- Giocatore Overall 45 + Vittoria + 8UP/1DOWN = +1.56 stats
+- Giocatore Overall 85 + Vittoria + 8UP/1DOWN = +1.2 stats
+- Giocatore Overall 45 + Sconfitta + 2UP/7DOWN = -0.64 stats
+
+**Progressione Categorie:**
+- Bronze → Silver (45→65): ~20 vittorie nette
+- Silver → Gold (65→78): ~15 vittorie nette
+- Gold → Ultimate (78→90): ~15 vittorie nette
 
 ### 🏆 Sistema Premi (Cards Speciali - Permanenti)
 **Premi Post-Partita:**

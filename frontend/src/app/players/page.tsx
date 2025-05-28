@@ -47,12 +47,12 @@ export default function Players() {
             name: player.nome || 'Nome non disponibile',
             email: player.email || 'email@non-disponibile.com',
             overall: Math.round((player.ATT + player.DIF + player.VEL + player.FOR + player.PAS + player.POR) / 6),
-            att: player.ATT,
-            vel: player.VEL,
-            pas: player.PAS,
-            for: player.FOR,
-            dif: player.DIF,
-            por: player.POR
+            att: Math.round(player.ATT),
+            vel: Math.round(player.VEL),
+            pas: Math.round(player.PAS),
+            for: Math.round(player.FOR),
+            dif: Math.round(player.DIF),
+            por: Math.round(player.POR)
           }));
         
         setPlayers(mappedPlayers);
