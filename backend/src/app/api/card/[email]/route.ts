@@ -1,102 +1,251 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSheetsClient } from '@/utils/googleSheets';
 import { createCanvas, loadImage, registerFont } from 'canvas';
 import path from 'path';
 import fs from 'fs/promises';
+import { getPlayerByEmail } from '@/utils/airtable';
 
-// Se vuoi un font custom, aggiungi qui il percorso e registra il font
-// registerFont(path.join(process.cwd(), 'public/fonts/YourFont.ttf'), { family: 'CustomFont' });
+// Registra font Nebulax
+try {
+  registerFont(path.join(process.cwd(), 'public/fonts/Nebulax-3lqLp.ttf'), { family: 'Nebulax' });
+} catch (error) {
+  console.log('Font Nebulax non trovato, uso Arial come fallback');
+}
 
-const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
 const CARD_WIDTH = 600;
 const CARD_HEIGHT = 900;
 
-const STAT_LABELS = ['ATT', 'DEF', 'VEL', 'FIS', 'PAS', 'POR'];
-
 export async function GET(
   req: NextRequest,
-  { params }: { params: { email: string } }
+  { params }: { params: Promise<{ email: string }> }
 ) {
-  const email = decodeURIComponent(params.email);
-  const sheets = getSheetsClient();
+  try {
+    // Await dei parametri per Next.js 15
+    const { email: emailParam } = await params;
+    const email = decodeURIComponent(emailParam);
+    console.log('EMAIL PARAM estratto:', email);
+    
+    // Recupera dati da Airtable
+    const playerData = await getPlayerByEmail(email);
+    console.log('Dati giocatore recuperati da Airtable:', playerData);
+    
+    if (!playerData) {
+      return NextResponse.json({ 
+        error: `Giocatore con email ${email} non trovato in Airtable` 
+      }, { status: 404 });
+    }
 
-  // Prendi dati giocatore
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: 'players!A2:I',
-  });
-  const row = (res.data.values || []).find((r) => r[1] === email);
-  if (!row) return NextResponse.json({ error: 'Giocatore non trovato' }, { status: 404 });
+    const stats = [playerData.ATT, playerData.DEF, playerData.VEL, playerData.FOR, playerData.PAS, playerData.POR];
+    const overall = Math.round(stats.reduce((a, b) => a + b, 0) / 6);
 
-  const [nome, , foto, ATT, DEF, VEL, FIS, PAS, POR] = row;
-  const stats = [Number(ATT), Number(DEF), Number(VEL), Number(FIS), Number(PAS), Number(POR)];
-  const overall = Math.round((stats.reduce((a, b) => a + b, 0) / 6) * 10) / 10;
+    // Scegli template in base ai criteri del backend
+    let template = 'bronzo';
+    if (overall >= 90) template = 'ultimate';      // ≥ 90
+    else if (overall >= 78) template = 'oro';      // 78-89 (Backend originale)
+    else if (overall >= 65) template = 'argento';  // 65-77 (Backend originale)
+    // else rimane 'bronzo' per < 65
 
-  // Scegli template
-  let template = 'bronzo';
-  if (overall >= 9.0) template = 'ultimate';
-  else if (overall >= 7.0) template = 'oro';
-  else if (overall >= 4.6) template = 'argento';
+    console.log(`Overall: ${overall}, Template: ${template}`);
 
-  // Percorsi immagini
-  const cardPath = path.join(process.cwd(), 'public/cards', `${template}.png`);
-  const playerPath = path.join(process.cwd(), 'public/players', `${email}.jpg`);
+    // **GENERA CARD SEMPLIFICATA SE I FILE NON ESISTONO**
+    const cardPath = path.join(process.cwd(), 'public/cards', `${template}.png`);
+    const playerPath = path.join(process.cwd(), 'public/players', `${email}.jpg`);
 
-  // Carica immagini
-  const [cardImg, playerImg] = await Promise.all([
-    loadImage(cardPath),
-    loadImage(playerPath)
-  ]);
+    // Verifica esistenza file
+    let useSimpleCard = false;
+    try {
+      await fs.access(cardPath);
+      await fs.access(playerPath);
+      console.log(`File trovati, generazione card completa`);
+    } catch {
+      console.log('File template/foto non trovati, generazione card semplificata');
+      useSimpleCard = true;
+    }
 
-  // Canvas
-  const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
-  const ctx = canvas.getContext('2d');
+    const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
+    const ctx = canvas.getContext('2d');
 
-  // Disegna template
-  ctx.drawImage(cardImg, 0, 0, CARD_WIDTH, CARD_HEIGHT);
+    if (useSimpleCard) {
+      // **CARD SEMPLIFICATA SENZA FILE ESTERNI**
+      
+      // Background colorato in base al template
+      ctx.fillStyle = template === 'ultimate' ? '#4C1D95' : template === 'oro' ? '#B45309' : template === 'argento' ? '#374151' : '#92400E';
+      ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+      
+      // Border
+      ctx.strokeStyle = template === 'ultimate' ? '#8B5CF6' : template === 'oro' ? '#FFD700' : template === 'argento' ? '#C0C0C0' : '#CD7F32';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, CARD_WIDTH - 8, CARD_HEIGHT - 8);
 
-  // Disegna foto giocatore (centrata, crop su viso/spalle)
-  const faceSize = 420;
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(CARD_WIDTH / 2, 370, faceSize / 2, 0, Math.PI * 2, true);
-  ctx.closePath();
-  ctx.clip();
-  ctx.drawImage(playerImg, CARD_WIDTH / 2 - faceSize / 2, 160, faceSize, faceSize);
-  ctx.restore();
+      // Player photo placeholder
+      ctx.fillStyle = '#6B7280';
+      ctx.fillRect(90, 150, 420, 420);
+      ctx.fillStyle = '#F3F4F6';
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('FOTO', CARD_WIDTH / 2, 380);
 
-  // Overall
-  ctx.font = 'bold 80px Arial';
-  ctx.fillStyle = '#2d2d1d';
-  ctx.textAlign = 'left';
-  ctx.fillText(String(overall), 60, 140);
+      // Template label
+      ctx.font = 'bold 20px Arial';
+      ctx.fillStyle = '#F3F4F6';
+      ctx.textAlign = 'center';
+      ctx.fillText(template.toUpperCase(), CARD_WIDTH / 2, 50);
 
-  // Nome
-  ctx.font = 'bold 48px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(nome, CARD_WIDTH / 2, 650);
+      // Overall
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText('OVERALL', 90, 140);
+      ctx.font = 'bold 70px Arial';
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText(String(overall), 90, 210);
 
-  // Sigle stats
-  ctx.font = 'bold 32px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#2d2d1d';
-  STAT_LABELS.forEach((label, i) => {
-    ctx.fillText(label, 120 + i * 80, 730);
-  });
+      // Nome
+      ctx.font = 'bold 48px Arial';
+      ctx.fillStyle = '#F3F4F6';
+      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 640);
 
-  // Valori stats
-  ctx.font = 'bold 38px Arial';
-  stats.forEach((val, i) => {
-    ctx.fillText(String(val), 120 + i * 80, 780);
-  });
+      // Stats - versione semplificata
+      const statsData = [
+        { label: 'ATT', value: playerData.ATT, x: 110, y: 715 },
+        { label: 'VEL', value: playerData.VEL, x: 110, y: 760 },
+        { label: 'PAS', value: playerData.PAS, x: 110, y: 805 },
+        { label: 'FOR', value: playerData.FOR, x: 370, y: 715 },
+        { label: 'DIF', value: playerData.DEF, x: 370, y: 760 },
+        { label: 'POR', value: playerData.POR, x: 370, y: 805 }
+      ];
 
-  // Output PNG
-  const buffer = canvas.toBuffer('image/png');
-  return new NextResponse(buffer, {
-    status: 200,
-    headers: {
-      'Content-Type': 'image/png',
-      'Content-Disposition': `inline; filename="${nome}_card.png"`,
-    },
-  });
+      ctx.font = 'bold 24px Arial';
+      statsData.forEach(stat => {
+        ctx.fillStyle = '#F3F4F6';
+        ctx.textAlign = 'left';
+        ctx.fillText(stat.label, stat.x, stat.y);
+        ctx.fillStyle = '#FFD700';
+        ctx.textAlign = 'right';
+        ctx.fillText(String(stat.value), stat.x + 120, stat.y);
+      });
+
+    } else {
+      // **CARD COMPLETA CON FILE**
+      
+      // Carica immagini
+      const [cardImg, playerImg] = await Promise.all([
+        loadImage(cardPath),
+        loadImage(playerPath)
+      ]);
+
+      // Disegna template
+      ctx.drawImage(cardImg, 0, 0, CARD_WIDTH, CARD_HEIGHT);
+
+      // Disegna foto giocatore mantenendo le proporzioni originali
+      const maxFaceSize = 420;
+      const faceY = template === 'ultimate' ? 158 : 156;
+      
+      let faceWidth, faceHeight;
+      if (playerImg.width > playerImg.height) {
+        faceWidth = maxFaceSize;
+        faceHeight = (playerImg.height / playerImg.width) * maxFaceSize;
+      } else {
+        faceHeight = maxFaceSize;
+        faceWidth = (playerImg.width / playerImg.height) * maxFaceSize;
+      }
+      
+      const faceX = CARD_WIDTH / 2 - faceWidth / 2;
+      ctx.drawImage(playerImg, faceX, faceY, faceWidth, faceHeight);
+
+      // Resto del codice per card completa...
+      let textColor = template === 'ultimate' ? '#C0C0C0' : '#2B2B2B';
+      let valueColor = template === 'ultimate' ? '#FFD700' : '#404040';
+
+      const overallX = template === 'ultimate' ? 90 : 80;
+      const overallTextY = template === 'ultimate' ? 155 : 140;
+      const overallValueY = template === 'ultimate' ? 225 : 210;
+
+      ctx.font = 'bold 20px Nebulax, Arial';
+      ctx.fillStyle = textColor;
+      ctx.textAlign = 'center';
+      ctx.fillText('OVERALL', overallX, overallTextY);
+
+      ctx.font = 'bold 70px Nebulax, Arial';
+      ctx.fillStyle = valueColor;
+      ctx.fillText(String(overall), overallX, overallValueY);
+
+      ctx.font = 'bold 56px Nebulax, Arial';
+      ctx.fillStyle = textColor;
+      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 638);
+
+      // Stats - Colonna sinistra: ATT, VEL, PAS
+      const leftStats = [
+        { label: 'ATT', value: playerData.ATT },
+        { label: 'VEL', value: playerData.VEL },
+        { label: 'PAS', value: playerData.PAS }
+      ];
+
+      // Stats - Colonna destra: FOR, DIF, POR  
+      const rightStats = [
+        { label: 'FOR', value: playerData.FOR },
+        { label: 'DIF', value: playerData.DEF },
+        { label: 'POR', value: playerData.POR }
+      ];
+
+      const leftX = 110;
+      const rightX = 370;
+      const startY = 715;
+      const statSpacing = 45;
+
+      // Scritte statistiche colonna sinistra
+      ctx.font = 'bold 28px Nebulax, Arial';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = textColor;
+      leftStats.forEach((stat, i) => {
+        const y = startY + i * statSpacing;
+        ctx.fillText(`${stat.label}`, leftX, y);
+      });
+
+      // Valori statistiche colonna sinistra
+      ctx.font = 'bold 28px Nebulax, Arial';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = valueColor;
+      leftStats.forEach((stat, i) => {
+        const y = startY + i * statSpacing;
+        ctx.fillText(String(stat.value), leftX + 120, y);
+      });
+
+      // Scritte statistiche colonna destra
+      ctx.font = 'bold 28px Nebulax, Arial';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = textColor;
+      rightStats.forEach((stat, i) => {
+        const y = startY + i * statSpacing;
+        ctx.fillText(`${stat.label}`, rightX, y);
+      });
+
+      // Valori statistiche colonna destra
+      ctx.font = 'bold 28px Nebulax, Arial';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = valueColor;
+      rightStats.forEach((stat, i) => {
+        const y = startY + i * statSpacing;
+        ctx.fillText(String(stat.value), rightX + 120, y);
+      });
+    }
+
+    console.log('Card generata con successo!');
+
+    // Output PNG
+    const buffer = canvas.toBuffer('image/png');
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        'Content-Disposition': `inline; filename="${playerData.nome}_card.png"`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
+  } catch (error) {
+    console.error('Errore nella generazione della card:', error);
+    return NextResponse.json({ 
+      error: 'Errore interno nella generazione della card',
+      details: error instanceof Error ? error.message : 'Errore sconosciuto'
+    }, { status: 500 });
+  }
 } 
