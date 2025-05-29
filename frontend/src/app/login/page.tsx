@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import Logo from "../components/Logo";
 import { Mail, LogIn, AlertCircle } from 'lucide-react';
 

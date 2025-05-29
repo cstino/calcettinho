@@ -18,9 +18,13 @@ const base = Airtable.base(baseId);
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('=== INIZIO SUBMISSION VOTI ===');
+    
     const { voterEmail, matchId, votes } = await req.json();
+    console.log('Dati ricevuti:', { voterEmail, matchId, votesCount: votes?.length });
     
     if (!voterEmail || !matchId || !votes || !Array.isArray(votes) || votes.length === 0) {
+      console.log('Validazione fallita: dati mancanti');
       return NextResponse.json({ 
         success: false, 
         error: 'Dati di votazione mancanti o non validi (voterEmail, matchId, votes richiesti)' 
@@ -30,21 +34,23 @@ export async function POST(req: NextRequest) {
     // Validazione: ogni voto deve essere 'UP' o 'DOWN'
     const invalidVotes = votes.filter(vote => vote.voteType !== 'UP' && vote.voteType !== 'DOWN');
     if (invalidVotes.length > 0) {
+      console.log('Validazione fallita: voti non validi', invalidVotes);
       return NextResponse.json({ 
         success: false, 
         error: 'Voti non validi: ogni voto deve essere UP o DOWN' 
       }, { status: 400 });
     }
 
-    // Validazione: deve esserci esattamente 9 voti (non può votare se stesso)
-    if (votes.length !== 9) {
+    // Validazione: deve esserci almeno 1 voto
+    if (votes.length < 1) {
+      console.log('Validazione fallita: nessun voto');
       return NextResponse.json({ 
         success: false, 
-        error: 'Devono esserci esattamente 9 voti (tutti i giocatori tranne il votante)' 
+        error: 'Deve esserci almeno 1 voto' 
       }, { status: 400 });
     }
 
-    console.log('Ricevuta richiesta di votazione UP/DOWN:', { voterEmail, matchId, votesCount: votes.length });
+    console.log('✅ Validazione passata. Ricevuta richiesta di votazione UP/DOWN:', { voterEmail, matchId, votesCount: votes.length });
 
     // Prepara i record da inserire con la nuova struttura UP/DOWN
     const voteRecords = votes.map(vote => ({
@@ -56,12 +62,23 @@ export async function POST(req: NextRequest) {
       }
     }));
 
-    console.log('Records UP/DOWN da inserire:', voteRecords);
+    console.log('✅ Records preparati per Airtable:', voteRecords.length, 'records');
+    console.log('Primo record di esempio:', voteRecords[0]);
+
+    // Test credenziali Airtable
+    console.log('🔑 Controllo credenziali Airtable...');
+    console.log('API Key presente:', !!apiKey);
+    console.log('Base ID presente:', !!baseId);
+    
+    if (!apiKey || !baseId) {
+      throw new Error('Credenziali Airtable mancanti nel .env');
+    }
 
     // Inserisce i voti nella tabella "votes" di Airtable
+    console.log('📤 Tentativo inserimento in Airtable...');
     const createdRecords = await base('votes').create(voteRecords);
     
-    console.log('Voti UP/DOWN salvati con successo:', createdRecords.length);
+    console.log('✅ Voti UP/DOWN salvati con successo:', createdRecords.length);
 
     return NextResponse.json({ 
       success: true, 
@@ -71,11 +88,18 @@ export async function POST(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Errore nel salvare i voti UP/DOWN:', error);
+    console.error('❌ ERRORE DETTAGLIATO nel salvare i voti UP/DOWN:');
+    console.error('Tipo errore:', typeof error);
+    console.error('Nome errore:', error instanceof Error ? error.name : 'N/A');
+    console.error('Messaggio errore:', error instanceof Error ? error.message : 'N/A');
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
+    console.error('Errore completo:', error);
+    
     return NextResponse.json({ 
       success: false, 
       error: 'Errore interno del server',
-      details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      details: error instanceof Error ? error.message : 'Errore sconosciuto',
+      errorType: error instanceof Error ? error.name : typeof error
     }, { status: 500 });
   }
 } 

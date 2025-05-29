@@ -12,10 +12,12 @@ import {
   UserCircle
 } from "lucide-react";
 import Logo from './Logo';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useAdminGuard } from '../hooks/useAdminGuard';
 
 export default function Navigation() {
   const { userEmail, logout } = useAuth();
+  const { isAdmin } = useAdminGuard();
 
   const navItems = [
     {
@@ -43,11 +45,11 @@ export default function Navigation() {
       url: `/profile/${encodeURIComponent(userEmail)}`,
       icon: UserCircle
     }] : []),
-    {
+    ...(isAdmin ? [{
       name: "Admin",
       url: "/admin",
       icon: Settings
-    }
+    }] : [])
   ];
 
   const logoComponent = (

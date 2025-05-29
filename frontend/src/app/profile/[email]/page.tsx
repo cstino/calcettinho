@@ -205,7 +205,7 @@ export default function PlayerProfile() {
         <div className="text-center">
           <p className="text-red-400 font-runtime text-lg">{error}</p>
           <button 
-            onClick={() => router.back()}
+            onClick={() => router.push('/players')}
             className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-runtime"
           >
             Torna Indietro
@@ -242,8 +242,8 @@ export default function PlayerProfile() {
           <div className="max-w-4xl mx-auto">
             {/* Bottone Indietro */}
             <button 
-              onClick={() => router.back()}
-              className="mb-6 flex items-center text-gray-300 hover:text-white transition-colors font-runtime"
+              onClick={() => router.push('/players')}
+              className="mb-6 flex items-center text-gray-300 hover:text-white transition-colors font-runtime cursor-pointer z-50 relative pointer-events-auto"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -388,69 +388,39 @@ export default function PlayerProfile() {
                   </div>
                 </div>
 
-                {/* Risultati Partite Recenti */}
+                {/* Risultati ultima partita */}
                 {voteHistory.matchResults && voteHistory.matchResults.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">Risultati Partite Recenti</h3>
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {voteHistory.matchResults.map((match) => (
-                        <div key={match.matchId} className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
-                          <div className="flex items-center space-x-4">
-                            <div className="text-gray-300 font-runtime text-sm font-semibold">
-                              Match {match.matchId}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="bg-green-600 text-white px-2 py-1 rounded text-sm font-runtime">
-                                {match.upVotes} UP
+                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">Risultati ultima partita</h3>
+                    <div className="bg-gray-700/50 rounded-lg p-4">
+                      {(() => {
+                        const lastMatch = voteHistory.matchResults[0];
+                        return (
+                          <div className="flex items-center justify-center space-x-4">
+                            <div className="flex items-center space-x-3">
+                              <span className="bg-green-600 text-white px-4 py-2 rounded text-sm font-runtime font-semibold min-w-[70px] text-center">
+                                {lastMatch.upVotes} UP
                               </span>
-                              <span className="bg-red-600 text-white px-2 py-1 rounded text-sm font-runtime">
-                                {match.downVotes} DOWN
+                              <span className="bg-red-600 text-white px-4 py-2 rounded text-sm font-runtime font-semibold min-w-[70px] text-center">
+                                {lastMatch.downVotes} DOWN
                               </span>
                             </div>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <div className={`font-runtime font-bold ${
-                              match.netVotes > 0 ? 'text-green-400' :
-                              match.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
-                            }`}>
-                              {match.netVotes > 0 ? '+' : ''}{match.netVotes}
-                            </div>
-                            {match.isMotm && (
-                              <div className="bg-yellow-500 text-black px-2 py-1 rounded text-xs font-runtime font-bold">
-                                MotM
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Ultimi Voti Individuali */}
-                {voteHistory.votes.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">Ultimi Voti Ricevuti</h3>
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {voteHistory.votes.slice(0, 10).map((vote) => (
-                        <div key={vote.id} className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center">
-                              <span className={`font-runtime font-bold text-lg px-3 py-1 rounded ${
-                                vote.voteType === 'UP' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                            <div className="flex items-center space-x-3">
+                              <div className={`font-runtime font-bold text-lg ${
+                                lastMatch.netVotes > 0 ? 'text-green-400' :
+                                lastMatch.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
                               }`}>
-                                {vote.voteType === 'UP' ? '👍 UP' : '👎 DOWN'}
-                              </span>
-                            </div>
-                            <div className="text-gray-300 font-runtime text-sm">
-                              da {vote.voterEmail}
+                                {lastMatch.netVotes > 0 ? '+' : ''}{lastMatch.netVotes}
+                              </div>
+                              {lastMatch.isMotm && (
+                                <div className="bg-yellow-500 text-black px-3 py-1 rounded text-sm font-runtime font-bold">
+                                  MotM
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="text-gray-400 font-runtime text-xs">
-                            {vote.matchId || 'Match ID non disponibile'}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })()}
                     </div>
                   </div>
                 )}

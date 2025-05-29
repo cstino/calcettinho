@@ -6,8 +6,11 @@ import Logo from "../components/Logo";
 import CampoCalcetto from "../components/CampoCalcetto";
 import CreateMatchModal from "../components/CreateMatchModal";
 import MatchResultModal from "../components/MatchResultModal";
-import { Calendar, Users, Star, Plus, Trophy, Clock } from 'lucide-react';
-import { useAuth } from "../context/AuthContext";
+import VotingModal from "../components/VotingModal";
+import EditMatchModal from "../components/EditMatchModal";
+import { Calendar, Users, Star, Plus, Trophy, Clock, Vote } from 'lucide-react';
+import { useAuth } from "../contexts/AuthContext";
+import { useAdminGuard } from "../hooks/useAdminGuard";
 import { motion } from 'framer-motion';
 import ProtectedRoute from "../components/ProtectedRoute";
 
@@ -43,6 +46,7 @@ interface CampoPlayer {
 
 export default function Matches() {
   const { userEmail } = useAuth();
+  const { AdminOnly } = useAdminGuard();
   const [matches, setMatches] = useState<Match[]>([]);
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +54,7 @@ export default function Matches() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showVotingModal, setShowVotingModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   useEffect(() => {
@@ -148,6 +153,15 @@ export default function Matches() {
       case 'edit':
         setSelectedMatch(match);
         setShowEditModal(true);
+        break;
+      case 'vote':
+        // Controlla che l'utente abbia partecipato alla partita
+        if (!userEmail || (![...match.teamA, ...match.teamB].includes(userEmail))) {
+          alert('Puoi votare solo per le partite a cui hai partecipato!');
+          return;
+        }
+        setSelectedMatch(match);
+        setShowVotingModal(true);
         break;
       case 'view':
         // Mostra dettagli partita con le nuove statistiche
@@ -516,40 +530,51 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                                 <Trophy className="w-5 h-5" />
                                 Partita Terminata
                               </button>
-                              <button
-                                onClick={() => handleMatchAction('edit', match.matchId)}
-                                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                              >
-                                Modifica
-                              </button>
-                              <button
-                                onClick={() => handleMatchAction('delete', match.matchId)}
-                                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                              >
-                                Elimina
-                              </button>
+                              <AdminOnly>
+                                <button
+                                  onClick={() => handleMatchAction('edit', match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  Modifica
+                                </button>
+                              </AdminOnly>
+                              <AdminOnly>
+                                <button
+                                  onClick={() => handleMatchAction('delete', match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  Elimina
+                                </button>
+                              </AdminOnly>
                             </>
                           ) : (
                             <>
-                              <button
-                                onClick={() => handleMatchAction('view', match.matchId)}
-                                className="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-                              >
-                                <Star className="w-5 h-5" />
-                                Vedi Dettagli
-                              </button>
-                              <button
-                                onClick={() => handleMatchAction('edit', match.matchId)}
-                                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                              >
-                                Modifica
-                              </button>
-                              <button
-                                onClick={() => handleMatchAction('delete', match.matchId)}
-                                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                              >
-                                Elimina
-                              </button>
+                              {/* Pulsante Vota Ora - Solo per chi ha partecipato */}
+                              {userEmail && [...match.teamA, ...match.teamB].includes(userEmail) && (
+                                <button
+                                  onClick={() => handleMatchAction('vote', match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  <Vote className="w-5 h-5" />
+                                  Vota Ora
+                                </button>
+                              )}
+                              <AdminOnly>
+                                <button
+                                  onClick={() => handleMatchAction('edit', match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  Modifica
+                                </button>
+                              </AdminOnly>
+                              <AdminOnly>
+                                <button
+                                  onClick={() => handleMatchAction('delete', match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  Elimina
+                                </button>
+                              </AdminOnly>
                             </>
                           )}
                         </div>
@@ -577,6 +602,26 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
           onClose={() => setShowResultModal(false)}
           onSuccess={refreshMatches}
           match={selectedMatch}
+        />
+
+        <VotingModal
+          isOpen={showVotingModal}
+          onClose={() => setShowVotingModal(false)}
+          match={selectedMatch}
+          voterEmail={userEmail || ''}
+          allPlayers={allPlayers.map(p => ({ name: p.nome, email: p.email }))}
+          onSuccess={() => {
+            refreshMatches();
+            alert('🎉 Voti inviati con successo!');
+          }}
+        />
+
+        <EditMatchModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          match={selectedMatch}
+          allPlayers={allPlayers.map(p => ({ nome: p.nome, email: p.email }))}
+          onSuccess={refreshMatches}
         />
       </div>
     </ProtectedRoute>
