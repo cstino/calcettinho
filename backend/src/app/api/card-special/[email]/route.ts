@@ -14,6 +14,81 @@ try {
 const CARD_WIDTH = 600;
 const CARD_HEIGHT = 900;
 
+// Funzione per calcolare la luminosità di un pixel RGB
+function calculatePixelBrightness(r: number, g: number, b: number): number {
+  // Formula standard per luminosità percepita
+  return (0.299 * r + 0.587 * g + 0.114 * b);
+}
+
+// Funzione per analizzare la luminosità media di un'area dell'immagine
+function analyzeAreaBrightness(ctx: any, x: number, y: number, width: number, height: number): number {
+  try {
+    const imageData = ctx.getImageData(x, y, width, height);
+    const pixels = imageData.data;
+    let totalBrightness = 0;
+    let pixelCount = 0;
+
+    // Analizza ogni pixel nell'area
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      // Ignora pixel trasparenti
+      if (pixels[i + 3] > 0) {
+        totalBrightness += calculatePixelBrightness(r, g, b);
+        pixelCount++;
+      }
+    }
+
+    return pixelCount > 0 ? totalBrightness / pixelCount : 128;
+  } catch (error) {
+    console.log('Errore analisi luminosità:', error);
+    return 128; // Valore neutro in caso di errore
+  }
+}
+
+// Funzione per determinare i colori ottimali in base alla luminosità
+function getOptimalColors(ctx: any): { textColor: string, valueColor: string } {
+  // Punti strategici da campionare (dove verranno posizionate le scritte)
+  const sampleAreas = [
+    { x: 90, y: 705, width: 60, height: 40 },   // Area statistiche sinistra
+    { x: 370, y: 705, width: 60, height: 40 },  // Area statistiche destra  
+    { x: 70, y: 170, width: 40, height: 40 },   // Area overall
+    { x: 250, y: 620, width: 100, height: 40 }  // Area nome
+  ];
+
+  let totalBrightness = 0;
+  let areaCount = 0;
+
+  // Analizza ogni area e calcola la luminosità media totale
+  sampleAreas.forEach(area => {
+    const brightness = analyzeAreaBrightness(ctx, area.x, area.y, area.width, area.height);
+    totalBrightness += brightness;
+    areaCount++;
+    console.log(`📊 Luminosità area (${area.x},${area.y}): ${brightness.toFixed(1)}`);
+  });
+
+  const averageBrightness = totalBrightness / areaCount;
+  console.log(`🎨 Luminosità media totale: ${averageBrightness.toFixed(1)}`);
+
+  // Determina colori in base alla luminosità
+  if (averageBrightness > 128) {
+    // Sfondo chiaro → testo scuro
+    console.log('✅ Sfondo chiaro rilevato: uso testo scuro');
+    return {
+      textColor: '#2B2B2B',    // Grigio scuro per nomi stats e "OVERALL"
+      valueColor: '#8B0000'    // Rosso scuro per valori stats e valore overall
+    };
+  } else {
+    // Sfondo scuro → testo chiaro
+    console.log('✅ Sfondo scuro rilevato: uso testo chiaro');
+    return {
+      textColor: '#FFFFFF',    // Bianco per nomi stats e "OVERALL"
+      valueColor: '#FFD700'    // Oro per valori stats e valore overall
+    };
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ email: string }> }
@@ -22,7 +97,12 @@ export async function GET(
     // Await dei parametri per Next.js 15
     const { email: emailParam } = await params;
     const email = decodeURIComponent(emailParam);
-    console.log('EMAIL PARAM estratto:', email);
+    
+    // Ottieni template dalla query string (default: '1presenza')
+    const { searchParams } = new URL(req.url);
+    const template = searchParams.get('template') || '1presenza';
+    
+    console.log('EMAIL PARAM estratto:', email, 'Template:', template);
     
     // Recupera dati da Airtable
     const playerData = await getPlayerByEmail(email);
@@ -37,17 +117,10 @@ export async function GET(
     const stats = [playerData.ATT, playerData.DEF, playerData.VEL, playerData.FOR, playerData.PAS, playerData.POR];
     const overall = Math.round(stats.reduce((a, b) => a + b, 0) / 6);
 
-    // Scegli template in base ai criteri del backend
-    let template = 'bronzo';
-    if (overall >= 90) template = 'ultimate';      // ≥ 90
-    else if (overall >= 78) template = 'oro';      // 78-89 (Backend originale)
-    else if (overall >= 65) template = 'argento';  // 65-77 (Backend originale)
-    // else rimane 'bronzo' per < 65
+    console.log(`Overall: ${overall}, Template special: ${template}`);
 
-    console.log(`Overall: ${overall}, Template: ${template}`);
-
-    // **GENERA CARD SEMPLIFICATA SE I FILE NON ESISTONO**
-    const cardPath = path.join(process.cwd(), 'public/cards', `${template}.png`);
+    // Percorsi per card special e foto giocatore
+    const cardPath = path.join(process.cwd(), 'public/cards/special', `${template}.png`);
     const playerPath = path.join(process.cwd(), 'public/players', `${email}.jpg`);
 
     // Verifica esistenza file
@@ -55,9 +128,9 @@ export async function GET(
     try {
       await fs.access(cardPath);
       await fs.access(playerPath);
-      console.log(`File trovati, generazione card completa`);
+      console.log(`File special trovati, generazione card completa`);
     } catch {
-      console.log('File template/foto non trovati, generazione card semplificata');
+      console.log('File special template/foto non trovati, generazione card semplificata');
       useSimpleCard = true;
     }
 
@@ -65,14 +138,14 @@ export async function GET(
     const ctx = canvas.getContext('2d');
 
     if (useSimpleCard) {
-      // **CARD SEMPLIFICATA SENZA FILE ESTERNI**
+      // **CARD SPECIAL SEMPLIFICATA SENZA FILE ESTERNI**
       
-      // Background colorato in base al template
-      ctx.fillStyle = template === 'ultimate' ? '#4C1D95' : template === 'oro' ? '#B45309' : template === 'argento' ? '#374151' : '#92400E';
+      // Background dorato per achievement
+      ctx.fillStyle = '#B45309';
       ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
       
-      // Border
-      ctx.strokeStyle = template === 'ultimate' ? '#8B5CF6' : template === 'oro' ? '#FFD700' : template === 'argento' ? '#C0C0C0' : '#CD7F32';
+      // Border dorato
+      ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 8;
       ctx.strokeRect(4, 4, CARD_WIDTH - 8, CARD_HEIGHT - 8);
 
@@ -88,7 +161,7 @@ export async function GET(
       ctx.font = 'bold 20px Arial';
       ctx.fillStyle = '#F3F4F6';
       ctx.textAlign = 'center';
-      ctx.fillText(template.toUpperCase(), CARD_WIDTH / 2, 50);
+      ctx.fillText(`SPECIAL: ${template.toUpperCase()}`, CARD_WIDTH / 2, 50);
 
       // Overall
       ctx.font = 'bold 20px Arial';
@@ -155,7 +228,7 @@ export async function GET(
       }
 
     } else {
-      // **CARD COMPLETA CON FILE**
+      // **CARD SPECIAL COMPLETA CON FILE**
       
       // Carica immagini
       const [cardImg, playerImg] = await Promise.all([
@@ -163,12 +236,32 @@ export async function GET(
         loadImage(playerPath)
       ]);
 
-      // Disegna template
+      // Disegna template special
       ctx.drawImage(cardImg, 0, 0, CARD_WIDTH, CARD_HEIGHT);
 
-      // Disegna foto giocatore mantenendo le proporzioni originali
+      // ANALISI AUTOMATICA DEI COLORI in base alla luminosità dello sfondo
+      const optimalColors = getOptimalColors(ctx);
+      const textColor = optimalColors.textColor;   // Per nomi stats e "OVERALL"
+      const valueColor = optimalColors.valueColor; // Per valori stats e valore overall
+
+      console.log(`🎨 Colori determinati automaticamente: text=${textColor}, value=${valueColor}`);
+
+      // Disegna foto giocatore - posizioni specifiche per template special
       const maxFaceSize = 420;
-      const faceY = template === 'ultimate' ? 158 : 156;
+      let faceY = 156; // Default, potrebbe variare per template special
+      
+      // Adjust position based on special template if needed
+      switch(template) {
+        case '1presenza':
+          faceY = 158;
+          break;
+        case 'goleador':
+          faceY = 160;
+          break;
+        // Add more template-specific positions as needed
+        default:
+          faceY = 156;
+      }
       
       let faceWidth, faceHeight;
       if (playerImg.width > playerImg.height) {
@@ -182,13 +275,10 @@ export async function GET(
       const faceX = CARD_WIDTH / 2 - faceWidth / 2;
       ctx.drawImage(playerImg, faceX, faceY, faceWidth, faceHeight);
 
-      // Colori fissi in base al template (come era in origine)
-      let textColor = template === 'ultimate' ? '#C0C0C0' : '#2B2B2B';
-      let valueColor = template === 'ultimate' ? '#FFD700' : '#404040';
-
-      const overallX = template === 'ultimate' ? 90 : 80;
-      const overallTextY = template === 'ultimate' ? 155 : 140;
-      const overallValueY = template === 'ultimate' ? 225 : 210;
+      // Overall
+      const overallX = 80;
+      const overallTextY = 140;
+      const overallValueY = 210;
 
       ctx.font = 'bold 20px Nebulax, Arial';
       ctx.fillStyle = textColor;
@@ -199,8 +289,10 @@ export async function GET(
       ctx.fillStyle = valueColor;
       ctx.fillText(String(overall), overallX, overallValueY);
 
+      // Nome giocatore
       ctx.font = 'bold 56px Nebulax, Arial';
       ctx.fillStyle = textColor;
+      ctx.textAlign = 'center';
       ctx.fillText(playerData.nome, CARD_WIDTH / 2, 638);
 
       // Stats - Colonna sinistra: ATT, VEL, PAS
@@ -220,62 +312,59 @@ export async function GET(
       const startY = 715;
       const statSpacing = 45;
 
-      // Scritte statistiche colonna sinistra
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
       leftStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(`${stat.label}`, 100, y);  // Etichette sinistra
+        ctx.fillText(`${stat.label}`, 100, y);
       });
 
-      // Valori statistiche colonna sinistra
+      // Valori statistiche colonna sinistra (centrati nella colonna)
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
       leftStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(String(stat.value), 200, y);  // Valori centrati, parte destra arriva a ~220px
+        ctx.fillText(String(stat.value), 200, y);
       });
 
-      // Scritte statistiche colonna destra
+      // Scritte statistiche colonna destra (FOR, DIF, POR)
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
       rightStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(`${stat.label}`, 380, y);  // Etichette destra iniziano a +80px dal centro
+        ctx.fillText(`${stat.label}`, 380, y);
       });
 
-      // Valori statistiche colonna destra
+      // Valori statistiche colonna destra (centrati nella colonna)
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
       rightStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(String(stat.value), 480, y);  // Spostati a destra, parte destra arriva a ~500px
+        ctx.fillText(String(stat.value), 480, y);
       });
     }
 
-    console.log('Card generata con successo!');
-
-    // Output PNG
+    // Converti canvas in buffer PNG
     const buffer = canvas.toBuffer('image/png');
+
+    // Restituisci l'immagine
     return new NextResponse(buffer, {
-      status: 200,
       headers: {
         'Content-Type': 'image/png',
-        'Content-Disposition': `inline; filename="${playerData.nome}_card.png"`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
+        'X-Timestamp': Date.now().toString()
+      }
     });
+
   } catch (error) {
-    console.error('Errore nella generazione della card:', error);
+    console.error('Errore nella generazione della card special:', error);
     return NextResponse.json({ 
-      error: 'Errore interno nella generazione della card',
-      details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      error: 'Errore nella generazione della card special' 
     }, { status: 500 });
   }
 } 

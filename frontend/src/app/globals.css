@@ -137,3 +137,68 @@ html {
     @apply bg-background text-foreground;
   }
 }
+
+/* Nascondi scrollbar su tutti i browser */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari e Chrome */
+}
+
+/* Smooth scroll orizzontale */
+.scrollbar-hide {
+  scroll-behavior: smooth;
+}
+
+/* Animazioni Carousel */
+.carousel-container {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-transitioning {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+.carousel-card {
+  transition: all 0.3s ease;
+}
+
+.carousel-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Skeleton loader per immagini */
+.image-skeleton {
+  background: linear-gradient(90deg, #374151 25%, #4B5563 50%, #374151 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Effetto apparizione immagini */
+.image-loaded {
+  animation: imageAppear 0.3s ease-out;
+}
+
+@keyframes imageAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

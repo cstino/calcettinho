@@ -11,11 +11,49 @@ Sistema completo di gestione lega calcetto con:
 - **Sistema ruoli admin** con controlli autorizzazioni
 - **Gestione partite avanzata** con modifica completa
 - **Profili giocatori** con statistiche aggregate anonime
+- **Sistema Evoluzioni Card** con premi sbloccabili e personalizzazione
 - **Autenticazione sicura** con whitelist Airtable
 
 ---
 
 ## ✅ **COMPLETATO AL 100%**
+
+### 🏆 **Sistema Evoluzioni Card - COMPLETATO**
+- **✅ API Player Awards** (`/api/player-awards/[email]/`):
+  - GET: Recupera premi giocatore (pending, unlocked, selectedCard)
+  - POST: Sblocca premio da pending a unlocked con timestamp
+  - PUT: Seleziona quale card usare come retro della card base
+  - Gestione non bloccante se tabella mancante
+
+- **✅ PlayerCard Component Evoluto**:
+  - Caricamento dinamico card selezionata dal giocatore
+  - Uso card speciale come retro durante hover
+  - Label dinamiche in base al tipo di card selezionata
+  - Gestione errori e stati di caricamento
+
+- **✅ Sezione Evoluzioni Profilo Completa**:
+  - **Premi Pending**: Card da sbloccare con bottone "🎉 Sblocca Evoluzione"
+  - **Collezione Unlocked**: Galleria card sbloccate con selezione click
+  - **Card Base**: Sempre disponibile come opzione fallback
+  - **Animazione Unlock**: Effetto speciale 3 secondi con anelli animati
+  - **Sistema Info**: Spiegazione funzionamento per utenti
+
+- **✅ Sistema Premi Automatico**:
+  - 7 tipi di premi: 1presenza, goleador, assistman, motm, win3, win5, win10
+  - Assegnazione automatica post-partita
+  - Stati pending/unlocked per gestione sblocco
+  - Selezione card attiva per personalizzazione hover
+
+### 🎮 **Sistema Carousel Evoluzioni - IN CORSO** ⚠️
+- **✅ Sistema Navigazione**: Frecce sinistra/destra con pallini indicatori
+- **✅ Layout Responsive**: 3 card per pagina desktop, adattivo mobile/tablet
+- **✅ Preloading Immagini**: Eliminazione lag caricamento con Promise.allSettled
+- **✅ Skeleton Loader**: Placeholder animato durante caricamento immagini
+- **🔄 IN PROGRESS**: Ottimizzazione animazioni transizione per massima fluidità
+  - Effetti fade-out/fade-in con cubic-bezier curves
+  - Disabilitazione controlli durante transizioni
+  - Hover effects per frecce e card con scale transform
+  - Performance ultra-fluida con timing ottimizzato
 
 ### 🗳️ **Sistema Votazioni UP/DOWN - COMPLETATO**
 - **✅ Backend API**:
@@ -66,6 +104,7 @@ Sistema completo di gestione lega calcetto con:
 - **✅ Pagina `/profile/[email]` completamente funzionale**:
   - Card giocatore con download
   - Grafico radar abilità
+  - **🏆 Sezione Evoluzioni** (posizionata strategicamente)
   - Statistiche di gioco complete
   - **Storico votazioni anonimo**:
     - Statistiche aggregate (totali, UP/DOWN, net votes, %)
@@ -76,11 +115,11 @@ Sistema completo di gestione lega calcetto con:
 
 ### 🎨 **UI/UX Moderna - COMPLETATO**
 - **✅ Design responsive** su tutti i dispositivi
-- **✅ Animazioni fluide** con Framer Motion
+- **✅ Animazioni fluide** con Framer Motion e CSS custom
 - **✅ Colori distintivi** per statistiche (verde ATT, blu VEL, viola PAS, rosso FOR, giallo DIF, arancione POR)
-- **✅ Loading states** e skeleton screens
-- **✅ Error handling** robusto
-- **✅ Performance ottimizzate** con cache e caricamento parallelo
+- **✅ Loading states** e skeleton screens avanzati
+- **✅ Error handling** robusto con fallback eleganti
+- **✅ Performance ottimizzate** con preloading e cache intelligenti
 
 ### 🔧 **Correzioni Tecniche - COMPLETATO**
 - **✅ Errori runtime risolti**:
@@ -88,9 +127,10 @@ Sistema completo di gestione lega calcetto con:
   - Proprietà mancanti nel Context aggiunte
   - Z-index e pointer-events sistemati
   - PowerShell command separator fix
-- **✅ Validazioni API** migliorate
+  - URL encoding/decoding email gestito correttamente
+- **✅ Validazioni API** migliorate con gestione edge cases
 - **✅ Gestione stati** loading/error robusta
-- **✅ Cache globale** per performance
+- **✅ Cache globale** per performance con invalidazione smart
 
 ---
 
@@ -110,12 +150,18 @@ Sistema completo di gestione lega calcetto con:
 
 ### 👥 **Giocatori** (`/players`)
 - Lista completa giocatori con cards
+- Hover effect con card evoluzione personalizzata
 - Link ai profili individuali
 - Statistiche abilità visualizzate
 
 ### 👤 **Profili** (`/profile/[email]`)
 - Card giocatore personalizzata scaricabile
 - Grafico radar abilità
+- **🏆 Sezione Evoluzioni Card**:
+  - Premi pending da sbloccare con animazione
+  - Carousel navigabile di card sbloccate
+  - Sistema selezione card personalizzata per hover
+  - Info sistema funzionamento
 - Statistiche di gioco complete
 - Storico votazioni anonimo
 - Risultati ultima partita
@@ -136,6 +182,7 @@ src/
 │   ├── components/           # Componenti riutilizzabili
 │   │   ├── VotingModal.tsx  # Interfaccia votazioni UP/DOWN
 │   │   ├── EditMatchModal.tsx # Modifica partite complete
+│   │   ├── PlayerCard.tsx   # Card con hover evoluzione
 │   │   └── Navigation.tsx    # Navbar con ruoli
 │   ├── contexts/
 │   │   └── AuthContext.tsx   # Gestione auth + ruoli
@@ -143,7 +190,7 @@ src/
 │   │   └── useAdminGuard.tsx # Hook controllo admin
 │   ├── matches/             # Gestione partite
 │   ├── players/             # Lista giocatori
-│   ├── profile/[email]/     # Profili individuali
+│   ├── profile/[email]/     # Profili individuali con evoluzioni
 │   └── admin/               # Pannello admin
 ```
 
@@ -156,11 +203,13 @@ src/app/api/
 ├── matches/
 │   ├── index               # GET/POST - Lista/creazione partite
 │   └── [id]/               # PUT/DELETE - Modifica/eliminazione
+├── player-awards/[email]/  # GET/POST/PUT - Gestione premi evoluzioni
 ├── auth/
 │   └── role/[email]/       # GET - Controllo ruolo admin
 ├── players/                # GET - Lista giocatori
 ├── player-stats/[email]/   # GET - Statistiche giocatore
-└── card/[email]/           # GET - Card personalizzata
+├── card/[email]/           # GET - Card base personalizzata
+└── card-special/[email]/   # GET - Card evoluzione con template
 ```
 
 ### **Database** (Airtable)
@@ -169,7 +218,8 @@ src/app/api/
 ├── whitelist (email, nome, Role: admin/user)
 ├── players (email, nome, ATT, DIF, VEL, PAS, FOR, POR)
 ├── matches (matchId, date, teamA, teamB, completed, scoreA, scoreB, playerStats)
-└── votes (matchId, fromPlayerEmail, toPlayerEmail, voteType: UP/DOWN)
+├── votes (matchId, fromPlayerEmail, toPlayerEmail, voteType: UP/DOWN)
+└── player_awards (player_email, award_type, match_id, status, unlocked_at, selected)
 ```
 
 ---
@@ -189,6 +239,7 @@ cd frontend && npm run dev
 - **Frontend**: http://localhost:3000
 - **Backend**: http://localhost:3001  
 - **Cards API**: http://localhost:3001/api/card/[email]
+- **Special Cards API**: http://localhost:3001/api/card-special/[email]?template=motm
 
 ### **Environment Variables**
 ```env
@@ -207,9 +258,11 @@ AIRTABLE_BASE_ID=your_base_id
 - ✅ Inserimento risultati e statistiche
 - ✅ Modifica completa partite (admin only)
 - ✅ Sistema votazioni UP/DOWN anonime
+- ✅ Sistema evoluzioni card con premi
 - ✅ Profili giocatori con dati real-time
+- ✅ Carousel navigazione card fluido
 - ✅ Responsive design su mobile/desktop
-- ✅ Performance API optimized
+- ✅ Performance API optimized con preloading
 
 ### **Browser Compatibility**
 - ✅ Chrome/Edge (Chromium)
@@ -219,59 +272,68 @@ AIRTABLE_BASE_ID=your_base_id
 
 ---
 
-## 🎯 **Possibili Evoluzioni Future**
+## 🎯 **PROSSIMI PASSI**
+
+### **Priorità Immediata** 🔥
+1. **🎮 Completamento Carousel Ultra-Fluido** (IN CORSO)
+   - Finalizzazione animazioni transizione
+   - Ottimizzazione timing e curve bezier
+   - Test performance cross-browser
+   - Polish micro-interazioni
 
 ### **Priorità Alta** 🔥
-1. **Classifiche e Ranking**
+2. **Classifiche e Ranking**
    - Pagina classifiche con Net Votes
    - Top performers per categoria
-   - Statistiche comparative
+   - Statistiche comparative evolution
 
-2. **Dashboard Analytics**
-   - Grafici trend performance
-   - Report periodici
+3. **Dashboard Analytics**
+   - Grafici trend performance evoluzioni
+   - Report periodici card sbloccate
    - Export dati (PDF/Excel)
 
 ### **Priorità Media** 📈
-3. **PWA Mobile App**
+4. **PWA Mobile App**
    - Installazione come app
-   - Notifiche push
-   - Modalità offline
+   - Notifiche push per nuovi premi
+   - Modalità offline con sync
 
-4. **Sistema Premi/Achievements**
-   - Badge e trofei virtuali
-   - Milestone raggiunti
-   - Gamification
+5. **Sistema Premi Avanzato**
+   - Nuovi achievement personalizzati
+   - Premi stagionali limitati
+   - Sistema rarità card
 
 ### **Priorità Bassa** 💡
-5. **Social Features**
-   - Commenti partite
-   - Chat squadre
-   - Bacheca comunicazioni
+6. **Social Features**
+   - Commenti alle evoluzioni
+   - Condivisione card sui social
+   - Bacheca comunicazioni lega
 
-6. **Advanced Analytics**
-   - AI insights performance
-   - Predizioni risultati
-   - Heat maps campi
+7. **Advanced Analytics**
+   - AI insights performance evolution
+   - Predizioni prossimi achievement
+   - Heat maps statistiche giocatori
 
 ---
 
 ## 🎉 **CONCLUSIONI**
 
-**🏆 SISTEMA COMPLETAMENTE OPERATIVO E PRONTO ALL'USO**
+**🏆 SISTEMA COMPLETAMENTE OPERATIVO CON EVOLUZIONI CARD**
 
-Il sistema Calcettinho è ora una piattaforma completa e moderna per la gestione di leghe calcetto amatoriali, con:
+Il sistema Calcettinho è ora una piattaforma completa e moderna per la gestione di leghe calcetto amatoriali, con il nuovissimo sistema evoluzioni che aggiunge un layer di gamification e personalizzazione mai visto prima:
 
-- **Gestione partite completa** dalla creazione alla modifica
+- **Gestione partite completa** dalla creazione alla modifica avanzata
 - **Sistema votazioni anonime** fair e bilanciato  
 - **Controlli admin granulari** per amministrazione sicura
-- **Profili giocatori dettagliati** con statistiche real-time
-- **UI moderna e responsive** su tutti i dispositivi
+- **Sistema evoluzioni card rivoluzionario** con 7 tipi di premi
+- **Carousel navigazione ultra-fluido** (in fase di finalizzazione)
+- **Profili giocatori evoluiti** con personalizzazione card hover
+- **UI moderna e responsive** con animazioni butter-smooth
 - **Architecture scalabile** pronta per evoluzioni future
 
-**Tutti gli obiettivi iniziali sono stati raggiunti e superati.** 🚀
+**La piattaforma non è più solo un gestionale, ma un'esperienza di gioco completa che motiva e premia la partecipazione attiva alla lega.** 🚀
 
 ---
 
 *Ultimo aggiornamento: Dicembre 2024*
-*Versione: 2.0 - Sistema Completo* 
+*Versione: 2.1 - Sistema Evoluzioni Card Completo* 

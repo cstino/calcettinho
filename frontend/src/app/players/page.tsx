@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Navigation from "../components/Navigation";
 import Logo from "../components/Logo";
+import PlayerCard from "../components/PlayerCard";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 interface Player {
@@ -24,7 +24,11 @@ export default function Players() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  
+  // Filtri e ricerca
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'overall' | 'rarity'>('name');
+  const [selectedRarities, setSelectedRarities] = useState<string[]>(['Ultimate', 'Gold', 'Silver', 'Bronze']);
 
   // Dati reali dall'API
   useEffect(() => {
@@ -66,6 +70,7 @@ export default function Players() {
     fetchPlayers();
   }, []);
 
+  // Funzioni per filtri
   const getCardType = (overall: number) => {
     if (overall >= 90) return 'Ultimate';
     if (overall >= 78) return 'Gold';
@@ -73,15 +78,49 @@ export default function Players() {
     return 'Bronze';
   };
 
-  const getCardColor = (overall: number) => {
-    if (overall >= 90) return 'from-purple-600 to-pink-600';
-    if (overall >= 78) return 'from-yellow-400 to-yellow-600';
-    if (overall >= 65) return 'from-gray-400 to-gray-600';
-    return 'from-amber-600 to-amber-800';
+  const getRarityValue = (rarity: string) => {
+    switch (rarity) {
+      case 'Ultimate': return 4;
+      case 'Gold': return 3;
+      case 'Silver': return 2;
+      case 'Bronze': return 1;
+      default: return 0;
+    }
   };
 
-  const handleViewCard = (player: Player) => {
-    router.push(`/profile/${encodeURIComponent(player.email)}`);
+  // Applica filtri e ordinamento
+  const filteredAndSortedPlayers = players
+    .filter(player => {
+      // Filtro per nome
+      const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filtro per rarità
+      const playerRarity = getCardType(player.overall);
+      const matchesRarity = selectedRarities.includes(playerRarity);
+      
+      return matchesSearch && matchesRarity;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'overall':
+          return b.overall - a.overall; // Dal più alto al più basso
+        case 'rarity':
+          const rarityA = getRarityValue(getCardType(a.overall));
+          const rarityB = getRarityValue(getCardType(b.overall));
+          return rarityB - rarityA; // Dalla rarità più alta alla più bassa
+        default:
+          return 0;
+      }
+    });
+
+  const handleRarityToggle = (rarity: string) => {
+    setSelectedRarities(prev => 
+      prev.includes(rarity) 
+        ? prev.filter(r => r !== rarity)
+        : [...prev, rarity]
+    );
   };
 
   return (
@@ -114,14 +153,14 @@ export default function Players() {
               />
               
               <h1 className="text-4xl sm:text-5xl font-bold font-runtime text-white mb-4 drop-shadow-lg">
-                I Nostri{" "}
+                Le Nostre{" "}
                 <span className="bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-                  Giocatori
+                  Card Personalizzate
                 </span>
               </h1>
               
               <p className="text-xl font-runtime text-gray-200 mb-8 max-w-2xl mx-auto drop-shadow-md">
-                Scopri le statistiche e le card personalizzate di tutti i giocatori della lega
+                Scopri le card uniche di tutti i giocatori della lega - clicca per vedere il profilo completo
               </p>
             </div>
           </section>
@@ -131,42 +170,125 @@ export default function Players() {
             <div className="max-w-6xl mx-auto">
               
               {/* Stats Summary */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-400 font-runtime">{players.length}</div>
-                  <div className="text-gray-300 font-runtime">Giocatori Totali</div>
-                </div>
-                <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-400 font-runtime">
-                    {players.length > 0 ? Math.round(players.reduce((acc, p) => acc + p.overall, 0) / players.length) : 0}
-                  </div>
-                  <div className="text-gray-300 font-runtime">Overall Medio</div>
+                  <div className="text-2xl font-bold text-green-400 font-runtime">{filteredAndSortedPlayers.length}</div>
+                  <div className="text-gray-300 font-runtime">Giocatori Mostrati</div>
                 </div>
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-purple-400 font-runtime">
-                    {players.filter(p => p.overall >= 90).length}
+                    {filteredAndSortedPlayers.filter(p => p.overall >= 90).length}
                   </div>
                   <div className="text-gray-300 font-runtime">Ultimate</div>
                 </div>
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-yellow-400 font-runtime">
-                    {players.filter(p => p.overall >= 78 && p.overall < 90).length}
+                    {filteredAndSortedPlayers.filter(p => p.overall >= 78 && p.overall < 90).length}
                   </div>
                   <div className="text-gray-300 font-runtime">Oro</div>
                 </div>
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-gray-400 font-runtime">
-                    {players.filter(p => p.overall >= 65 && p.overall < 78).length}
+                    {filteredAndSortedPlayers.filter(p => p.overall >= 65 && p.overall < 78).length}
                   </div>
                   <div className="text-gray-300 font-runtime">Argento</div>
                 </div>
-                <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-amber-600 font-runtime">
-                    {players.filter(p => p.overall < 65).length}
-                  </div>
-                  <div className="text-gray-300 font-runtime">Bronzo</div>
-                </div>
               </div>
+
+              {/* Filtri e Ricerca */}
+              {!loading && !error && (
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 mb-8">
+                  <h3 className="text-lg font-bold text-white font-runtime mb-4">Filtri e Ricerca</h3>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Barra di Ricerca */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 font-runtime mb-2">
+                        Cerca Giocatore
+                      </label>
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Inserisci nome..."
+                        className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent font-runtime"
+                      />
+                    </div>
+
+                    {/* Ordinamento */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 font-runtime mb-2">
+                        Ordina per
+                      </label>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as 'name' | 'overall' | 'rarity')}
+                        className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent font-runtime"
+                      >
+                        <option value="name">Nome (A-Z)</option>
+                        <option value="overall">Overall (Alto-Basso)</option>
+                        <option value="rarity">Rarità (Migliore-Peggiore)</option>
+                      </select>
+                    </div>
+
+                    {/* Filtro Rarità */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 font-runtime mb-2">
+                        Filtra per Rarità
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { name: 'Ultimate', color: 'text-purple-400', bgColor: 'from-purple-600 to-pink-600', borderColor: 'border-purple-400' },
+                          { name: 'Gold', color: 'text-yellow-400', bgColor: 'from-yellow-400 to-yellow-600', borderColor: 'border-yellow-400' },
+                          { name: 'Silver', color: 'text-gray-400', bgColor: 'from-gray-400 to-gray-600', borderColor: 'border-gray-400' },
+                          { name: 'Bronze', color: 'text-amber-600', bgColor: 'from-amber-600 to-amber-800', borderColor: 'border-amber-600' }
+                        ].map((rarity) => (
+                          <label key={rarity.name} className="flex items-center cursor-pointer group">
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={selectedRarities.includes(rarity.name)}
+                                onChange={() => handleRarityToggle(rarity.name)}
+                                className="sr-only"
+                              />
+                              <div className={`w-5 h-5 rounded border-2 transition-all duration-200 ${
+                                selectedRarities.includes(rarity.name)
+                                  ? `bg-gradient-to-r ${rarity.bgColor} ${rarity.borderColor} shadow-lg`
+                                  : 'bg-gray-700 border-gray-500 group-hover:border-gray-400'
+                              }`}>
+                                {selectedRarities.includes(rarity.name) && (
+                                  <svg className="w-3 h-3 text-white absolute top-0.5 left-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`ml-3 text-sm font-runtime font-semibold transition-colors duration-200 ${
+                              selectedRarities.includes(rarity.name) ? rarity.color : 'text-gray-400 group-hover:text-gray-300'
+                            }`}>
+                              {rarity.name}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reset Filtri */}
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setSortBy('name');
+                        setSelectedRarities(['Ultimate', 'Gold', 'Silver', 'Bronze']);
+                      }}
+                      className="px-4 py-2 bg-gray-600/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition-colors font-runtime text-sm"
+                    >
+                      Reset Filtri
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Loading State */}
               {loading && (
@@ -183,99 +305,45 @@ export default function Players() {
                 </div>
               )}
 
-              {/* Players Grid */}
-              {!loading && !error && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {players.map((player) => (
-                    <div 
-                      key={player.id}
-                      className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                    >
-                      {/* Player Header */}
-                      <div className="text-center mb-4">
-                        <div className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
-                          {player.email && player.email !== 'email@non-disponibile.com' ? (
-                            <img 
-                              src={`http://localhost:3001/players/${encodeURIComponent(player.email)}.jpg`}
-                              alt={`Foto di ${player.name}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback alle iniziali se la foto non è disponibile
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                target.parentElement!.innerHTML = `<span class="text-2xl font-bold text-gray-300 font-runtime">${
-                                  player.name && player.name.trim() 
-                                    ? player.name.split(' ').map(n => n[0] || '').join('').toUpperCase().substring(0, 2)
-                                    : '??'
-                                }</span>`;
-                              }}
-                            />
-                          ) : (
-                            <span className="text-2xl font-bold text-gray-300 font-runtime">
-                              {player.name && player.name.trim() 
-                                ? player.name.split(' ').map(n => n[0] || '').join('').toUpperCase().substring(0, 2)
-                                : '??'
-                              }
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-xl font-bold text-white font-runtime">{player.name}</h3>
-                      </div>
+              {/* Instructions */}
+              {!loading && !error && filteredAndSortedPlayers.length > 0 && (
+                <div className="mb-8 text-center">
+                  <p className="text-gray-300 font-runtime text-lg">
+                    ✨ <span className="text-green-400 font-semibold">Clicca su una carta</span> per esplorare il profilo completo del giocatore
+                  </p>
+                </div>
+              )}
 
-                      {/* Overall Rating */}
-                      <div className="text-center mb-4">
-                        <div className={`inline-block px-4 py-2 rounded-full bg-gradient-to-r ${getCardColor(player.overall)}`}>
-                          <span className="text-white font-bold text-lg font-runtime">{player.overall}</span>
-                        </div>
-                        <p className="text-gray-300 text-sm mt-1 font-runtime">{getCardType(player.overall)}</p>
-                      </div>
+              {/* No Results */}
+              {!loading && !error && filteredAndSortedPlayers.length === 0 && players.length > 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-600/50 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-300 font-runtime mb-2">Nessun risultato trovato</h3>
+                  <p className="text-gray-400 font-runtime mb-4">
+                    Prova a modificare i filtri o la ricerca per trovare i giocatori che stai cercando.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSortBy('name');
+                      setSelectedRarities(['Ultimate', 'Gold', 'Silver', 'Bronze']);
+                    }}
+                    className="px-4 py-2 bg-green-600/80 hover:bg-green-700/80 text-white rounded-lg transition-colors font-runtime"
+                  >
+                    Reset Filtri
+                  </button>
+                </div>
+              )}
 
-                      {/* Stats Grid */}
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div>
-                          <div className="text-green-400 font-bold font-runtime">{player.att}</div>
-                          <div className="text-gray-400 text-xs font-runtime">ATT</div>
-                        </div>
-                        <div>
-                          <div className="text-blue-400 font-bold font-runtime">{player.vel}</div>
-                          <div className="text-gray-400 text-xs font-runtime">VEL</div>
-                        </div>
-                        <div>
-                          <div className="text-purple-400 font-bold font-runtime">{player.pas}</div>
-                          <div className="text-gray-400 text-xs font-runtime">PAS</div>
-                        </div>
-                        <div>
-                          <div className="text-red-400 font-bold font-runtime">{player.for}</div>
-                          <div className="text-gray-400 text-xs font-runtime">FOR</div>
-                        </div>
-                        <div>
-                          <div className="text-yellow-400 font-bold font-runtime">{player.dif}</div>
-                          <div className="text-gray-400 text-xs font-runtime">DIF</div>
-                        </div>
-                        <div>
-                          <div className="text-orange-400 font-bold font-runtime">{player.por}</div>
-                          <div className="text-gray-400 text-xs font-runtime">POR</div>
-                        </div>
-                      </div>
-
-                      {/* View Card Button */}
-                      <div className="mt-4">
-                        <button 
-                          className={`w-full py-2 rounded-lg transition-colors font-runtime font-semibold ${
-                            player.email && player.email !== 'email@non-disponibile.com'
-                              ? 'bg-green-600/80 hover:bg-green-700/80 text-white'
-                              : 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
-                          }`}
-                          onClick={() => handleViewCard(player)}
-                          disabled={!player.email || player.email === 'email@non-disponibile.com'}
-                        >
-                          {player.email && player.email !== 'email@non-disponibile.com' 
-                            ? 'Vai al Profilo' 
-                            : 'Profilo Non Disponibile'
-                          }
-                        </button>
-                      </div>
-                    </div>
+              {/* Players Cards Grid */}
+              {!loading && !error && filteredAndSortedPlayers.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                  {filteredAndSortedPlayers.map((player) => (
+                    <PlayerCard key={player.id} player={player} />
                   ))}
                 </div>
               )}
