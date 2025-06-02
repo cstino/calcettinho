@@ -35,7 +35,10 @@ export async function GET(
     }
 
     const stats = [playerData.ATT, playerData.DEF, playerData.VEL, playerData.FOR, playerData.PAS, playerData.POR];
-    const overall = Math.round(stats.reduce((a, b) => a + b, 0) / 6);
+    
+    // Calcola overall come media delle 5 migliori statistiche
+    const top5Stats = stats.sort((a, b) => b - a).slice(0, 5);
+    const overall = Math.round(top5Stats.reduce((a, b) => a + b, 0) / 5);
 
     // Scegli template in base ai criteri del backend
     let template = 'bronzo';

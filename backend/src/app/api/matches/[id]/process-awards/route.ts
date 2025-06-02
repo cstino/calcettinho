@@ -18,15 +18,15 @@ const base = Airtable.base(baseId);
 
 // Algoritmo Fair per evoluzione statistiche
 function calculateStatChange(currentOverall: number, baseChange: number, netVotes: number): number {
-  const voteBonus = netVotes * 0.1; // Range: -0.9 a +0.9
+  const voteBonus = netVotes * 0.02; // Ridotto da 0.05 a 0.02 (Range: -0.18 a +0.18)
   const totalChange = baseChange + voteBonus;
   
-  // Moltiplicatore Fair basato sull'overall
+  // Moltiplicatore Fair basato sull'overall (molto ridotto)
   let multiplier = 1.0;
   if (currentOverall < 50) {
-    multiplier = totalChange > 0 ? 1.3 : 0.8; // +30% salita, -20% discesa
+    multiplier = totalChange > 0 ? 1.1 : 0.95; // Ridotto da 1.15/0.9 a 1.1/0.95
   } else if (currentOverall < 70) {
-    multiplier = totalChange > 0 ? 1.1 : 0.9; // +10% salita, -10% discesa
+    multiplier = totalChange > 0 ? 1.02 : 0.98; // Ridotto da 1.05/0.95 a 1.02/0.98
   }
   // Overall >= 70: normale (1.0)
   
@@ -44,7 +44,7 @@ export async function POST(
 
     // 1. Recupera i dettagli della partita
     const matchRecords = await base('matches').select({
-      filterByFormula: `{id} = "${matchId}"`
+      filterByFormula: `{IDmatch} = "${matchId}"`
     }).all();
 
     if (matchRecords.length === 0) {
@@ -58,10 +58,10 @@ export async function POST(
     const playerStats = JSON.parse(match.get('playerStats') as string || '{}');
     const teamA = JSON.parse(match.get('teamA') as string || '[]');
     const teamB = JSON.parse(match.get('teamB') as string || '[]');
-    const result = match.get('risultato') as string || '0-0';
+    const scoreA = Number(match.get('scoreA')) || 0;
+    const scoreB = Number(match.get('scoreB')) || 0;
     
     // 2. Determina la squadra vincente
-    const [scoreA, scoreB] = result.split('-').map(Number);
     const isDraw = scoreA === scoreB;
     const teamAWins = scoreA > scoreB;
     
@@ -143,7 +143,7 @@ export async function POST(
 
     // Goleador (più gol segnati)
     const goalScorers = Object.entries(playerStats)
-      .map(([email, stats]: [string, any]) => ({ email, goals: stats.goals || 0 }))
+      .map(([email, stats]: [string, any]) => ({ email, goals: stats.gol || 0 }))
       .filter(player => player.goals > 0)
       .sort((a, b) => b.goals - a.goals);
 
@@ -162,7 +162,7 @@ export async function POST(
 
     // Assist Man (più assist forniti)
     const assistProviders = Object.entries(playerStats)
-      .map(([email, stats]: [string, any]) => ({ email, assists: stats.assists || 0 }))
+      .map(([email, stats]: [string, any]) => ({ email, assists: stats.assist || 0 }))
       .filter(player => player.assists > 0)
       .sort((a, b) => b.assists - a.assists);
 
@@ -199,8 +199,97 @@ export async function POST(
       }
     }
 
-    // 7. Aggiorna le statistiche dei giocatori
+    // 7. Aggiorna le statistiche dei giocatori nella tabella player_stats
+    console.log('🔄 Aggiornamento tabella player_stats...');
+    console.log('🎯 Players da aggiornare:', [...teamA, ...teamB]);
+    console.log('📊 PlayerStats ricevuti:', playerStats);
+    
     const allPlayers = [...teamA, ...teamB];
+    
+    for (const playerEmail of allPlayers) {
+      try {
+        console.log(`\n🔍 Processando ${playerEmail}...`);
+        
+        // Recupera le statistiche attuali del giocatore dalla tabella player_stats
+        const existingStatsRecords = await base('player_stats').select({
+          filterByFormula: `{playerEmail} = "${playerEmail}"`
+        }).all();
+
+        console.log(`📋 Record esistenti trovati per ${playerEmail}:`, existingStatsRecords.length);
+        if (existingStatsRecords.length > 0) {
+          console.log('📋 Primo record esistente:', existingStatsRecords[0].fields);
+        }
+
+        // Statistiche della partita per questo giocatore
+        const matchStats = playerStats[playerEmail] || { gol: 0, assist: 0, gialli: 0, rossi: 0 };
+        console.log(`⚽ Statistiche partita per ${playerEmail}:`, matchStats);
+        
+        // Determina se ha vinto, perso o pareggiato
+        const playerTeam = teamA.includes(playerEmail) ? 'A' : 'B';
+        const isWin = !isDraw && ((playerTeam === 'A' && teamAWins) || (playerTeam === 'B' && !teamAWins));
+        const isLoss = !isDraw && !isWin;
+        console.log(`🏆 ${playerEmail} - Team: ${playerTeam}, Win: ${isWin}, Loss: ${isLoss}, Draw: ${isDraw}`);
+
+        if (existingStatsRecords.length > 0) {
+          // Aggiorna record esistente
+          const existingRecord = existingStatsRecords[0];
+          const currentStats = {
+            gol: Number(existingRecord.get('Gol')) || 0,
+            partiteDisputate: Number(existingRecord.get('partiteDisputate')) || 0,
+            partiteVinte: Number(existingRecord.get('partiteVinte')) || 0,
+            partitePareggiate: Number(existingRecord.get('partitePareggiate')) || 0,
+            partitePerse: Number(existingRecord.get('partitePerse')) || 0,
+            assistenze: Number(existingRecord.get('assistenze')) || 0,
+            cartelliniGialli: Number(existingRecord.get('cartelliniGialli')) || 0,
+            cartelliniRossi: Number(existingRecord.get('cartelliniRossi')) || 0
+          };
+          console.log(`📊 Statistiche attuali per ${playerEmail}:`, currentStats);
+
+          const updatedStats = {
+            Gol: currentStats.gol + (matchStats.gol || 0),
+            partiteDisputate: currentStats.partiteDisputate + 1,
+            partiteVinte: currentStats.partiteVinte + (isWin ? 1 : 0),
+            partitePareggiate: currentStats.partitePareggiate + (isDraw ? 1 : 0),
+            partitePerse: currentStats.partitePerse + (isLoss ? 1 : 0),
+            assistenze: currentStats.assistenze + (matchStats.assist || 0),
+            cartelliniGialli: currentStats.cartelliniGialli + (matchStats.gialli || 0),
+            cartelliniRossi: currentStats.cartelliniRossi + (matchStats.rossi || 0)
+          };
+          console.log(`🔄 Aggiornamento statistiche per ${playerEmail}:`, updatedStats);
+
+          await base('player_stats').update(existingRecord.id, updatedStats);
+          console.log(`✅ Statistiche aggiornate per ${playerEmail}:`, updatedStats);
+          
+        } else {
+          // Crea nuovo record
+          const newStats = {
+            playerEmail: playerEmail,
+            Gol: matchStats.gol || 0,
+            partiteDisputate: 1,
+            partiteVinte: isWin ? 1 : 0,
+            partitePareggiate: isDraw ? 1 : 0,
+            partitePerse: isLoss ? 1 : 0,
+            assistenze: matchStats.assist || 0,
+            cartelliniGialli: matchStats.gialli || 0,
+            cartelliniRossi: matchStats.rossi || 0
+          };
+          console.log(`🆕 Creazione nuovo record per ${playerEmail}:`, newStats);
+
+          const createdRecord = await base('player_stats').create(newStats);
+          console.log(`✅ Nuove statistiche create per ${playerEmail}:`, createdRecord.fields);
+        }
+
+      } catch (error) {
+        console.error(`❌ Errore nell'aggiornamento statistiche per ${playerEmail}:`, error);
+        if (error instanceof Error) {
+          console.error(`❌ Dettagli errore: ${error.message}`);
+          console.error(`❌ Stack: ${error.stack}`);
+        }
+        // Continua con gli altri giocatori
+      }
+    }
+
+    // 8. Aggiorna le abilità dei giocatori nella tabella players
     const statUpdates = [] as Array<{
       email: string;
       changes: Record<string, number>;
@@ -216,16 +305,18 @@ export async function POST(
 
       const player = playerRecords[0];
       const currentStats = {
-        ATT: Number(player.get('ATT')) || 50,
-        DIF: Number(player.get('DIF')) || 50,
-        VEL: Number(player.get('VEL')) || 50,
-        PAS: Number(player.get('PAS')) || 50,
-        FOR: Number(player.get('FOR')) || 50,
-        POR: Number(player.get('POR')) || 50
+        ATT: Number(player.get('Attacco')) || 50,
+        DIF: Number(player.get('Difesa')) || 50,
+        VEL: Number(player.get('Velocità')) || 50,
+        PAS: Number(player.get('Passaggio')) || 50,
+        FOR: Number(player.get('Forza')) || 50,
+        POR: Number(player.get('Portiere')) || 50
       };
 
-      const currentOverall = (currentStats.ATT + currentStats.DIF + currentStats.VEL + 
-                             currentStats.PAS + currentStats.FOR + currentStats.POR) / 6;
+      // Calcola overall come media delle 5 migliori statistiche
+      const statValues = Object.values(currentStats);
+      const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
+      const currentOverall = top5Stats.reduce((sum, val) => sum + val, 0) / 5;
 
       // Calcola cambiamento base (vittoria/sconfitta)
       const playerTeam = teamA.includes(playerEmail) ? 'A' : 'B';
@@ -233,9 +324,9 @@ export async function POST(
       
       if (!isDraw) {
         if ((playerTeam === 'A' && teamAWins) || (playerTeam === 'B' && !teamAWins)) {
-          baseChange = 0.5; // Vittoria
+          baseChange = 0.083; // ~+1 overall ogni 2 vittorie (0.083 * 2 * 6 stats ≈ 1 overall)
         } else {
-          baseChange = -0.5; // Sconfitta
+          baseChange = -0.083; // Proporzionale perdita per sconfitta
         }
       }
 
@@ -247,7 +338,13 @@ export async function POST(
       const newStats = {} as Record<string, number>;
       Object.entries(currentStats).forEach(([stat, value]) => {
         const newValue = Math.max(1.0, Math.min(99.0, value + totalChange));
-        newStats[stat] = Math.round(newValue * 10) / 10; // Arrotonda a 1 decimale
+        const fieldName = stat === 'ATT' ? 'Attacco' :
+                         stat === 'DIF' ? 'Difesa' :
+                         stat === 'VEL' ? 'Velocità' :
+                         stat === 'PAS' ? 'Passaggio' :
+                         stat === 'FOR' ? 'Forza' :
+                         stat === 'POR' ? 'Portiere' : stat;
+        newStats[fieldName] = Math.round(newValue * 10) / 10; // Arrotonda a 1 decimale
       });
 
       // Aggiorna il record
@@ -264,13 +361,17 @@ export async function POST(
       });
     }
 
-    console.log('Statistiche aggiornate per', statUpdates.length, 'giocatori');
+    console.log('Statistiche abilità aggiornate per', statUpdates.length, 'giocatori');
+    console.log('📊 Processo completato: premi assegnati e statistiche aggiornate!');
 
     return NextResponse.json({
       success: true,
       message: 'Premi e statistiche processati con successo',
       awards: awards.length,
       awardDetails: awards,
+      playersUpdated: allPlayers.length,
+      playerStatsUpdated: true,
+      playerAbilitiesUpdated: statUpdates.length,
       statUpdates,
       voteStats
     });

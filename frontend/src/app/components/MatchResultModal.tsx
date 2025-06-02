@@ -130,6 +130,7 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
     setLoading(true);
     
     try {
+      // 1. Salva il risultato della partita
       const response = await fetch('/api/matches', {
         method: 'PUT',
         headers: {
@@ -146,8 +147,47 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Risultato salvato:', result);
-        alert('✅ Risultato salvato con successo!');
+        console.log('✅ Risultato salvato:', result);
+        
+        // 2. Processa automaticamente premi e statistiche
+        console.log('🎯 Avvio processamento premi e statistiche...');
+        try {
+          const processResponse = await fetch(`/api/matches/${match.matchId}/process-awards`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (processResponse.ok) {
+            const processResult = await processResponse.json();
+            console.log('🏆 Premi e statistiche processati:', processResult);
+            
+            // Mostra il riepilogo
+            let summaryMessage = '✅ Partita completata con successo!\n\n';
+            summaryMessage += `🏆 Premi assegnati: ${processResult.awards}\n`;
+            if (processResult.awardDetails && processResult.awardDetails.length > 0) {
+              summaryMessage += '\nPREMI OTTENUTI:\n';
+              processResult.awardDetails.forEach((award: any) => {
+                const playerName = getPlayerName(award.playerEmail);
+                const awardName = award.awardType === 'motm' ? '👑 Man of the Match' :
+                                 award.awardType === 'goleador' ? '⚽ Goleador' :
+                                 award.awardType === 'assistman' ? '🅰️ Assist Man' : award.awardType;
+                summaryMessage += `• ${playerName}: ${awardName}\n`;
+              });
+            }
+            summaryMessage += '\n📊 Statistiche giocatori aggiornate automaticamente!';
+            
+            alert(summaryMessage);
+          } else {
+            console.error('❌ Errore nel processamento premi:', processResponse.status);
+            alert('✅ Risultato salvato!\n⚠️ Attenzione: errore nell\'aggiornamento automatico delle statistiche');
+          }
+        } catch (processError) {
+          console.error('❌ Errore nel processamento premi:', processError);
+          alert('✅ Risultato salvato!\n⚠️ Attenzione: errore nell\'aggiornamento automatico delle statistiche');
+        }
+        
         onSuccess();
         onClose();
       } else {

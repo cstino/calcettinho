@@ -50,6 +50,7 @@ export default function EditMatchModal({
   const [scoreB, setScoreB] = useState(0);
   const [playerStats, setPlayerStats] = useState<{ [email: string]: PlayerMatchStats }>({});
   const [loading, setLoading] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
   // Reset quando si apre il modal
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function EditMatchModal({
       setScoreA(match.scoreA || 0);
       setScoreB(match.scoreB || 0);
       setPlayerStats(match.playerStats || {});
+      setCompleted(match.completed);
     }
   }, [isOpen, match]);
 
@@ -113,6 +115,7 @@ export default function EditMatchModal({
     setLoading(true);
     
     try {
+      // 1. Aggiorna la partita
       const response = await fetch(`/api/matches/${match?.matchId}`, {
         method: 'PUT',
         headers: {
@@ -123,16 +126,46 @@ export default function EditMatchModal({
           teamB,
           scoreA,
           scoreB,
-          playerStats
+          playerStats,
+          completed: completed
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        console.log('✅ Partita aggiornata:', data);
+        
+        // 2. Se la partita è stata completata, processa premi e statistiche automaticamente
+        if (completed && match?.matchId) {
+          console.log('🎯 Partita completata, processamento premi e statistiche...');
+          try {
+            const processResponse = await fetch(`/api/matches/${match.matchId}/process-awards`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (processResponse.ok) {
+              const processResult = await processResponse.json();
+              console.log('🏆 Premi e statistiche processati:', processResult);
+              
+              alert(`✅ Partita aggiornata e completata con successo!\n🏆 Premi assegnati: ${processResult.awards}\n📊 Statistiche aggiornate automaticamente!`);
+            } else {
+              console.error('❌ Errore nel processamento premi:', processResponse.status);
+              alert('✅ Partita aggiornata!\n⚠️ Attenzione: errore nell\'aggiornamento automatico delle statistiche');
+            }
+          } catch (processError) {
+            console.error('❌ Errore nel processamento premi:', processError);
+            alert('✅ Partita aggiornata!\n⚠️ Attenzione: errore nell\'aggiornamento automatico delle statistiche');
+          }
+        } else {
+          alert('✅ Partita aggiornata con successo!');
+        }
+        
         onSuccess();
         onClose();
-        alert('✅ Partita aggiornata con successo!');
       } else {
         alert(`❌ Errore nell'aggiornamento: ${data.error}`);
       }
@@ -406,6 +439,26 @@ export default function EditMatchModal({
                 );
               })}
             </div>
+          </div>
+        </div>
+
+        {/* Completa Partita */}
+        <div className="px-6">
+          <div className="bg-green-900/20 rounded-xl p-4 border border-green-500/30">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={completed}
+                onChange={(e) => setCompleted(e.target.checked)}
+                className="w-5 h-5 text-green-500 bg-gray-700 border-gray-600 rounded focus:ring-green-400 focus:ring-2"
+              />
+              <div>
+                <span className="text-white font-semibold">Completa partita</span>
+                <p className="text-gray-400 text-sm">
+                  Segna come completata e aggiorna automaticamente le statistiche e i premi
+                </p>
+              </div>
+            </label>
           </div>
         </div>
 

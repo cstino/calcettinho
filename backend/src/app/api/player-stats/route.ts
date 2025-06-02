@@ -25,15 +25,14 @@ export async function GET() {
     
     const playerStats = records.map((record) => ({
       playerEmail: record.get('playerEmail') as string,
-      gol: Number(record.get('gol')) || Number(record.get('Gol')) || 0,
+      gol: Number(record.get('Gol')) || 0,
       partiteDisputate: Number(record.get('partiteDisputate')) || 0,
       partiteVinte: Number(record.get('partiteVinte')) || 0,
       partitePareggiate: Number(record.get('partitePareggiate')) || 0,
       partitePerse: Number(record.get('partitePerse')) || 0,
       assistenze: Number(record.get('assistenze')) || 0,
       cartelliniGialli: Number(record.get('cartelliniGialli')) || 0,
-      cartelliniRossi: Number(record.get('cartelliniRossi')) || 0,
-      minutiGiocati: Number(record.get('minutiGiocati')) || 0
+      cartelliniRossi: Number(record.get('cartelliniRossi')) || 0
     }));
     
     console.log(`Statistiche processate: ${playerStats.length}`);
@@ -45,4 +44,4 @@ export async function GET() {
     // Restituisce array vuoto in caso di errore
     return NextResponse.json([]);
   }
-} 
+}

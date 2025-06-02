@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navigation from "../components/Navigation";
 import Logo from "../components/Logo";
 import PlayerCard from "../components/PlayerCard";
@@ -30,18 +30,28 @@ export default function Players() {
   const [sortBy, setSortBy] = useState<'name' | 'overall' | 'rarity'>('name');
   const [selectedRarities, setSelectedRarities] = useState<string[]>(['Ultimate', 'Gold', 'Silver', 'Bronze']);
 
-  // Dati reali dall'API
+  // Dati reali dall'API con cleanup
   useEffect(() => {
+    // Crea un AbortController per cancellare la richiesta se necessario
+    const abortController = new AbortController();
+    
     const fetchPlayers = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/players');
+        const response = await fetch('/api/players', {
+          signal: abortController.signal
+        });
         
         if (!response.ok) {
           throw new Error('Errore nel caricamento dei giocatori');
         }
         
         const playersData = await response.json();
+        
+        // Controlla se la richiesta è stata cancellata
+        if (abortController.signal.aborted) {
+          return;
+        }
         
         // Mappa i dati del backend al formato del frontend
         const mappedPlayers = playersData
@@ -50,7 +60,11 @@ export default function Players() {
             id: (index + 1).toString(),
             name: player.nome || 'Nome non disponibile',
             email: player.email || 'email@non-disponibile.com',
-            overall: Math.round((player.ATT + player.DIF + player.VEL + player.FOR + player.PAS + player.POR) / 6),
+            overall: (() => {
+              const stats = [player.ATT, player.DIF, player.VEL, player.FOR, player.PAS, player.POR];
+              const top5Stats = stats.sort((a, b) => b - a).slice(0, 5);
+              return Math.round(top5Stats.reduce((sum, val) => sum + val, 0) / 5);
+            })(),
             att: Math.round(player.ATT),
             vel: Math.round(player.VEL),
             pas: Math.round(player.PAS),
@@ -61,13 +75,25 @@ export default function Players() {
         
         setPlayers(mappedPlayers);
       } catch (error) {
+        // Non mostrare errori se la richiesta è stata cancellata
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
         setError(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
-        setLoading(false);
+        // Non impostare loading a false se la richiesta è stata cancellata
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPlayers();
+
+    // Cleanup: cancella la richiesta quando il componente viene smontato
+    return () => {
+      abortController.abort();
+    };
   }, []);
 
   // Funzioni per filtri
@@ -88,32 +114,42 @@ export default function Players() {
     }
   };
 
-  // Applica filtri e ordinamento
-  const filteredAndSortedPlayers = players
-    .filter(player => {
-      // Filtro per nome
-      const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Filtro per rarità
-      const playerRarity = getCardType(player.overall);
-      const matchesRarity = selectedRarities.includes(playerRarity);
-      
-      return matchesSearch && matchesRarity;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'overall':
-          return b.overall - a.overall; // Dal più alto al più basso
-        case 'rarity':
-          const rarityA = getRarityValue(getCardType(a.overall));
-          const rarityB = getRarityValue(getCardType(b.overall));
-          return rarityB - rarityA; // Dalla rarità più alta alla più bassa
-        default:
-          return 0;
-      }
-    });
+  // Memoizza i calcoli costosi per migliorare le performance
+  const filteredAndSortedPlayers = useMemo(() => {
+    return players
+      .filter(player => {
+        // Filtro per nome
+        const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        // Filtro per rarità
+        const playerRarity = getCardType(player.overall);
+        const matchesRarity = selectedRarities.includes(playerRarity);
+        
+        return matchesSearch && matchesRarity;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'overall':
+            return b.overall - a.overall; // Dal più alto al più basso
+          case 'rarity':
+            const rarityA = getRarityValue(getCardType(a.overall));
+            const rarityB = getRarityValue(getCardType(b.overall));
+            return rarityB - rarityA; // Dalla rarità più alta alla più bassa
+          default:
+            return 0;
+        }
+      });
+  }, [players, searchTerm, selectedRarities, sortBy]);
+
+  // Memoizza le statistiche per evitare ricalcoli inutili
+  const stats = useMemo(() => ({
+    total: filteredAndSortedPlayers.length,
+    ultimate: filteredAndSortedPlayers.filter(p => p.overall >= 90).length,
+    gold: filteredAndSortedPlayers.filter(p => p.overall >= 78 && p.overall < 90).length,
+    silver: filteredAndSortedPlayers.filter(p => p.overall >= 65 && p.overall < 78).length
+  }), [filteredAndSortedPlayers]);
 
   const handleRarityToggle = (rarity: string) => {
     setSelectedRarities(prev => 
@@ -172,24 +208,24 @@ export default function Players() {
               {/* Stats Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-400 font-runtime">{filteredAndSortedPlayers.length}</div>
+                  <div className="text-2xl font-bold text-green-400 font-runtime">{stats.total}</div>
                   <div className="text-gray-300 font-runtime">Giocatori Mostrati</div>
                 </div>
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-purple-400 font-runtime">
-                    {filteredAndSortedPlayers.filter(p => p.overall >= 90).length}
+                    {stats.ultimate}
                   </div>
                   <div className="text-gray-300 font-runtime">Ultimate</div>
                 </div>
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-yellow-400 font-runtime">
-                    {filteredAndSortedPlayers.filter(p => p.overall >= 78 && p.overall < 90).length}
+                    {stats.gold}
                   </div>
                   <div className="text-gray-300 font-runtime">Oro</div>
                 </div>
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-gray-400 font-runtime">
-                    {filteredAndSortedPlayers.filter(p => p.overall >= 65 && p.overall < 78).length}
+                    {stats.silver}
                   </div>
                   <div className="text-gray-300 font-runtime">Argento</div>
                 </div>

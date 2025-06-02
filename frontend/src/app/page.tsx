@@ -44,19 +44,14 @@ export default function Home() {
           {/* Hero Section */}
           <section className="relative py-20 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto text-center">
-              <Logo
-                type="logo-completo"
-                width={400}
-                height={200}
-                className="mx-auto mb-8 w-auto h-32 sm:h-40 drop-shadow-lg"
-              />
-              
-              <h1 className="text-4xl sm:text-6xl font-bold font-runtime text-white mb-6 drop-shadow-lg">
-                Benvenuto in{" "}
-                <span className="bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-                  Calcettinho
-                </span>
-              </h1>
+              {/* Immagine principale al posto del logo e del testo */}
+              <div className="mb-8">
+                <img 
+                  src="/images/heroes/sfondo%20calc.png"
+                  alt="Calcettinho - Lega di Calcetto"
+                  className="mx-auto w-full max-w-4xl h-auto drop-shadow-lg rounded-lg"
+                />
+              </div>
               
               <p className="text-xl font-runtime text-gray-200 mb-8 max-w-2xl mx-auto drop-shadow-md">
                 Lega di calcetto 5v5. Organizza partite, vota i tuoi amici e osserva le statistiche evolvere nel tempo.

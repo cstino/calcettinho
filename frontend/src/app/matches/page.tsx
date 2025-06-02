@@ -321,15 +321,17 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
               </div>
 
               {/* New Match Button */}
-              <div className="text-center mb-8 relative z-20">
-                <button
-                  onClick={handleNewMatch}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 cursor-pointer pointer-events-auto relative z-30"
-                >
-                  <Plus className="w-5 h-5 inline mr-2" />
-                  Nuova Partita
-                </button>
-              </div>
+              <AdminOnly>
+                <div className="text-center mb-8 relative z-20">
+                  <button
+                    onClick={handleNewMatch}
+                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 cursor-pointer pointer-events-auto relative z-30"
+                  >
+                    <Plus className="w-5 h-5 inline mr-2" />
+                    Nuova Partita
+                  </button>
+                </div>
+              </AdminOnly>
             </div>
           </section>
 
@@ -436,13 +438,13 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                         {/* Campo Centrale con Punteggio */}
                         <div className="lg:col-span-3 flex flex-col items-center">
                           {/* Punteggio Finale - Grande e Visibile */}
-                          {match.completed && match.scoreA !== undefined && match.scoreB !== undefined && (
+                          {match.completed && (
                             <div className="mb-4">
                               <div className="flex items-center justify-center gap-6">
                                 <div className="text-center">
                                   <div className="text-red-400 font-runtime font-semibold text-sm mb-1">Team Rosso</div>
                                   <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
-                                    {match.scoreA}
+                                    {match.scoreA ?? 0}
                                   </div>
                                 </div>
                                 <div className="flex flex-col items-center">
@@ -452,7 +454,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                                 <div className="text-center">
                                   <div className="text-blue-400 font-runtime font-semibold text-sm mb-1">Team Blu</div>
                                   <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
-                                    {match.scoreB}
+                                    {match.scoreB ?? 0}
                                   </div>
                                 </div>
                               </div>
@@ -523,13 +525,15 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
                           {!match.completed ? (
                             <>
-                              <button
-                                onClick={() => handleMatchAction('start', match.matchId)}
-                                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-                              >
-                                <Trophy className="w-5 h-5" />
-                                Partita Terminata
-                              </button>
+                              <AdminOnly>
+                                <button
+                                  onClick={() => handleMatchAction('start', match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  <Trophy className="w-5 h-5" />
+                                  Partita Terminata
+                                </button>
+                              </AdminOnly>
                               <AdminOnly>
                                 <button
                                   onClick={() => handleMatchAction('edit', match.matchId)}

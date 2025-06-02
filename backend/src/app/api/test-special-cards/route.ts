@@ -71,7 +71,9 @@ export async function GET(req: NextRequest) {
 
     // Calcola overall del giocatore test
     const stats = [testPlayer.ATT, testPlayer.DEF, testPlayer.VEL, testPlayer.FOR, testPlayer.PAS, testPlayer.POR];
-    const overall = Math.round(stats.reduce((a, b) => a + b, 0) / 6);
+    // Calcola overall come media delle 5 migliori statistiche
+    const top5Stats = stats.sort((a, b) => b - a).slice(0, 5);
+    const overall = Math.round(top5Stats.reduce((a, b) => a + b, 0) / 5);
 
     // Genera HTML per visualizzare tutte le card speciali
     const html = `
