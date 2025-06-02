@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { getCardUrl, getSpecialCardUrl } from '../../utils/api';
 
 interface PlayerCardProps {
   player: {
@@ -32,7 +33,21 @@ export default function PlayerCard({ player }: PlayerCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [selectedCard, setSelectedCard] = useState<SelectedCard | null>(null);
   const [cardBackImage, setCardBackImage] = useState<string>('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
+
+  // ✅ Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobile(isTouchDevice);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Carica la card selezionata del giocatore
   useEffect(() => {
@@ -40,30 +55,36 @@ export default function PlayerCard({ player }: PlayerCardProps) {
       if (!player.email || player.email === 'email@non-disponibile.com') return;
       
       try {
+        console.log('[MOBILE DEBUG] PlayerCard fetching for:', player.name);
         const response = await fetch(`/api/player-awards/${encodeURIComponent(player.email)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.selectedCard) {
             setSelectedCard(data.selectedCard);
             // Usa la card speciale selezionata
-            setCardBackImage(`http://localhost:3001/api/card-special/${encodeURIComponent(player.email)}?template=${data.selectedCard.awardType}`);
+            const specialCardUrl = getSpecialCardUrl(player.email, data.selectedCard.awardType);
+            setCardBackImage(specialCardUrl);
           } else {
             // Nessuna card selezionata, usa la card base normale come retro
-            setCardBackImage(`http://localhost:3001/api/card/${encodeURIComponent(player.email)}`);
+            const baseCardUrl = getCardUrl(player.email);
+            setCardBackImage(baseCardUrl);
           }
         }
       } catch (error) {
-        console.log('Errore nel caricamento card selezionata:', error);
+        console.log('[MOBILE DEBUG] Errore nel caricamento card selezionata:', error);
         // Fallback alla card base
-        setCardBackImage(`http://localhost:3001/api/card/${encodeURIComponent(player.email)}`);
+        const baseCardUrl = getCardUrl(player.email);
+        setCardBackImage(baseCardUrl);
       }
     };
 
     fetchSelectedCard();
   }, [player.email]);
 
+  // ✅ Gestione stato drag per evitare conflitti con click
   const handleCardClick = () => {
-    if (player.email && player.email !== 'email@non-disponibile.com') {
+    // Solo se non stiamo dragging
+    if (!isDragging && player.email && player.email !== 'email@non-disponibile.com') {
       router.push(`/profile/${encodeURIComponent(player.email)}`);
     }
   };
@@ -96,31 +117,56 @@ export default function PlayerCard({ player }: PlayerCardProps) {
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
-      whileHover={{ 
+      whileHover={!isMobile ? { 
         scale: 1.05,
         rotateY: 5,
         transition: { duration: 0.3 }
-      }}
+      } : {}}
       className={`relative group cursor-pointer ${
         player.email && player.email !== 'email@non-disponibile.com'
           ? ''
           : 'cursor-not-allowed opacity-60'
       }`}
       onClick={handleCardClick}
-      onMouseEnter={() => setIsFlipped(true)}
-      onMouseLeave={() => setIsFlipped(false)}
+      onMouseEnter={!isMobile ? () => setIsFlipped(true) : undefined}
+      onMouseLeave={!isMobile ? () => setIsFlipped(false) : undefined}
       style={{
         perspective: '1000px',
         transformStyle: 'preserve-3d'
       }}
     >
-      {/* Card Container con effetto flip */}
-      <div 
+      {/* ✅ Card Container con swipe gesture e flip */}
+      <motion.div 
         className="relative w-full max-w-xs mx-auto"
         style={{
           transformStyle: 'preserve-3d',
-          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-          transition: 'transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1)'
+        }}
+        animate={{
+          rotateY: isFlipped ? 180 : 0,
+        }}
+        transition={{
+          duration: 0.8,
+          ease: "easeInOut"
+        }}
+        // ✅ Gesture di swipe per mobile
+        drag={isMobile ? "x" : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.1}
+        dragMomentum={false}
+        onDragStart={() => {
+          setIsDragging(true);
+        }}
+        onDragEnd={(event, info) => {
+          setIsDragging(false);
+          
+          // Threshold per swipe (80px di movimento)
+          if (Math.abs(info.offset.x) > 80) {
+            setIsFlipped(!isFlipped);
+          }
+        }}
+        whileDrag={{ 
+          scale: 1.02,
+          rotateZ: 0,
         }}
       >
         {/* FRONTE - Card Normale */}
@@ -164,13 +210,17 @@ export default function PlayerCard({ player }: PlayerCardProps) {
           {/* Actual Card */}
           {player.email && player.email !== 'email@non-disponibile.com' && (
             <img
-              src={`http://localhost:3001/api/card/${encodeURIComponent(player.email)}`}
+              src={getCardUrl(player.email)}
               alt={`Card di ${player.name}`}
               className={`w-full h-auto transition-all duration-300 ${
                 imageLoading ? 'opacity-0 absolute' : 'opacity-100'
               }`}
-              onLoad={() => setImageLoading(false)}
+              onLoad={() => {
+                console.log('[MOBILE DEBUG] Card image loaded for:', player.name);
+                setImageLoading(false);
+              }}
               onError={() => {
+                console.log('[MOBILE DEBUG] Card image error for:', player.name);
                 setImageLoading(false);
                 setImageError(true);
               }}
@@ -204,11 +254,11 @@ export default function PlayerCard({ player }: PlayerCardProps) {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
-      {/* Flip Hint - dinamico in base alla card selezionata */}
+      {/* ✅ AGGIORNATO: Flip Hint con istruzioni per mobile */}
       {player.email && player.email !== 'email@non-disponibile.com' && (
-        <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 transition-opacity duration-300">
           <div className={`text-black px-2 py-1 rounded-full text-xs font-runtime font-bold shadow-lg ${
             selectedCard 
               ? 'bg-gradient-to-r from-yellow-400 to-orange-500'

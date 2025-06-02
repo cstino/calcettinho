@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Check, X } from 'lucide-react';
 
@@ -34,11 +34,6 @@ interface VotingModalProps {
   onSuccess: () => void;
 }
 
-interface Vote {
-  playerEmail: string;
-  voteType: 'UP' | 'DOWN';
-}
-
 export default function VotingModal({ 
   isOpen, 
   onClose, 
@@ -53,23 +48,40 @@ export default function VotingModal({
   const [isComplete, setIsComplete] = useState(false);
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({});
   const [loadingStats, setLoadingStats] = useState(true);
+  
+  // ✅ Nuovo stato per forzare il reset dei pulsanti
+  const [buttonResetKey, setButtonResetKey] = useState(0);
 
-  // Filtra i giocatori per includere solo quelli della partita (escluso il votante)
-  const playersToVote = match ? allPlayers.filter(player => 
-    [...match.teamA, ...match.teamB].includes(player.email) && player.email !== voterEmail
-  ) : [];
+  // ✅ FIXED: Uso useMemo per evitare ricreazione continua di playersToVote
+  const playersToVote = useMemo(() => {
+    return match ? allPlayers.filter(player => 
+      [...match.teamA, ...match.teamB].includes(player.email) && player.email !== voterEmail
+    ) : [];
+  }, [match, allPlayers, voterEmail]);
 
   // Reset quando si apre il modal
   useEffect(() => {
     if (isOpen) {
+      console.log('[VOTING DEBUG] Reset completo modal');
       setCurrentPlayerIndex(0);
       setVotes({});
       setIsSubmitting(false);
       setIsComplete(false);
       setPlayerStats({});
       setLoadingStats(true);
+      setButtonResetKey(prev => prev + 1); // ✅ Force reset pulsanti
     }
   }, [isOpen]);
+
+  // ✅ FIXED: Rimuovo playersToVote dalle dipendenze per evitare loop infinito
+  useEffect(() => {
+    console.log('[VOTING DEBUG] Cambio giocatore, reset pulsanti:', {
+      currentPlayerIndex,
+      currentPlayer: playersToVote[currentPlayerIndex]?.name,
+      currentPlayerEmail: playersToVote[currentPlayerIndex]?.email
+    });
+    setButtonResetKey(prev => prev + 1);
+  }, [currentPlayerIndex]); // ✅ Solo currentPlayerIndex come dipendenza
 
   // Carica le statistiche dei giocatori
   useEffect(() => {
@@ -85,7 +97,7 @@ export default function VotingModal({
             const allPlayersData = await response.json();
             
             playersToVote.forEach(player => {
-              const playerData = allPlayersData.find((p: any) => p.email === player.email);
+              const playerData = allPlayersData.find((p: { email: string; [key: string]: any }) => p.email === player.email);
               if (playerData) {
                 stats[player.email] = {
                   ATT: Math.round(playerData.ATT || 50),
@@ -108,7 +120,7 @@ export default function VotingModal({
 
       loadPlayerStats();
     }
-  }, [isOpen, match?.matchId]);
+  }, [isOpen, match?.matchId, playersToVote]);
 
   // Controlla se tutti i voti sono stati espressi
   useEffect(() => {
@@ -121,13 +133,24 @@ export default function VotingModal({
   const handleVote = (voteType: 'UP' | 'DOWN') => {
     if (!currentPlayer) return;
 
+    console.log(`[VOTING DEBUG] handleVote chiamata:`, {
+      player: currentPlayer.name,
+      email: currentPlayer.email,
+      voteType,
+      previousVote: getVoteForPlayer(currentPlayer.email),
+      buttonResetKey
+    });
+
     const newVotes = { ...votes };
     newVotes[currentPlayer.email] = voteType;
     setVotes(newVotes);
 
+    console.log(`[VOTING DEBUG] Stato voti aggiornato:`, newVotes);
+
     // Passa automaticamente al prossimo giocatore se non è l'ultimo
     if (currentPlayerIndex < playersToVote.length - 1) {
       setTimeout(() => {
+        console.log('[VOTING DEBUG] Passaggio automatico al prossimo giocatore');
         setCurrentPlayerIndex(currentPlayerIndex + 1);
       }, 300);
     }
@@ -135,12 +158,14 @@ export default function VotingModal({
 
   const goToPrevious = () => {
     if (currentPlayerIndex > 0) {
+      console.log('[VOTING DEBUG] Navigazione al giocatore precedente');
       setCurrentPlayerIndex(currentPlayerIndex - 1);
     }
   };
 
   const goToNext = () => {
     if (currentPlayerIndex < playersToVote.length - 1) {
+      console.log('[VOTING DEBUG] Navigazione al giocatore successivo');
       setCurrentPlayerIndex(currentPlayerIndex + 1);
     }
   };
@@ -184,7 +209,14 @@ export default function VotingModal({
         onClose();
       } else {
         console.error('Errore dal server:', data);
-        alert(`Errore nell'invio dei voti: ${data.error}`);
+        
+        // ✅ Gestione specifica per voto duplicato
+        if (data.code === 'ALREADY_VOTED') {
+          alert('⚠️ Hai già votato per questa partita!');
+          onClose(); // Chiudi il modal se ha già votato
+        } else {
+          alert(`Errore nell'invio dei voti: ${data.error}`);
+        }
       }
     } catch (error) {
       console.error('Errore nell\'invio dei voti:', error);
@@ -194,7 +226,17 @@ export default function VotingModal({
     }
   };
 
-  const getVoteForPlayer = (playerEmail: string) => votes[playerEmail];
+  const getVoteForPlayer = (playerEmail: string) => {
+    const vote = votes[playerEmail];
+    console.log(`[VOTING DEBUG] getVoteForPlayer(${playerEmail}):`, {
+      vote,
+      allVotes: votes,
+      votesKeys: Object.keys(votes),
+      votesSize: Object.keys(votes).length,
+      buttonResetKey
+    });
+    return vote;
+  };
 
   const progress = playersToVote.length > 0 ? ((currentPlayerIndex + 1) / playersToVote.length) * 100 : 0;
 
@@ -244,7 +286,7 @@ export default function VotingModal({
           <AnimatePresence mode="wait">
             {currentPlayer && (
               <motion.div
-                key={currentPlayer.email}
+                key={`${currentPlayer.email}-${buttonResetKey}`}
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -50 }}
@@ -311,16 +353,30 @@ export default function VotingModal({
                   )}
                 </div>
 
-                {/* Vote Buttons */}
+                {/* Vote Buttons - ✅ Migliorati con reset forzato */}
                 <div className="flex gap-4 mb-6">
                   <motion.button
+                    key={`down-${currentPlayer.email}-${buttonResetKey}`}
+                    initial={{ scale: 1, backgroundColor: 'rgb(31, 41, 55)' }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleVote('DOWN')}
+                    animate={{
+                      backgroundColor: getVoteForPlayer(currentPlayer.email) === 'DOWN' 
+                        ? 'rgb(220, 38, 38)' // red-600
+                        : 'rgb(31, 41, 55)', // gray-800
+                      borderColor: getVoteForPlayer(currentPlayer.email) === 'DOWN'
+                        ? 'rgb(239, 68, 68)' // red-500
+                        : 'rgb(75, 85, 99)', // gray-600
+                    }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => {
+                      console.log(`[VOTING DEBUG] Voto DOWN per ${currentPlayer.name} (${currentPlayer.email})`);
+                      handleVote('DOWN');
+                    }}
                     className={`flex-1 p-4 rounded-xl border-2 transition-all ${
                       getVoteForPlayer(currentPlayer.email) === 'DOWN'
-                        ? 'bg-red-600 border-red-500 text-white'
-                        : 'bg-gray-800 border-gray-600 text-gray-300 hover:border-red-500 hover:bg-red-600/20'
+                        ? 'text-white'
+                        : 'text-gray-300 hover:border-red-500 hover:bg-red-600/20'
                     }`}
                   >
                     <ThumbsDown className="w-8 h-8 mx-auto mb-2" />
@@ -329,13 +385,27 @@ export default function VotingModal({
                   </motion.button>
 
                   <motion.button
+                    key={`up-${currentPlayer.email}-${buttonResetKey}`}
+                    initial={{ scale: 1, backgroundColor: 'rgb(31, 41, 55)' }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleVote('UP')}
+                    animate={{
+                      backgroundColor: getVoteForPlayer(currentPlayer.email) === 'UP' 
+                        ? 'rgb(22, 163, 74)' // green-600
+                        : 'rgb(31, 41, 55)', // gray-800
+                      borderColor: getVoteForPlayer(currentPlayer.email) === 'UP'
+                        ? 'rgb(34, 197, 94)' // green-500
+                        : 'rgb(75, 85, 99)', // gray-600
+                    }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => {
+                      console.log(`[VOTING DEBUG] Voto UP per ${currentPlayer.name} (${currentPlayer.email})`);
+                      handleVote('UP');
+                    }}
                     className={`flex-1 p-4 rounded-xl border-2 transition-all ${
                       getVoteForPlayer(currentPlayer.email) === 'UP'
-                        ? 'bg-green-600 border-green-500 text-white'
-                        : 'bg-gray-800 border-gray-600 text-gray-300 hover:border-green-500 hover:bg-green-600/20'
+                        ? 'text-white'
+                        : 'text-gray-300 hover:border-green-500 hover:bg-green-600/20'
                     }`}
                   >
                     <ThumbsUp className="w-8 h-8 mx-auto mb-2" />

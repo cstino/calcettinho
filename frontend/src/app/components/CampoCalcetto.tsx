@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { getPlayerPhotoUrl } from '../../utils/api';
 
 interface Player {
   name: string;
@@ -31,20 +32,24 @@ function PlayerImage({ player, teamColor, playerName }: PlayerImageProps) {
   const borderColor = teamColor === 'red' ? 'border-red-500' : 'border-blue-500';
   const bgColor = teamColor === 'red' ? 'bg-red-500' : 'bg-blue-500';
 
+  // ✅ Usa la funzione utility per URL dinamiche
+  const photoUrl = getPlayerPhotoUrl(player?.email || '');
+
   return (
     <div className={`w-12 h-12 border-2 ${borderColor} rounded-full overflow-hidden shadow-lg bg-gray-200`}>
       {!imageError ? (
         <img
-          src={`/players/${player?.email}.jpg`}
+          src={photoUrl}
           alt={playerName}
           className="w-full h-full object-cover"
           onError={() => {
-            console.log(`❌ Immagine non trovata per: ${player?.email} (Nome: ${playerName})`);
-            console.log(`❌ Path tentativo: /players/${player?.email}.jpg`);
+            console.log(`[CAMPO DEBUG] ❌ Immagine non trovata per: ${player?.email} (Nome: ${playerName})`);
+            console.log(`[CAMPO DEBUG] ❌ URL tentativo: ${photoUrl}`);
             setImageError(true);
           }}
           onLoad={() => {
-            console.log(`✅ Immagine caricata correttamente per: ${player?.email} (Nome: ${playerName})`);
+            console.log(`[CAMPO DEBUG] ✅ Immagine caricata correttamente per: ${player?.email} (Nome: ${playerName})`);
+            console.log(`[CAMPO DEBUG] ✅ URL: ${photoUrl}`);
           }}
         />
       ) : (

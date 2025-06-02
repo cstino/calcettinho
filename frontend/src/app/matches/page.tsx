@@ -8,7 +8,7 @@ import CreateMatchModal from "../components/CreateMatchModal";
 import MatchResultModal from "../components/MatchResultModal";
 import VotingModal from "../components/VotingModal";
 import EditMatchModal from "../components/EditMatchModal";
-import { Calendar, Users, Star, Plus, Trophy, Clock, Vote } from 'lucide-react';
+import { Calendar, Users, Star, Plus, Trophy, Clock, Vote, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useAuth } from "../contexts/AuthContext";
 import { useAdminGuard } from "../hooks/useAdminGuard";
 import { motion } from 'framer-motion';
@@ -56,6 +56,8 @@ export default function Matches() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [showVotingModal, setShowVotingModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
+  const [votedMatches, setVotedMatches] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,6 +79,10 @@ export default function Matches() {
           const matchesData = await matchesResponse.json();
           console.log('Matches data received:', matchesData);
           setMatches(matchesData);
+          
+          if (userEmail) {
+            await checkUserVotes(matchesData, userEmail);
+          }
         } else {
           console.log('Nessuna partita trovata, iniziando con lista vuota');
           setMatches([]);
@@ -91,7 +97,54 @@ export default function Matches() {
     };
 
     fetchData();
-  }, []);
+  }, [userEmail]);
+
+  const checkUserVotes = async (matchesData: Match[], userEmail: string) => {
+    try {
+      const completedMatches = matchesData.filter(match => match.completed);
+      const votedSet = new Set<string>();
+      
+      console.log('🔍 Controllo voti per utente:', userEmail, 'su', completedMatches.length, 'partite completate');
+      
+      // Controlla ogni partita completata
+      for (const match of completedMatches) {
+        try {
+          const url = `/api/votes/check/${encodeURIComponent(userEmail)}/${match.matchId}`;
+          console.log('🌐 Chiamando API:', url);
+          
+          const response = await fetch(url);
+          console.log('📡 Response status:', response.status);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📊 Dati ricevuti per partita', match.matchId, ':', data);
+            
+            if (data.hasVoted) {
+              votedSet.add(match.matchId);
+              console.log('✅ Utente ha già votato per partita:', match.matchId);
+            } else {
+              console.log('❌ Utente NON ha ancora votato per partita:', match.matchId);
+            }
+          } else {
+            console.log('⚠️ Errore response per partita:', match.matchId, 'Status:', response.status);
+          }
+        } catch (error) {
+          console.log(`❌ Errore nel controllo voti per partita ${match.matchId}:`, error);
+        }
+      }
+      
+      console.log('🏁 Risultato finale controllo voti:', {
+        userEmail,
+        totalMatches: completedMatches.length,
+        votedMatches: Array.from(votedSet),
+        votedCount: votedSet.size
+      });
+      
+      setVotedMatches(votedSet);
+    } catch (error) {
+      console.error('❌ Errore generale nel controllo voti utente:', error);
+    }
+  };
 
   const refreshMatches = async () => {
     try {
@@ -99,6 +152,10 @@ export default function Matches() {
       if (response.ok) {
         const matchesData = await response.json();
         setMatches(matchesData);
+        
+        if (userEmail) {
+          await checkUserVotes(matchesData, userEmail);
+        }
       }
     } catch (error) {
       console.error('Errore nel refresh delle partite:', error);
@@ -155,7 +212,6 @@ export default function Matches() {
         setShowEditModal(true);
         break;
       case 'vote':
-        // Controlla che l'utente abbia partecipato alla partita
         if (!userEmail || (![...match.teamA, ...match.teamB].includes(userEmail))) {
           alert('Puoi votare solo per le partite a cui hai partecipato!');
           return;
@@ -164,7 +220,6 @@ export default function Matches() {
         setShowVotingModal(true);
         break;
       case 'view':
-        // Mostra dettagli partita con le nuove statistiche
         let detailsText = `📊 Dettagli partita:
 
 Data: ${formatDate(match.date)}
@@ -178,7 +233,6 @@ Squadra B: ${match.teamB.map(email => getPlayerName(email)).join(', ')}
           detailsText += `Risultato: ${match.scoreA} - ${match.scoreB}\n\n`;
           
           if (match.playerStats) {
-            // Statistiche Squadra A
             detailsText += `🔴 SQUADRA A:\n`;
             match.teamA.forEach(email => {
               const playerName = getPlayerName(email);
@@ -209,7 +263,6 @@ Squadra B: ${match.teamB.map(email => getPlayerName(email)).join(', ')}
               }
             });
           } else {
-            // Fallback per le partite con il vecchio sistema
             detailsText += `Marcatori A: ${match.teamAScorer ? getPlayerName(match.teamAScorer) : 'Nessuno'}
 Marcatori B: ${match.teamBScorer ? getPlayerName(match.teamBScorer) : 'Nessuno'}
 Assist A: ${match.assistA ? getPlayerName(match.assistA) : 'Nessuno'}
@@ -243,6 +296,293 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
       default:
         alert(`🔧 Azione ${action} per partita ${matchId} - Funzione in sviluppo!`);
     }
+  };
+
+  const toggleExpandMatch = (matchId: string) => {
+    setExpandedMatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(matchId)) {
+        newSet.delete(matchId);
+      } else {
+        newSet.add(matchId);
+      }
+      return newSet;
+    });
+  };
+
+  const CompactMatchCard = ({ match }: { match: Match }) => {
+    const isExpanded = expandedMatches.has(match.matchId);
+    const allPlayers = [...match.teamA, ...match.teamB];
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700/50 overflow-hidden"
+      >
+        <div 
+          onClick={() => toggleExpandMatch(match.matchId)}
+          className="p-4 cursor-pointer hover:bg-gray-700/30 transition-colors duration-200"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-green-400" />
+                <span className="text-gray-300 font-runtime text-sm">
+                  {formatDate(match.date)}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <div className="text-red-400 font-runtime font-semibold text-xs">Rossi</div>
+                  <div className="text-xl font-bold text-white font-runtime">
+                    {match.scoreA ?? 0}
+                  </div>
+                </div>
+                <span className="text-gray-400 font-runtime">-</span>
+                <div className="text-center">
+                  <div className="text-blue-400 font-runtime font-semibold text-xs">Blu</div>
+                  <div className="text-xl font-bold text-white font-runtime">
+                    {match.scoreB ?? 0}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-400" />
+                <span className="text-gray-300 font-runtime text-sm">
+                  {allPlayers.slice(0, 3).map(email => getPlayerName(email)).join(', ')}
+                  {allPlayers.length > 3 && ` +${allPlayers.length - 3}`}
+                </span>
+              </div>
+              
+              <div className="flex items-center text-gray-400">
+                {isExpanded ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="md:hidden mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-400" />
+              <span className="text-gray-300 font-runtime text-sm">
+                {allPlayers.slice(0, 2).map(email => getPlayerName(email)).join(', ')}
+                {allPlayers.length > 2 && ` +${allPlayers.length - 2}`}
+              </span>
+            </div>
+            <span className="text-xs text-gray-500 font-runtime">
+              Clicca per {isExpanded ? 'chiudere' : 'aprire'}
+            </span>
+          </div>
+        </div>
+        
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="border-t border-gray-700/50"
+          >
+            <div className="p-6">
+              <div className="flex justify-center items-center gap-8 mb-6">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-400" />
+                  <span className="text-gray-300 font-runtime text-sm">
+                    {match.location}
+                  </span>
+                </div>
+                <div className="inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold bg-green-900/50 text-green-400 border border-green-400/30">
+                  Completata
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start mb-6">
+                <div className="lg:col-span-1 bg-red-900/20 rounded-lg p-3 border border-red-500/30">
+                  <h3 className="text-base font-semibold text-red-400 mb-2 font-runtime text-center">
+                    Team Rosso
+                  </h3>
+                  <div className="space-y-1">
+                    {match.teamA.map((email, idx) => (
+                      <div key={idx} className="bg-red-900/30 p-2 rounded text-center">
+                        <span className="text-white text-xs font-runtime">
+                          {getPlayerName(email)}
+                        </span>
+                        {match.completed && match.playerStats && match.playerStats[email] && (
+                          <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                            {match.playerStats[email].gol > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">⚽</div>
+                                <div className="text-center">{match.playerStats[email].gol}</div>
+                              </div>
+                            )}
+                            {match.playerStats[email].assist > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">
+                                  <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                </div>
+                                <div className="text-center">{match.playerStats[email].assist}</div>
+                              </div>
+                            )}
+                            {match.playerStats[email].gialli > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">🟨</div>
+                                <div className="text-center">{match.playerStats[email].gialli}</div>
+                              </div>
+                            )}
+                            {match.playerStats[email].rossi > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">🟥</div>
+                                <div className="text-center">{match.playerStats[email].rossi}</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-3 flex flex-col items-center">
+                  <div className="mb-4">
+                    <div className="flex items-center justify-center gap-6">
+                      <div className="text-center">
+                        <div className="text-red-400 font-runtime font-semibold text-sm mb-1">Team Rosso</div>
+                        <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
+                          {match.scoreA ?? 0}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <Trophy className="w-6 h-6 text-yellow-400 mb-1" />
+                        <span className="text-xl md:text-2xl font-bold text-gray-400 font-runtime">VS</span>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-blue-400 font-runtime font-semibold text-sm mb-1">Team Blu</div>
+                        <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
+                          {match.scoreB ?? 0}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="w-full max-w-lg">
+                    <CampoCalcetto
+                      team1={convertEmailsToPlayers(match.teamA)}
+                      team2={convertEmailsToPlayers(match.teamB)}
+                      team1Name="Team Rosso"
+                      team2Name="Team Blu"
+                    />
+                  </div>
+                </div>
+
+                <div className="lg:col-span-1 bg-blue-900/20 rounded-lg p-3 border border-blue-500/30">
+                  <h3 className="text-base font-semibold text-blue-400 mb-2 font-runtime text-center">
+                    Team Blu
+                  </h3>
+                  <div className="space-y-1">
+                    {match.teamB.map((email, idx) => (
+                      <div key={idx} className="bg-blue-900/30 p-2 rounded text-center">
+                        <span className="text-white text-xs font-runtime">
+                          {getPlayerName(email)}
+                        </span>
+                        {match.completed && match.playerStats && match.playerStats[email] && (
+                          <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                            {match.playerStats[email].gol > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">⚽</div>
+                                <div className="text-center">{match.playerStats[email].gol}</div>
+                              </div>
+                            )}
+                            {match.playerStats[email].assist > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">
+                                  <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                </div>
+                                <div className="text-center">{match.playerStats[email].assist}</div>
+                              </div>
+                            )}
+                            {match.playerStats[email].gialli > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">🟨</div>
+                                <div className="text-center">{match.playerStats[email].gialli}</div>
+                              </div>
+                            )}
+                            {match.playerStats[email].rossi > 0 && (
+                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
+                                <div className="text-center w-4 flex justify-center">🟥</div>
+                                <div className="text-center">{match.playerStats[email].rossi}</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
+                  {userEmail && [...match.teamA, ...match.teamB].includes(userEmail) && (
+                    // ✅ Controllo se l'utente ha già votato per questa partita
+                    (() => {
+                      const hasVoted = votedMatches.has(match.matchId);
+                      console.log(`[BUTTON DEBUG] Rendering voto button per partita ${match.matchId}:`, {
+                        userEmail,
+                        hasVoted,
+                        votedMatches: Array.from(votedMatches),
+                        isParticipant: [...match.teamA, ...match.teamB].includes(userEmail)
+                      });
+                      
+                      return hasVoted ? (
+                        <button
+                          disabled
+                          className="flex-1 bg-gray-600 text-gray-300 px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg cursor-not-allowed"
+                        >
+                          <Check className="w-5 h-5" />
+                          Voti Inviati
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleMatchAction('vote', match.matchId)}
+                          className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                        >
+                          <Vote className="w-5 h-5" />
+                          Vota Ora
+                        </button>
+                      );
+                    })()
+                  )}
+                  <AdminOnly>
+                    <button
+                      onClick={() => handleMatchAction('edit', match.matchId)}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      Modifica
+                    </button>
+                  </AdminOnly>
+                  <AdminOnly>
+                    <button
+                      onClick={() => handleMatchAction('delete', match.matchId)}
+                      className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      Elimina
+                    </button>
+                  </AdminOnly>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+    );
   };
 
   return (
@@ -356,234 +696,108 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
               ) : (
                 <div className="grid gap-6">
                   {filteredMatches.map((match, index) => (
-                    <motion.div
-                      key={match.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.1 }}
-                      className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700/50"
-                    >
-                      {/* Info partita sopra al campo */}
-                      <div className="flex justify-center items-center gap-8 mb-6">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-green-400" />
-                          <span className="text-gray-300 font-runtime text-sm">
-                            {formatDate(match.date)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-blue-400" />
-                          <span className="text-gray-300 font-runtime text-sm">
-                            {match.location}
-                          </span>
-                        </div>
-                        <div className={`inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold ${
-                          match.completed 
-                            ? 'bg-green-900/50 text-green-400 border border-green-400/30' 
-                            : 'bg-blue-900/50 text-blue-400 border border-blue-400/30'
-                        }`}>
-                          {match.completed ? 'Completata' : 'Programmata'}
-                        </div>
-                      </div>
-
-                      {/* Layout principale: Team - Campo - Team */}
-                      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start mb-6">
-                        {/* Team Rosso (Squadra A) - Sinistra */}
-                        <div className="lg:col-span-1 bg-red-900/20 rounded-lg p-3 border border-red-500/30">
-                          <h3 className="text-base font-semibold text-red-400 mb-2 font-runtime text-center">
-                            Team Rosso
-                          </h3>
-                          <div className="space-y-1">
-                            {match.teamA.map((email, idx) => (
-                              <div key={idx} className="bg-red-900/30 p-2 rounded text-center">
-                                <span className="text-white text-xs font-runtime">
-                                  {getPlayerName(email)}
-                                </span>
-                                {/* Mostra statistiche se la partita è completata */}
-                                {match.completed && match.playerStats && match.playerStats[email] && (
-                                  <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
-                                    {match.playerStats[email].gol > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">⚽</div>
-                                        <div className="text-center">{match.playerStats[email].gol}</div>
-                                      </div>
-                                    )}
-                                    {match.playerStats[email].assist > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">
-                                          <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
-                                        </div>
-                                        <div className="text-center">{match.playerStats[email].assist}</div>
-                                      </div>
-                                    )}
-                                    {match.playerStats[email].gialli > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">🟨</div>
-                                        <div className="text-center">{match.playerStats[email].gialli}</div>
-                                      </div>
-                                    )}
-                                    {match.playerStats[email].rossi > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">🟥</div>
-                                        <div className="text-center">{match.playerStats[email].rossi}</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                    match.completed ? (
+                      <CompactMatchCard key={match.id} match={match} />
+                    ) : (
+                      <motion.div
+                        key={match.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: index * 0.1 }}
+                        className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700/50"
+                      >
+                        <div className="flex justify-center items-center gap-8 mb-6">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-green-400" />
+                            <span className="text-gray-300 font-runtime text-sm">
+                              {formatDate(match.date)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-blue-400" />
+                            <span className="text-gray-300 font-runtime text-sm">
+                              {match.location}
+                            </span>
+                          </div>
+                          <div className="inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold bg-blue-900/50 text-blue-400 border border-blue-400/30">
+                            Programmata
                           </div>
                         </div>
 
-                        {/* Campo Centrale con Punteggio */}
-                        <div className="lg:col-span-3 flex flex-col items-center">
-                          {/* Punteggio Finale - Grande e Visibile */}
-                          {match.completed && (
-                            <div className="mb-4">
-                              <div className="flex items-center justify-center gap-6">
-                                <div className="text-center">
-                                  <div className="text-red-400 font-runtime font-semibold text-sm mb-1">Team Rosso</div>
-                                  <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
-                                    {match.scoreA ?? 0}
-                                  </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start mb-6">
+                          <div className="lg:col-span-1 bg-red-900/20 rounded-lg p-3 border border-red-500/30">
+                            <h3 className="text-base font-semibold text-red-400 mb-2 font-runtime text-center">
+                              Team Rosso
+                            </h3>
+                            <div className="space-y-1">
+                              {match.teamA.map((email, idx) => (
+                                <div key={idx} className="bg-red-900/30 p-2 rounded text-center">
+                                  <span className="text-white text-xs font-runtime">
+                                    {getPlayerName(email)}
+                                  </span>
                                 </div>
-                                <div className="flex flex-col items-center">
-                                  <Trophy className="w-6 h-6 text-yellow-400 mb-1" />
-                                  <span className="text-xl md:text-2xl font-bold text-gray-400 font-runtime">VS</span>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-blue-400 font-runtime font-semibold text-sm mb-1">Team Blu</div>
-                                  <div className="text-2xl md:text-3xl font-bold text-white font-runtime">
-                                    {match.scoreB ?? 0}
-                                  </div>
-                                </div>
-                              </div>
+                              ))}
                             </div>
-                          )}
-                          
-                          {/* Campo da Calcetto */}
-                          <div className="w-full max-w-lg">
-                            <CampoCalcetto
-                              team1={convertEmailsToPlayers(match.teamA)}
-                              team2={convertEmailsToPlayers(match.teamB)}
-                              team1Name="Team Rosso"
-                              team2Name="Team Blu"
-                            />
+                          </div>
+
+                          <div className="lg:col-span-3 flex flex-col items-center">
+                            <div className="w-full max-w-lg">
+                              <CampoCalcetto
+                                team1={convertEmailsToPlayers(match.teamA)}
+                                team2={convertEmailsToPlayers(match.teamB)}
+                                team1Name="Team Rosso"
+                                team2Name="Team Blu"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="lg:col-span-1 bg-blue-900/20 rounded-lg p-3 border border-blue-500/30">
+                            <h3 className="text-base font-semibold text-blue-400 mb-2 font-runtime text-center">
+                              Team Blu
+                            </h3>
+                            <div className="space-y-1">
+                              {match.teamB.map((email, idx) => (
+                                <div key={idx} className="bg-blue-900/30 p-2 rounded text-center">
+                                  <span className="text-white text-xs font-runtime">
+                                    {getPlayerName(email)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Team Blu (Squadra B) - Destra */}
-                        <div className="lg:col-span-1 bg-blue-900/20 rounded-lg p-3 border border-blue-500/30">
-                          <h3 className="text-base font-semibold text-blue-400 mb-2 font-runtime text-center">
-                            Team Blu
-                          </h3>
-                          <div className="space-y-1">
-                            {match.teamB.map((email, idx) => (
-                              <div key={idx} className="bg-blue-900/30 p-2 rounded text-center">
-                                <span className="text-white text-xs font-runtime">
-                                  {getPlayerName(email)}
-                                </span>
-                                {/* Mostra statistiche se la partita è completata */}
-                                {match.completed && match.playerStats && match.playerStats[email] && (
-                                  <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
-                                    {match.playerStats[email].gol > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">⚽</div>
-                                        <div className="text-center">{match.playerStats[email].gol}</div>
-                                      </div>
-                                    )}
-                                    {match.playerStats[email].assist > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">
-                                          <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
-                                        </div>
-                                        <div className="text-center">{match.playerStats[email].assist}</div>
-                                      </div>
-                                    )}
-                                    {match.playerStats[email].gialli > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">🟨</div>
-                                        <div className="text-center">{match.playerStats[email].gialli}</div>
-                                      </div>
-                                    )}
-                                    {match.playerStats[email].rossi > 0 && (
-                                      <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                        <div className="text-center w-4 flex justify-center">🟥</div>
-                                        <div className="text-center">{match.playerStats[email].rossi}</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                        <div className="flex justify-center">
+                          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
+                            <AdminOnly>
+                              <button
+                                onClick={() => handleMatchAction('start', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                <Trophy className="w-5 h-5" />
+                                Partita Terminata
+                              </button>
+                            </AdminOnly>
+                            <AdminOnly>
+                              <button
+                                onClick={() => handleMatchAction('edit', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                Modifica
+                              </button>
+                            </AdminOnly>
+                            <AdminOnly>
+                              <button
+                                onClick={() => handleMatchAction('delete', match.matchId)}
+                                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                Elimina
+                              </button>
+                            </AdminOnly>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Pulsanti sotto al campo, centrati */}
-                      <div className="flex justify-center">
-                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
-                          {!match.completed ? (
-                            <>
-                              <AdminOnly>
-                                <button
-                                  onClick={() => handleMatchAction('start', match.matchId)}
-                                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                  <Trophy className="w-5 h-5" />
-                                  Partita Terminata
-                                </button>
-                              </AdminOnly>
-                              <AdminOnly>
-                                <button
-                                  onClick={() => handleMatchAction('edit', match.matchId)}
-                                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                  Modifica
-                                </button>
-                              </AdminOnly>
-                              <AdminOnly>
-                                <button
-                                  onClick={() => handleMatchAction('delete', match.matchId)}
-                                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                  Elimina
-                                </button>
-                              </AdminOnly>
-                            </>
-                          ) : (
-                            <>
-                              {/* Pulsante Vota Ora - Solo per chi ha partecipato */}
-                              {userEmail && [...match.teamA, ...match.teamB].includes(userEmail) && (
-                                <button
-                                  onClick={() => handleMatchAction('vote', match.matchId)}
-                                  className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                  <Vote className="w-5 h-5" />
-                                  Vota Ora
-                                </button>
-                              )}
-                              <AdminOnly>
-                                <button
-                                  onClick={() => handleMatchAction('edit', match.matchId)}
-                                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                  Modifica
-                                </button>
-                              </AdminOnly>
-                              <AdminOnly>
-                                <button
-                                  onClick={() => handleMatchAction('delete', match.matchId)}
-                                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                  Elimina
-                                </button>
-                              </AdminOnly>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
+                      </motion.div>
+                    )
                   ))}
                 </div>
               )}
@@ -614,8 +828,24 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
           match={selectedMatch}
           voterEmail={userEmail || ''}
           allPlayers={allPlayers.map(p => ({ name: p.nome, email: p.email }))}
-          onSuccess={() => {
-            refreshMatches();
+          onSuccess={async () => {
+            console.log('🎉 Voti inviati con successo! Ricaricando stato...');
+            
+            // ✅ Forza subito l'aggiunta della partita ai voti inviati
+            if (selectedMatch && userEmail) {
+              setVotedMatches(prev => {
+                const newSet = new Set(prev);
+                newSet.add(selectedMatch.matchId);
+                console.log('🔄 Aggiunta manuale partita ai voti:', selectedMatch.matchId);
+                return newSet;
+              });
+              
+              // ✅ Poi ricarica tutto per sicurezza
+              setTimeout(async () => {
+                await refreshMatches();
+              }, 500);
+            }
+            
             alert('🎉 Voti inviati con successo!');
           }}
         />

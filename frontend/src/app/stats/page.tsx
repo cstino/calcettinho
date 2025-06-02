@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import Navigation from "../components/Navigation";
 import Logo from "../components/Logo";
+import ProtectedRoute from "../components/ProtectedRoute";
+import { getPlayerPhotoUrl, getCardUrl } from '../../utils/api';
 
 interface PlayerStats {
   id: string;
@@ -87,7 +89,7 @@ const PlayerAvatar = ({ player }: { player: { email: string; name: string } }) =
     <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden transition-transform duration-200 hover:scale-110">
       {!imageError ? (
         <img 
-          src={`http://localhost:3001/players/${encodeURIComponent(player.email)}.jpg`}
+          src={getPlayerPhotoUrl(player.email)}
           alt={player.name}
           className={`w-full h-full object-cover transition-all duration-200 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => setImageLoaded(true)}
@@ -718,7 +720,7 @@ export default function Stats() {
                     {/* Card Giocatore 1 */}
                     <div className="text-center">
                       <img 
-                        src={`http://localhost:3001/api/card/${encodeURIComponent(comparisonData.player1.email)}`}
+                        src={getCardUrl(comparisonData.player1.email)}
                         alt={`Card di ${comparisonData.player1.name}`}
                         className="w-64 h-auto mx-auto mb-4"
                       />
@@ -731,7 +733,7 @@ export default function Stats() {
                     {/* Card Giocatore 2 */}
                     <div className="text-center">
                       <img 
-                        src={`http://localhost:3001/api/card/${encodeURIComponent(comparisonData.player2.email)}`}
+                        src={getCardUrl(comparisonData.player2.email)}
                         alt={`Card di ${comparisonData.player2.name}`}
                         className="w-64 h-auto mx-auto mb-4"
                       />

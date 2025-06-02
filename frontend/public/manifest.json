@@ -1,0 +1,54 @@
+{
+  "name": "Calcettinho",
+  "short_name": "Calcettinho",
+  "description": "App per gestire partite di calcetto con carte giocatori personalizzate",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00a273",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nuova Partita",
+      "short_name": "Partita",
+      "description": "Crea una nuova partita",
+      "url": "/create-match",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Le Mie Partite",
+      "short_name": "Partite",
+      "description": "Visualizza le partite",
+      "url": "/matches",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+} 

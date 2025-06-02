@@ -1,0 +1,14 @@
+{
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/.next",
+  "devCommand": "cd frontend && npm run dev",
+  "installCommand": "cd frontend && npm install",
+  "framework": "nextjs",
+  "env": {
+    "AIRTABLE_API_KEY": "@airtable_api_key",
+    "AIRTABLE_BASE_ID": "@airtable_base_id",
+    "GOOGLE_SHEETS_CLIENT_EMAIL": "@google_sheets_client_email", 
+    "GOOGLE_SHEETS_PRIVATE_KEY": "@google_sheets_private_key",
+    "GOOGLE_SHEETS_SPREADSHEET_ID": "@google_sheets_spreadsheet_id"
+  }
+} 

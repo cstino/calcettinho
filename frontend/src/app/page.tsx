@@ -1,15 +1,15 @@
 'use client';
 
 import { useAuth } from './contexts/AuthContext';
-import { useAdminGuard } from './hooks/useAdminGuard';
+import { useNotifications } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Link from "next/link";
 import Navigation from "./components/Navigation";
 import Logo from "./components/Logo";
 
 export default function Home() {
-  const { loading } = useAuth();
-  const { isAdmin } = useAdminGuard();
+  const { loading, userEmail } = useAuth();
+  const { hasUnseenEvolutions, evolutionCount } = useNotifications();
 
   if (loading) {
     return (
@@ -58,6 +58,38 @@ export default function Home() {
               </p>
             </div>
           </section>
+
+          {/* Banner Evoluzioni */}
+          {hasUnseenEvolutions && userEmail && (
+            <section className="py-8 px-4 sm:px-6 lg:px-8">
+              <div className="max-w-4xl mx-auto">
+                <Link href={`/profile/${encodeURIComponent(userEmail)}`}>
+                  <div className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white p-6 rounded-xl shadow-2xl cursor-pointer transition-all duration-300 transform hover:scale-105 border border-yellow-400/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-yellow-400/20 rounded-full flex items-center justify-center animate-pulse">
+                          <span className="text-3xl">🏆</span>
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold font-runtime mb-1">
+                            Nuove Evoluzioni Disponibili!
+                          </h3>
+                          <p className="text-yellow-100 font-runtime">
+                            Hai {evolutionCount} evoluzion{evolutionCount === 1 ? 'e' : 'i'} pronte da sbloccare nel tuo profilo
+                          </p>
+                        </div>
+                      </div>
+                      <div className="hidden sm:block">
+                        <svg className="w-8 h-8 text-yellow-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            </section>
+          )}
 
           {/* Features Section */}
           <section className="py-16 bg-gray-800/40 backdrop-blur-sm">
@@ -118,14 +150,6 @@ export default function Home() {
               <p className="text-xl font-runtime text-gray-200 mb-8 drop-shadow-md">
                 Unisciti alla community di Calcettinho e porta la tua lega al livello successivo!
               </p>
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  className="bg-gradient-to-r from-green-500/90 to-blue-500/90 backdrop-blur-sm text-white px-8 py-4 rounded-lg text-xl font-semibold font-runtime hover:from-green-600/90 hover:to-blue-600/90 transition-all shadow-lg transform hover:scale-105"
-                >
-                  Amministra la Lega
-                </Link>
-              )}
             </div>
           </section>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, Users, MapPin, Plus, Minus } from 'lucide-react';
+import { X, Calendar, Users, MapPin, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Player {
@@ -211,53 +211,6 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
               </div>
             </div>
 
-            {/* Squadre */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Squadra A */}
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-red-400 mb-3 font-runtime">
-                  <Users className="w-5 h-5 inline mr-2" />
-                  Squadra A ({formData.teamA.length}/5 giocatori)
-                </h3>
-                <div className="space-y-2 mb-4">
-                  {formData.teamA.map(email => (
-                    <div key={email} className="flex items-center justify-between bg-red-900/30 p-2 rounded border border-red-500/30">
-                      <span className="text-white text-sm">{getPlayerName(email)}</span>
-                      <button
-                        type="button"
-                        onClick={() => removePlayer(email, 'A')}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Squadra B */}
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-blue-400 mb-3 font-runtime">
-                  <Users className="w-5 h-5 inline mr-2" />
-                  Squadra B ({formData.teamB.length}/5 giocatori)
-                </h3>
-                <div className="space-y-2 mb-4">
-                  {formData.teamB.map(email => (
-                    <div key={email} className="flex items-center justify-between bg-blue-900/30 p-2 rounded border border-blue-500/30">
-                      <span className="text-white text-sm">{getPlayerName(email)}</span>
-                      <button
-                        type="button"
-                        onClick={() => removePlayer(email, 'B')}
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
             {/* Lista Giocatori Disponibili */}
             <div className="bg-gray-700/30 rounded-lg p-4">
               <h3 className="text-lg font-semibold text-white mb-3 font-runtime">
@@ -302,6 +255,63 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Squadre */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Squadra A */}
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-red-400 mb-3 font-runtime">
+                  <Users className="w-5 h-5 inline mr-2" />
+                  Squadra A ({formData.teamA.length}/5 giocatori)
+                </h3>
+                <div className="space-y-2 mb-4">
+                  {formData.teamA.map(email => (
+                    <div key={email} className="flex items-center justify-between bg-red-900/30 p-2 rounded border border-red-500/30">
+                      <span className="text-white text-sm">{getPlayerName(email)}</span>
+                      <button
+                        type="button"
+                        onClick={() => removePlayer(email, 'A')}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {formData.teamA.length === 0 && (
+                    <div className="text-gray-400 text-sm italic text-center py-4">
+                      Seleziona giocatori dalla lista sopra
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Squadra B */}
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-blue-400 mb-3 font-runtime">
+                  <Users className="w-5 h-5 inline mr-2" />
+                  Squadra B ({formData.teamB.length}/5 giocatori)
+                </h3>
+                <div className="space-y-2 mb-4">
+                  {formData.teamB.map(email => (
+                    <div key={email} className="flex items-center justify-between bg-blue-900/30 p-2 rounded border border-blue-500/30">
+                      <span className="text-white text-sm">{getPlayerName(email)}</span>
+                      <button
+                        type="button"
+                        onClick={() => removePlayer(email, 'B')}
+                        className="text-blue-400 hover:text-blue-300"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {formData.teamB.length === 0 && (
+                    <div className="text-gray-400 text-sm italic text-center py-4">
+                      Seleziona giocatori dalla lista sopra
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

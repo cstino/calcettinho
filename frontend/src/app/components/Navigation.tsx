@@ -6,18 +6,17 @@ import {
   Users, 
   Calendar, 
   Trophy, 
-  Settings,
   LogOut,
   User,
   UserCircle
 } from "lucide-react";
 import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdminGuard } from '../hooks/useAdminGuard';
+import { useNotifications } from '../contexts/NotificationContext';
 
 export default function Navigation() {
   const { userEmail, logout } = useAuth();
-  const { isAdmin } = useAdminGuard();
+  const { hasUnseenEvolutions, evolutionCount } = useNotifications();
 
   const navItems = [
     {
@@ -43,12 +42,9 @@ export default function Navigation() {
     ...(userEmail ? [{
       name: "Profilo",
       url: `/profile/${encodeURIComponent(userEmail)}`,
-      icon: UserCircle
-    }] : []),
-    ...(isAdmin ? [{
-      name: "Admin",
-      url: "/admin",
-      icon: Settings
+      icon: UserCircle,
+      badge: hasUnseenEvolutions ? evolutionCount : undefined,
+      badgeColor: 'bg-red-500'
     }] : [])
   ];
 
@@ -68,6 +64,14 @@ export default function Navigation() {
         <User className="w-4 h-4" />
         <span className="hidden sm:inline">{userEmail}</span>
       </div>
+      {hasUnseenEvolutions && (
+        <div className="relative">
+          <div className="flex items-center gap-2 px-2 py-1 bg-red-600/90 text-white rounded-full text-xs font-bold animate-pulse">
+            <span>🏆</span>
+            <span>{evolutionCount} Evoluzion{evolutionCount === 1 ? 'e' : 'i'}</span>
+          </div>
+        </div>
+      )}
       <button
         onClick={logout}
         className="flex items-center gap-2 px-3 py-1 bg-red-600/80 hover:bg-red-700/80 text-white rounded-lg transition-colors text-sm"

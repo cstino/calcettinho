@@ -38,15 +38,26 @@ export default function Players() {
     const fetchPlayers = async () => {
       try {
         setLoading(true);
+        setError(null);
+        
+        console.log('[MOBILE DEBUG] Inizio caricamento players...');
+        
         const response = await fetch('/api/players', {
-          signal: abortController.signal
+          signal: abortController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          }
         });
         
+        console.log('[MOBILE DEBUG] Response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error('Errore nel caricamento dei giocatori');
+          throw new Error(`Errore nel caricamento dei giocatori: ${response.status}`);
         }
         
         const playersData = await response.json();
+        
+        console.log('[MOBILE DEBUG] Players data received:', playersData?.length || 0, 'players');
         
         // Controlla se la richiesta è stata cancellata
         if (abortController.signal.aborted) {
@@ -73,16 +84,19 @@ export default function Players() {
             por: Math.round(player.POR)
           }));
         
+        console.log('[MOBILE DEBUG] Mapped players:', mappedPlayers.length);
         setPlayers(mappedPlayers);
       } catch (error) {
         // Non mostrare errori se la richiesta è stata cancellata
         if (error instanceof Error && error.name === 'AbortError') {
           return;
         }
+        console.error('[MOBILE DEBUG] Error:', error);
         setError(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
         // Non impostare loading a false se la richiesta è stata cancellata
         if (!abortController.signal.aborted) {
+          console.log('[MOBILE DEBUG] Loading complete');
           setLoading(false);
         }
       }
@@ -378,9 +392,27 @@ export default function Players() {
               {/* Players Cards Grid */}
               {!loading && !error && filteredAndSortedPlayers.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                  {filteredAndSortedPlayers.map((player) => (
-                    <PlayerCard key={player.id} player={player} />
-                  ))}
+                  {(() => {
+                    console.log('[MOBILE DEBUG] Rendering cards:', filteredAndSortedPlayers.length);
+                    return filteredAndSortedPlayers.map((player) => {
+                      console.log('[MOBILE DEBUG] Rendering player:', player.name, player.overall);
+                      return <PlayerCard key={player.id} player={player} />;
+                    });
+                  })()}
+                </div>
+              )}
+
+              {/* Debug info for mobile */}
+              {!loading && !error && (
+                <div className="mt-8 p-4 bg-yellow-900/50 rounded-lg border border-yellow-600 sm:hidden">
+                  <h4 className="text-yellow-300 font-bold mb-2">🔧 Debug Mobile:</h4>
+                  <p className="text-yellow-200 text-sm">
+                    • Players caricati: {players.length}<br/>
+                    • Players filtrati: {filteredAndSortedPlayers.length}<br/>
+                    • Loading: {loading ? 'SI' : 'NO'}<br/>
+                    • Error: {error || 'Nessuno'}<br/>
+                    • UserAgent: {typeof window !== 'undefined' ? window.navigator.userAgent.slice(0, 50) + '...' : 'N/A'}
+                  </p>
                 </div>
               )}
             </div>

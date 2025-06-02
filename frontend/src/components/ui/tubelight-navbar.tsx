@@ -11,6 +11,8 @@ interface NavItem {
   name: string
   url: string
   icon: LucideIcon
+  badge?: number
+  badgeColor?: string
 }
 
 interface NavBarProps {
@@ -111,6 +113,17 @@ export function NavBar({ items, className, logo, userComponent }: NavBarProps) {
               <span className="md:hidden">
                 <Icon size={18} strokeWidth={2.5} />
               </span>
+              
+              {/* Badge di notifica */}
+              {item.badge && item.badge > 0 && (
+                <div className={cn(
+                  "absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-xs font-bold text-white shadow-lg",
+                  item.badgeColor || "bg-red-500"
+                )}>
+                  {item.badge > 99 ? '99+' : item.badge}
+                </div>
+              )}
+              
               {isActive && (
                 <motion.div
                   layoutId="lamp"

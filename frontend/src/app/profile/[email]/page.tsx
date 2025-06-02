@@ -3,9 +3,13 @@
 import { useState, useEffect, useReducer, useCallback, memo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import Navigation from "../../components/Navigation";
 import Logo from "../../components/Logo";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import ProtectedRoute from "../../components/ProtectedRoute";
+import { getCardUrl, getSpecialCardUrl } from '../../../utils/api';
 
 interface Player {
   id: string;
@@ -256,6 +260,7 @@ export default function PlayerProfile() {
   const params = useParams();
   const router = useRouter();
   const { userEmail } = useAuth(); // ✅ Ottieni l'utente corrente
+  const { markEvolutionsAsSeen, checkForNewEvolutions } = useNotifications();
   const [player, setPlayer] = useState<Player | null>(null);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [voteHistory, setVoteHistory] = useState<VoteHistory | null>(null);
@@ -280,6 +285,18 @@ export default function PlayerProfile() {
   const gameStatsInView = useInView();
   const voteStatsInView = useInView();
   const votePercentageInView = useInView();
+
+  // ✅ Marca le notifiche come viste quando si visita il proprio profilo
+  useEffect(() => {
+    if (isOwner && playerAwards && playerAwards.pending > 0) {
+      // Attendi un po' per assicurarsi che l'utente veda le notifiche
+      const timer = setTimeout(() => {
+        markEvolutionsAsSeen();
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isOwner, playerAwards?.pending, markEvolutionsAsSeen]);
 
   useEffect(() => {
     const fetchPlayerData = async () => {
@@ -456,14 +473,14 @@ export default function PlayerProfile() {
       const imagesToPreload: string[] = [];
       
       // Card base
-      const baseCardSrc = `http://localhost:3001/api/card/${encodeURIComponent(player.email)}`;
+      const baseCardSrc = getCardUrl(player.email);
       if (!preloadedImages.has(baseCardSrc)) {
         imagesToPreload.push(baseCardSrc);
       }
       
       // Card speciali sbloccate - solo quelle non ancora precaricate
       playerAwards.unlockedAwards.forEach(award => {
-        const specialCardSrc = `http://localhost:3001/api/card-special/${encodeURIComponent(player.email)}?template=${award.awardType}`;
+        const specialCardSrc = getSpecialCardUrl(player.email, award.awardType);
         if (!preloadedImages.has(specialCardSrc)) {
           imagesToPreload.push(specialCardSrc);
         }
@@ -558,7 +575,7 @@ export default function PlayerProfile() {
           
           // Precarica solo la nuova immagine sbloccata
           if (player) {
-            const newImageSrc = `http://localhost:3001/api/card-special/${encodeURIComponent(player.email)}?template=${award.awardType}`;
+            const newImageSrc = getSpecialCardUrl(player.email, award.awardType);
             const img = new Image();
             img.onload = () => {
               // ✅ Sincronizza con cache globale
@@ -568,6 +585,11 @@ export default function PlayerProfile() {
             };
             img.src = newImageSrc;
           }
+
+          // ✅ Aggiorna le notifiche dopo lo sblocco
+          setTimeout(() => {
+            checkForNewEvolutions();
+          }, 1000);
         }
         
         // Chiudi l'animazione dopo 3 secondi
@@ -585,7 +607,7 @@ export default function PlayerProfile() {
       setShowUnlockAnimation(false);
       setUnlockingCard(null);
     }
-  }, [email, playerAwards, player, isOwner]);
+  }, [email, playerAwards, player, isOwner, checkForNewEvolutions]);
 
   // Funzione per selezionare una card come retro - Solo per il proprietario - SEMPLIFICATA
   const handleSelectCard = useCallback(async (awardId: string | null) => {
@@ -876,7 +898,7 @@ export default function PlayerProfile() {
             {/* Card del Giocatore */}
             <div className="text-center mb-8">
               <img 
-                src={`http://localhost:3001/api/card/${encodeURIComponent(player.email)}`}
+                src={getCardUrl(player.email)}
                 alt={`Card di ${player.name}`}
                 className="w-80 h-auto mx-auto mb-4 inline-block"
               />
@@ -884,7 +906,7 @@ export default function PlayerProfile() {
               {/* Bottone Download Card */}
               <div>
                 <a
-                  href={`http://localhost:3001/api/card/${encodeURIComponent(player.email)}`}
+                  href={getCardUrl(player.email)}
                   download={`${player.name.replace(/\s+/g, '_')}_card.png`}
                   className="inline-flex items-center px-4 py-2 bg-green-600/80 hover:bg-green-700/80 text-white rounded-lg transition-colors font-runtime font-semibold"
                 >
@@ -1001,7 +1023,7 @@ export default function PlayerProfile() {
                         >
                           <div className="text-center">
                             <CardImage 
-                              src={`http://localhost:3001/api/card/${encodeURIComponent(player?.email || '')}`}
+                              src={getCardUrl(player?.email || '')}
                               alt="Card Base"
                             />
                             <h4 className="text-white font-runtime font-bold mb-1">Card Base</h4>
@@ -1042,7 +1064,7 @@ export default function PlayerProfile() {
                           >
                             <div className="text-center">
                               <CardImage 
-                                src={`http://localhost:3001/api/card-special/${encodeURIComponent(player?.email || '')}?template=${award.awardType}`}
+                                src={getSpecialCardUrl(player?.email || '', award.awardType)}
                                 alt={`Card ${award.awardType}`}
                               />
                               <h4 className="text-white font-runtime font-bold mb-1">{getAwardLabel(award.awardType)}</h4>
