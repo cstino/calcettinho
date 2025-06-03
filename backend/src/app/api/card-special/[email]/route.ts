@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCanvas, loadImage, registerFont } from 'canvas';
 import path from 'path';
-import fs from 'fs/promises';
-import { getPlayerByEmail } from '@/utils/airtable';
+import { promises as fs } from 'fs';
 
 // Registra font Nebulax
 try {
@@ -89,6 +88,43 @@ function getOptimalColors(ctx: any): { textColor: string, valueColor: string } {
   }
 }
 
+// Funzione per ottenere i dati del giocatore da Airtable
+async function getPlayerByEmail(email: string) {
+  try {
+    console.log('Recupero dati giocatore per email:', email);
+    
+    // Chiamata all'API players per ottenere i dati del giocatore
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'}/api/players`);
+    if (!response.ok) {
+      throw new Error('Errore nel recupero giocatori');
+    }
+    
+    const players = await response.json();
+    const player = players.find((p: any) => p.email === email);
+    
+    if (!player) {
+      console.log('Giocatore non trovato per email:', email);
+      return null;
+    }
+    
+    console.log('Dati giocatore trovati:', player);
+    return {
+      nome: player.nome,
+      email: player.email,
+      photoUrl: player.foto, // URL della foto da Airtable
+      ATT: player.ATT,
+      DEF: player.DIF,
+      VEL: player.VEL,
+      FOR: player.FOR,
+      PAS: player.PAS,
+      POR: player.POR
+    };
+  } catch (error) {
+    console.error('Errore nel recupero dati giocatore:', error);
+    return null;
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ email: string }> }
@@ -106,11 +142,11 @@ export async function GET(
     
     // Recupera dati da Airtable
     const playerData = await getPlayerByEmail(email);
-    console.log('Dati giocatore recuperati da Airtable:', playerData);
+    console.log('Dati giocatore recuperati:', playerData);
     
     if (!playerData) {
       return NextResponse.json({ 
-        error: `Giocatore con email ${email} non trovato in Airtable` 
+        error: `Giocatore con email ${email} non trovato` 
       }, { status: 404 });
     }
 
@@ -122,25 +158,33 @@ export async function GET(
 
     console.log(`Overall: ${overall}, Template special: ${template}`);
 
-    // Percorsi per card special e foto giocatore
+    // Percorsi per card special
     const cardPath = path.join(process.cwd(), 'public/cards/special', `${template}.png`);
-    const playerPath = path.join(process.cwd(), 'public/players', `${email}.jpg`);
 
-    // Verifica esistenza file
+    // Verifica esistenza template e foto
     let useSimpleCard = false;
+    let hasPlayerPhoto = false;
+    
     try {
       await fs.access(cardPath);
-      await fs.access(playerPath);
-      console.log(`File special trovati, generazione card completa`);
+      console.log(`Template special trovato: ${template}.png`);
     } catch {
-      console.log('File special template/foto non trovati, generazione card semplificata');
+      console.log('Template special non trovato, userò card semplificata');
       useSimpleCard = true;
+    }
+    
+    // Verifica se esiste l'URL della foto di Airtable
+    if (playerData.photoUrl && playerData.photoUrl.trim() !== '') {
+      hasPlayerPhoto = true;
+      console.log(`Foto giocatore trovata su Airtable: ${playerData.photoUrl}`);
+    } else {
+      console.log('Nessuna foto trovata su Airtable');
     }
 
     const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
     const ctx = canvas.getContext('2d');
 
-    if (useSimpleCard) {
+    if (useSimpleCard || !hasPlayerPhoto) {
       // **CARD SPECIAL SEMPLIFICATA SENZA FILE ESTERNI**
       
       // Background dorato per achievement
@@ -176,7 +220,7 @@ export async function GET(
       // Nome
       ctx.font = 'bold 48px Arial';
       ctx.fillStyle = '#F3F4F6';
-      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 640);
+      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 620); // Alzato di 7 punti
 
       // Stats - versione semplificata
       const statsData = [
@@ -190,45 +234,48 @@ export async function GET(
 
       // Posizioni delle 4 colonne - gap simmetrico di 80px dal centro
       const leftLabelX = 100;      // Colonna 1: Labels sinistra
-      const leftValueX = 200;      // Colonna 2: Valori sinistra (parte destra arriva a ~220px)
-      const rightLabelX = 380;     // Colonna 3: Labels destra (iniziano a +80px dal centro)
-      const rightValueX = 480;     // Colonna 4: Valori destra (parte destra arriva a ~500px)
-      const startY = 715;
+      const leftValueX = 200;      // Colonna 2: Valori sinistra
+      const rightLabelX = 380;     // Colonna 3: Labels destra
+      const rightValueX = 480;     // Colonna 4: Valori destra
+
+      const startY = 689; // Alzato di 2 punti
       const statSpacing = 45;
 
-      ctx.font = 'bold 28px Arial';
-      
-      // Prima colonna (ATT, VEL, PAS)
-      for (let i = 0; i < 3; i++) {
-        const stat = statsData[i];
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#F3F4F6';
+      statsData.slice(0, 3).forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        
-        // Label
-        ctx.fillStyle = '#F3F4F6';
-        ctx.textAlign = 'left';
-        ctx.fillText(stat.label, leftLabelX, y);
-        
-        // Valore (centrato nella colonna)
-        ctx.fillStyle = '#FFD700';
-        ctx.textAlign = 'center';
+        ctx.fillText(`${stat.label}`, leftLabelX, y);
+      });
+
+      // Valori statistiche colonna sinistra
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#FFD700';
+      statsData.slice(0, 3).forEach((stat, i) => {
+        const y = startY + i * statSpacing;
         ctx.fillText(String(stat.value), leftValueX, y);
-      }
-      
-      // Seconda colonna (FOR, DIF, POR)
-      for (let i = 3; i < 6; i++) {
-        const stat = statsData[i];
-        const y = startY + (i - 3) * statSpacing;
-        
-        // Label
-        ctx.fillStyle = '#F3F4F6';
-        ctx.textAlign = 'left';
-        ctx.fillText(stat.label, rightLabelX, y);
-        
-        // Valore (centrato nella colonna)
-        ctx.fillStyle = '#FFD700';
-        ctx.textAlign = 'center';
+      });
+
+      // Scritte statistiche colonna destra (FOR, DIF, POR)
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#F3F4F6';
+      statsData.slice(3, 6).forEach((stat, i) => {
+        const y = startY + i * statSpacing;
+        ctx.fillText(`${stat.label}`, rightLabelX, y);
+      });
+
+      // Valori statistiche colonna destra
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#FFD700';
+      statsData.slice(3, 6).forEach((stat, i) => {
+        const y = startY + i * statSpacing;
         ctx.fillText(String(stat.value), rightValueX, y);
-      }
+      });
 
     } else {
       // **CARD SPECIAL COMPLETA CON FILE**
@@ -236,7 +283,7 @@ export async function GET(
       // Carica immagini
       const [cardImg, playerImg] = await Promise.all([
         loadImage(cardPath),
-        loadImage(playerPath)
+        loadImage(playerData.photoUrl) // Usa l'URL di Airtable
       ]);
 
       // Disegna template special
@@ -251,19 +298,19 @@ export async function GET(
 
       // Disegna foto giocatore - posizioni specifiche per template special
       const maxFaceSize = 420;
-      let faceY = 156; // Default, potrebbe variare per template special
+      let faceY = 136; // Default alzato di 7 punti
       
       // Adjust position based on special template if needed
       switch(template) {
         case '1presenza':
-          faceY = 158;
+          faceY = 138; // Alzato di 7 punti
           break;
         case 'goleador':
-          faceY = 160;
+          faceY = 140; // Alzato di 7 punti
           break;
         // Add more template-specific positions as needed
         default:
-          faceY = 156;
+          faceY = 136; // Alzato di 7 punti
       }
       
       let faceWidth, faceHeight;
@@ -296,7 +343,7 @@ export async function GET(
       ctx.font = 'bold 56px Nebulax, Arial';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
-      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 638);
+      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 618); // Alzato di 7 punti
 
       // Stats - Colonna sinistra: ATT, VEL, PAS
       const leftStats = [
@@ -312,7 +359,7 @@ export async function GET(
         { label: 'POR', value: Math.round(playerData.POR) }
       ];
 
-      const startY = 715;
+      const startY = 689; // Alzato di 2 punti
       const statSpacing = 45;
 
       // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
@@ -352,22 +399,21 @@ export async function GET(
       });
     }
 
-    // Converti canvas in buffer PNG
+    // Converti canvas in PNG Buffer
     const buffer = canvas.toBuffer('image/png');
 
-    // Restituisci l'immagine
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': 'image/png',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Timestamp': Date.now().toString()
-      }
+        'Cache-Control': 'public, max-age=3600'
+      },
     });
 
   } catch (error) {
     console.error('Errore nella generazione della card special:', error);
     return NextResponse.json({ 
-      error: 'Errore nella generazione della card special' 
+      error: 'Errore nella generazione della card special',
+      details: error instanceof Error ? error.message : 'Errore sconosciuto'
     }, { status: 500 });
   }
 } 
