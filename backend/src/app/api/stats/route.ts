@@ -92,12 +92,27 @@ export async function GET() {
       });
     
     console.log(`Statistiche aggregate preparate per ${playersWithStats.length} giocatori`);
-    return NextResponse.json(playersWithStats);
+    
+    const response = NextResponse.json(playersWithStats);
+    
+    // Aggiungi header CORS
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    return response;
     
   } catch (error) {
     console.error('Errore nel recupero statistiche aggregate:', error);
     
     // Fallback con dati vuoti in caso di errore
-    return NextResponse.json([]);
+    const response = NextResponse.json([]);
+    
+    // Aggiungi header CORS anche per i dati di fallback
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    return response;
   }
 } 
