@@ -1,0 +1,50 @@
+🚀 CALCETTINHO - URL BACKEND PER TEST
+==========================================
+
+🎯 BACKEND ATTUALE (Deploy di 4 minuti fa):
+https://backend-chmcj2jdz-cstinos-projects.vercel.app
+
+📋 URL DA TESTARE:
+==========================================
+
+1. 🧪 API Test (per verificare che funzioni):
+https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/test
+
+2. 👥 API Players (giocatori da Airtable):
+https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/players
+
+3. 📊 API Stats (statistiche):
+https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/stats
+
+4. ⚽ API Matches (partite):
+https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/matches
+
+
+❌ NON USARE QUESTI (DEPLOY VECCHI):
+==========================================
+- backend-n169b5p1a-cstinos-projects.vercel.app
+- backend-52iuoxfq9-cstinos-projects.vercel.app  
+- backend-6sllc293q-cstinos-projects.vercel.app
+
+
+✅ COSA ASPETTARSI:
+==========================================
+
+/api/test dovrebbe mostrare:
+{
+  "message": "Backend API funziona!",
+  "timestamp": "2025-01-27T...",
+  "env": {
+    "hasAirtableKey": true,
+    "hasBaseId": true
+  }
+}
+
+/api/players dovrebbe mostrare:
+Un array JSON con i tuoi giocatori da Airtable
+
+🚀 PROSSIMO STEP:
+==========================================
+Una volta che /api/players funziona, useremo questo URL per il frontend:
+
+NEXT_PUBLIC_BACKEND_URL = https://backend-chmcj2jdz-cstinos-projects.vercel.app 
