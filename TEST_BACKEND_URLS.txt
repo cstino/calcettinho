@@ -1,17 +1,44 @@
 🚀 CALCETTINHO - URL BACKEND PER TEST
 ==========================================
 
-🎯 BACKEND ATTUALE (Deploy di 4 minuti fa):
+🎯 BACKEND ATTUALE (Pages Router Test):
 https://backend-chmcj2jdz-cstinos-projects.vercel.app
+
+📋 URL DA TESTARE SUBITO:
+==========================================
+
+1. 🧪 API Test (Pages Router - NUOVO):
+https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/test
+
+2. 👥 API Players (App Router):
+https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/players
+
+🎯 SE IL PRIMO FUNZIONA:
+==========================================
+Significherà che il problema è nell'App Router (src/app/api)
+e dovremo migrare tutto al Pages Router (pages/api)
+
+🎯 SE IL PRIMO NON FUNZIONA:
+==========================================
+Il problema è più profondo nella configurazione Vercel
+
+✅ COSA ASPETTARSI dal primo URL:
+==========================================
+{
+  "message": "Backend API funziona! (Pages Router)",
+  "timestamp": "2025-01-27T...",
+  "method": "GET",
+  "env": {
+    "hasAirtableKey": true,
+    "hasBaseId": true
+  }
+}
+
+🚀 TESTA PRIMA QUESTO:
+https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/test
 
 📋 URL DA TESTARE:
 ==========================================
-
-1. 🧪 API Test (per verificare che funzioni):
-https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/test
-
-2. 👥 API Players (giocatori da Airtable):
-https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/players
 
 3. 📊 API Stats (statistiche):
 https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/stats
@@ -26,22 +53,6 @@ https://backend-chmcj2jdz-cstinos-projects.vercel.app/api/matches
 - backend-52iuoxfq9-cstinos-projects.vercel.app  
 - backend-6sllc293q-cstinos-projects.vercel.app
 
-
-✅ COSA ASPETTARSI:
-==========================================
-
-/api/test dovrebbe mostrare:
-{
-  "message": "Backend API funziona!",
-  "timestamp": "2025-01-27T...",
-  "env": {
-    "hasAirtableKey": true,
-    "hasBaseId": true
-  }
-}
-
-/api/players dovrebbe mostrare:
-Un array JSON con i tuoi giocatori da Airtable
 
 🚀 PROSSIMO STEP:
 ==========================================
