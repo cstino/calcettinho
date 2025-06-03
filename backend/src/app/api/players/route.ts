@@ -27,10 +27,22 @@ export async function GET() {
       const nome = record.get('name') as string || `Giocatore_${index + 1}`;
       const email = record.get('email') as string || `email${index}@example.com`;
       
+      // Gestisce il campo photoUrl come attachment di Airtable
+      const photoAttachments = record.get('photoUrl') as any[];
+      let fotoUrl = '';
+      
+      if (photoAttachments && Array.isArray(photoAttachments) && photoAttachments.length > 0) {
+        // Prende il primo attachment se presente
+        fotoUrl = photoAttachments[0].url || '';
+        console.log(`Foto trovata per ${nome}: ${fotoUrl}`);
+      } else {
+        console.log(`Nessuna foto per ${nome}`);
+      }
+      
       return {
         nome,
         email,
-        foto: record.get('photoUrl') as string || '',
+        foto: fotoUrl,
         ATT: Number(record.get('Attacco')) || 50,
         DIF: Number(record.get('Difesa')) || 50,
         VEL: Number(record.get('Velocità')) || 50,
