@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createCanvas, loadImage, registerFont } from 'canvas';
 import path from 'path';
 import { promises as fs } from 'fs';
+import Airtable from 'airtable';
+
+// Configurazione Airtable
+const apiKey = process.env.AIRTABLE_API_KEY;
+const baseId = process.env.AIRTABLE_BASE_ID;
+
+if (!apiKey || !baseId) {
+  throw new Error('Credenziali Airtable mancanti nelle variabili d\'ambiente');
+}
+
+Airtable.configure({
+  endpointUrl: 'https://api.airtable.com',
+  apiKey: apiKey
+});
+
+const base = Airtable.base(baseId);
 
 // Registra font Nebulax
 try {
@@ -10,37 +26,48 @@ try {
   console.log('Font Nebulax non trovato, uso Arial come fallback');
 }
 
-// Funzione per ottenere i dati del giocatore da Airtable
+// Funzione per ottenere i dati del giocatore direttamente da Airtable
 async function getPlayerByEmail(email: string) {
   try {
     console.log('Recupero dati giocatore per email:', email);
     
-    // Chiamata all'API players per ottenere i dati del giocatore
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'}/api/players`);
-    if (!response.ok) {
-      throw new Error('Errore nel recupero giocatori');
-    }
+    // Accesso diretto ad Airtable invece di chiamata HTTP ricorsiva
+    const records = await base('players').select({
+      filterByFormula: `{email} = '${email}'`
+    }).all();
     
-    const players = await response.json();
-    const player = players.find((p: any) => p.email === email);
-    
-    if (!player) {
+    if (records.length === 0) {
       console.log('Giocatore non trovato per email:', email);
       return null;
     }
     
-    console.log('Dati giocatore trovati:', player);
-    return {
-      nome: player.nome,
-      email: player.email,
-      photoUrl: player.foto, // URL della foto da Airtable
-      ATT: player.ATT,
-      DEF: player.DIF,
-      VEL: player.VEL,
-      FOR: player.FOR,
-      PAS: player.PAS,
-      POR: player.POR
+    const record = records[0];
+    
+    // Gestisce il campo photoUrl come attachment di Airtable
+    const photoAttachments = record.get('photoUrl') as any[];
+    let fotoUrl = '';
+    
+    if (photoAttachments && Array.isArray(photoAttachments) && photoAttachments.length > 0) {
+      fotoUrl = photoAttachments[0].url || '';
+      console.log(`Foto trovata per email ${email}: ${fotoUrl}`);
+    } else {
+      console.log(`Nessuna foto per email ${email}`);
+    }
+    
+    const playerData = {
+      nome: record.get('name') as string || 'Giocatore Sconosciuto',
+      email: record.get('email') as string || email,
+      photoUrl: fotoUrl,
+      ATT: Number(record.get('Attacco')) || 50,
+      DEF: Number(record.get('Difesa')) || 50,
+      VEL: Number(record.get('Velocità')) || 50,
+      FOR: Number(record.get('Forza')) || 50,
+      PAS: Number(record.get('Passaggio')) || 50,
+      POR: Number(record.get('Portiere')) || 50
     };
+    
+    console.log('Dati giocatore trovati:', playerData);
+    return playerData;
   } catch (error) {
     console.error('Errore nel recupero dati giocatore:', error);
     return null;
