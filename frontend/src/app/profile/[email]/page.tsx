@@ -52,7 +52,7 @@ interface VoteHistory {
     netVotes: number;
     upPercentage: number;
     totalMatches: number;
-    potentialMotm: number;
+    actualMotm: number;
   };
   matchResults: Array<{
     matchId: string;
@@ -1232,7 +1232,7 @@ export default function PlayerProfile() {
                     <div className="text-gray-300 font-runtime">Percentuale UP</div>
                   </div>
                   <div className="text-center transform transition-all duration-300 hover:scale-105">
-                    <div className="text-4xl font-bold text-yellow-400 font-runtime">{voteHistory.statistics.potentialMotm}</div>
+                    <div className="text-4xl font-bold text-yellow-400 font-runtime">{voteHistory.statistics.actualMotm || 0}</div>
                     <div className="text-gray-300 font-runtime">Man of the Match</div>
                   </div>
                 </div>

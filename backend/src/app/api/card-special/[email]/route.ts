@@ -152,6 +152,38 @@ async function getPlayerByEmail(email: string) {
   }
 }
 
+// Funzione per ottenere i dati delle card special da Airtable
+async function getSpecialCardData(template: string) {
+  try {
+    console.log('Recupero dati card special per template:', template);
+    
+    // Accesso diretto ad Airtable per recuperare i dati della card special
+    const records = await base('special_cards').select({
+      filterByFormula: `{template_id} = '${template}'`
+    }).all();
+    
+    if (records.length === 0) {
+      console.log('Card special non trovata per template:', template);
+      return null;
+    }
+    
+    const record = records[0];
+    
+    const cardData = {
+      name: record.get('name') as string || 'Card Special',
+      description: record.get('description') as string || 'Descrizione non disponibile',
+      color: record.get('color') as string || '#B45309',
+      // Aggiungi altri campi se necessario
+    };
+    
+    console.log('Dati card special trovati:', cardData);
+    return cardData;
+  } catch (error) {
+    console.error('Errore nel recupero dati card special:', error);
+    return null;
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ email: string }> }
@@ -169,11 +201,20 @@ export async function GET(
     
     // Recupera dati da Airtable
     const playerData = await getPlayerByEmail(email);
+    const specialCardData = await getSpecialCardData(template);
+    
     console.log('Dati giocatore recuperati:', playerData);
+    console.log('Dati card special recuperati:', specialCardData);
     
     if (!playerData) {
       return NextResponse.json({ 
         error: `Giocatore con email ${email} non trovato` 
+      }, { status: 404 });
+    }
+
+    if (!specialCardData) {
+      return NextResponse.json({ 
+        error: `Card special con template ${template} non trovata` 
       }, { status: 404 });
     }
 
@@ -247,7 +288,7 @@ export async function GET(
       // Nome
       ctx.font = 'bold 48px Arial';
       ctx.fillStyle = '#F3F4F6';
-      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 620); // Alzato di 7 punti
+      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 660); // Abbassato di altri 20 punti (era 640)
 
       // Stats - versione semplificata
       const statsData = [
@@ -265,7 +306,7 @@ export async function GET(
       const rightLabelX = 380;     // Colonna 3: Labels destra
       const rightValueX = 480;     // Colonna 4: Valori destra
 
-      const startY = 689; // Alzato di 2 punti
+      const startY = 714; // Alzato di 15 pixel (era 729)
       const statSpacing = 45;
 
       // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
@@ -325,19 +366,19 @@ export async function GET(
 
       // Disegna foto giocatore - posizioni specifiche per template special
       const maxFaceSize = 420;
-      let faceY = 136; // Default alzato di 7 punti
+      let faceY = 156; // Alzato di 5 pixel (era 161)
       
       // Adjust position based on special template if needed
       switch(template) {
         case '1presenza':
-          faceY = 138; // Alzato di 7 punti
+          faceY = 158; // Alzato di 5 pixel (era 163)
           break;
         case 'goleador':
-          faceY = 140; // Alzato di 7 punti
+          faceY = 160; // Alzato di 5 pixel (era 165)
           break;
         // Add more template-specific positions as needed
         default:
-          faceY = 136; // Alzato di 7 punti
+          faceY = 156; // Alzato di 5 pixel (era 161)
       }
       
       let faceWidth, faceHeight;
@@ -366,11 +407,11 @@ export async function GET(
       ctx.fillStyle = valueColor;
       ctx.fillText(String(overall), overallX, overallValueY);
 
-      // Nome giocatore
+      // Nome giocatore - alzato di 5 pixel
       ctx.font = 'bold 56px Nebulax, Arial';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
-      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 618); // Alzato di 7 punti
+      ctx.fillText(playerData.nome, CARD_WIDTH / 2, 638); // Alzato di 5 pixel (era 643)
 
       // Stats - Colonna sinistra: ATT, VEL, PAS
       const leftStats = [
@@ -386,10 +427,10 @@ export async function GET(
         { label: 'POR', value: Math.round(playerData.POR) }
       ];
 
-      const startY = 689; // Alzato di 2 punti
+      const startY = 714; // Alzato di 15 pixel (era 729)
       const statSpacing = 45;
 
-      // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - CAMBIATO A ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
@@ -398,7 +439,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, 100, y);
       });
 
-      // Valori statistiche colonna sinistra (centrati nella colonna)
+      // Valori statistiche colonna sinistra (centrati nella colonna) - CAMBIATO A ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
@@ -407,7 +448,7 @@ export async function GET(
         ctx.fillText(String(stat.value), 200, y);
       });
 
-      // Scritte statistiche colonna destra (FOR, DIF, POR)
+      // Scritte statistiche colonna destra (FOR, DIF, POR) - CAMBIATO A ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
@@ -416,7 +457,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, 380, y);
       });
 
-      // Valori statistiche colonna destra (centrati nella colonna)
+      // Valori statistiche colonna destra (centrati nella colonna) - CAMBIATO A ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
@@ -424,6 +465,13 @@ export async function GET(
         const y = startY + i * statSpacing;
         ctx.fillText(String(stat.value), 480, y);
       });
+
+      // Aggiungi dati della card special
+      ctx.font = 'bold 20px Arial';
+      ctx.fillStyle = textColor;
+      ctx.textAlign = 'center';
+      ctx.fillText(specialCardData.name, CARD_WIDTH / 2, 50);
+      ctx.fillText(specialCardData.description, CARD_WIDTH / 2, 80);
     }
 
     // Converti canvas in PNG Buffer

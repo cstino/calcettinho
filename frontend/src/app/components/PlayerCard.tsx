@@ -55,7 +55,6 @@ export default function PlayerCard({ player }: PlayerCardProps) {
       if (!player.email || player.email === 'email@non-disponibile.com') return;
       
       try {
-        console.log('[MOBILE DEBUG] PlayerCard fetching for:', player.name);
         const response = await fetch(`/api/player-awards/${encodeURIComponent(player.email)}`);
         if (response.ok) {
           const data = await response.json();
@@ -71,7 +70,6 @@ export default function PlayerCard({ player }: PlayerCardProps) {
           }
         }
       } catch (error) {
-        console.log('[MOBILE DEBUG] Errore nel caricamento card selezionata:', error);
         // Fallback alla card base
         const baseCardUrl = getCardUrl(player.email);
         setCardBackImage(baseCardUrl);
@@ -216,11 +214,9 @@ export default function PlayerCard({ player }: PlayerCardProps) {
                 imageLoading ? 'opacity-0 absolute' : 'opacity-100'
               }`}
               onLoad={() => {
-                console.log('[MOBILE DEBUG] Card image loaded for:', player.name);
                 setImageLoading(false);
               }}
               onError={() => {
-                console.log('[MOBILE DEBUG] Card image error for:', player.name);
                 setImageLoading(false);
                 setImageError(true);
               }}

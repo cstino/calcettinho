@@ -63,7 +63,7 @@ const nextConfig = {
       {
         source: '/api/:path*',
         destination: process.env.NODE_ENV === 'production' 
-          ? 'https://calcettinho-backend.vercel.app/api/:path*' // Backend deployato su Vercel
+          ? `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://calcettinho-backend.vercel.app'}/api/:path*`
           : 'http://localhost:3001/api/:path*', // In sviluppo usa il backend locale
       },
     ]

@@ -42,6 +42,108 @@ export async function POST(
     
     console.log('Processando premi per partita:', matchId);
 
+    // ⚠️ CONTROLLO AGGIORNAMENTO SICURO: Verifica se la partita è già stata processata
+    let isReprocessing = false;
+    let existingAwards: any[] = [];
+    let oldPlayerStats: { [email: string]: any } = {};
+    
+    try {
+      const awardsRecords = await base('player_awards').select({
+        filterByFormula: `{match_id} = "${matchId}"`
+      }).all();
+      existingAwards = [...awardsRecords];
+      
+      if (existingAwards.length > 0) {
+        console.log(`🔄 Partita ${matchId} già processata - MODALITÀ AGGIORNAMENTO SICURO`);
+        console.log(`📋 Trovati ${existingAwards.length} premi esistenti da rimuovere`);
+        isReprocessing = true;
+        
+        // Recupera le statistiche vecchie della partita per sottrarle
+        const oldMatchRecords = await base('matches').select({
+          filterByFormula: `{IDmatch} = "${matchId}"`
+        }).all();
+        
+        if (oldMatchRecords.length > 0) {
+          const oldMatch = oldMatchRecords[0];
+          oldPlayerStats = JSON.parse(oldMatch.get('playerStats') as string || '{}');
+          console.log(`📋 Statistiche vecchie recuperate:`, Object.keys(oldPlayerStats).length, 'giocatori');
+        
+          // 1. Rimuovi i premi esistenti
+          const deletePromises = [];
+          for (let i = 0; i < existingAwards.length; i += 10) {
+            const batch = existingAwards.slice(i, i + 10);
+            deletePromises.push(
+              base('player_awards').destroy(batch.map(r => r.id))
+            );
+          }
+          await Promise.all(deletePromises);
+          console.log(`✅ Rimossi ${existingAwards.length} premi obsoleti`);
+          
+          // 2. Sottrai le statistiche vecchie dalla tabella player_stats
+          const oldTeamA = JSON.parse(oldMatch.get('teamA') as string || '[]');
+          const oldTeamB = JSON.parse(oldMatch.get('teamB') as string || '[]');
+          const oldAllPlayers = [...oldTeamA, ...oldTeamB];
+          const oldScoreA = Number(oldMatch.get('scoreA')) || 0;
+          const oldScoreB = Number(oldMatch.get('scoreB')) || 0;
+          const oldIsDraw = oldScoreA === oldScoreB;
+          const oldTeamAWins = oldScoreA > oldScoreB;
+          
+          console.log(`🔙 Sottraggio statistiche vecchie per ${oldAllPlayers.length} giocatori...`);
+          
+          for (const playerEmail of oldAllPlayers) {
+            try {
+              const existingStatsRecords = await base('player_stats').select({
+                filterByFormula: `{playerEmail} = "${playerEmail}"`
+              }).all();
+
+              if (existingStatsRecords.length > 0) {
+                const existingRecord = existingStatsRecords[0];
+                const currentStats = {
+                  gol: Number(existingRecord.get('Gol')) || 0,
+                  partiteDisputate: Number(existingRecord.get('partiteDisputate')) || 0,
+                  partiteVinte: Number(existingRecord.get('partiteVinte')) || 0,
+                  partitePareggiate: Number(existingRecord.get('partitePareggiate')) || 0,
+                  partitePerse: Number(existingRecord.get('partitePerse')) || 0,
+                  assistenze: Number(existingRecord.get('assistenze')) || 0,
+                  cartelliniGialli: Number(existingRecord.get('cartelliniGialli')) || 0,
+                  cartelliniRossi: Number(existingRecord.get('cartelliniRossi')) || 0
+                };
+
+                // Determina risultato vecchio per questo giocatore
+                const oldPlayerTeam = oldTeamA.includes(playerEmail) ? 'A' : 'B';
+                const oldIsWin = !oldIsDraw && ((oldPlayerTeam === 'A' && oldTeamAWins) || (oldPlayerTeam === 'B' && !oldTeamAWins));
+                const oldIsLoss = !oldIsDraw && !oldIsWin;
+                
+                // Statistiche da sottrarre
+                const oldMatchStats = oldPlayerStats[playerEmail] || { gol: 0, assist: 0, gialli: 0, rossi: 0 };
+                
+                const updatedStats = {
+                  Gol: Math.max(0, currentStats.gol - (oldMatchStats.gol || 0)),
+                  partiteDisputate: Math.max(0, currentStats.partiteDisputate - 1),
+                  partiteVinte: Math.max(0, currentStats.partiteVinte - (oldIsWin ? 1 : 0)),
+                  partitePareggiate: Math.max(0, currentStats.partitePareggiate - (oldIsDraw ? 1 : 0)),
+                  partitePerse: Math.max(0, currentStats.partitePerse - (oldIsLoss ? 1 : 0)),
+                  assistenze: Math.max(0, currentStats.assistenze - (oldMatchStats.assist || 0)),
+                  cartelliniGialli: Math.max(0, currentStats.cartelliniGialli - (oldMatchStats.gialli || 0)),
+                  cartelliniRossi: Math.max(0, currentStats.cartelliniRossi - (oldMatchStats.rossi || 0))
+                };
+
+                await base('player_stats').update(existingRecord.id, updatedStats);
+                console.log(`🔙 Statistiche sottratte per ${playerEmail}`);
+              }
+            } catch (error) {
+              console.error(`❌ Errore nel sottrarre statistiche per ${playerEmail}:`, error);
+            }
+          }
+          
+          console.log(`✅ Aggiornamento sicuro completato - procedo con le nuove statistiche`);
+        }
+      }
+    } catch (awardsCheckError) {
+      console.log('Errore nel controllo premi esistenti (potrebbe essere normale se tabella non esiste ancora):', awardsCheckError);
+      // Se la tabella player_awards non esiste ancora, continua normalmente
+    }
+
     // 1. Recupera i dettagli della partita
     const matchRecords = await base('matches').select({
       filterByFormula: `{IDmatch} = "${matchId}"`
@@ -183,14 +285,24 @@ export async function POST(
     if (awards.length > 0) {
       try {
         for (const award of awards) {
-          await base('player_awards').create({
-            player_email: award.playerEmail,
-            award_type: award.awardType,
-            match_id: award.matchId,
-            status: 'pending',
-            unlocked_at: '',
-            selected: false
-          });
+          // Verifica se il giocatore ha già sbloccato una card dello stesso tipo
+          const existingAwards = await base('player_awards').select({
+            filterByFormula: `AND({player_email} = "${award.playerEmail}", {award_type} = "${award.awardType}", {status} = "unlocked")`
+          }).all();
+
+          if (existingAwards.length === 0) {
+            // Se non ha già sbloccato una card dello stesso tipo, crea il nuovo premio
+            await base('player_awards').create({
+              player_email: award.playerEmail,
+              award_type: award.awardType,
+              match_id: award.matchId,
+              status: 'pending',
+              unlocked_at: '',
+              selected: false
+            });
+          } else {
+            console.log(`⚠️ Giocatore ${award.playerEmail} ha già sbloccato la card ${award.awardType} - Premio non attribuito`);
+          }
         }
         console.log('Premi salvati:', awards.length);
       } catch (error) {
@@ -366,14 +478,16 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Premi e statistiche processati con successo',
+      message: isReprocessing ? 'Partita aggiornata con successo - statistiche corrette' : 'Premi e statistiche processati con successo',
       awards: awards.length,
       awardDetails: awards,
       playersUpdated: allPlayers.length,
       playerStatsUpdated: true,
       playerAbilitiesUpdated: statUpdates.length,
       statUpdates,
-      voteStats
+      voteStats,
+      isReprocessing: isReprocessing,
+      operation: isReprocessing ? 'update' : 'create'
     });
 
   } catch (error) {

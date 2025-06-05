@@ -164,7 +164,13 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
             console.log('🏆 Premi e statistiche processati:', processResult);
             
             // Mostra il riepilogo
-            let summaryMessage = '✅ Partita completata con successo!\n\n';
+            let summaryMessage = '';
+            if (processResult.isReprocessing) {
+              summaryMessage = '✅ Partita aggiornata con successo!\n🔄 Statistiche corrette automaticamente\n\n';
+            } else {
+              summaryMessage = '✅ Partita completata con successo!\n\n';
+            }
+            
             summaryMessage += `🏆 Premi assegnati: ${processResult.awards}\n`;
             if (processResult.awardDetails && processResult.awardDetails.length > 0) {
               summaryMessage += '\nPREMI OTTENUTI:\n';
@@ -176,9 +182,14 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
                 summaryMessage += `• ${playerName}: ${awardName}\n`;
               });
             }
-            summaryMessage += '\n📊 Statistiche giocatori aggiornate automaticamente!';
+            summaryMessage += `\n📊 ${processResult.isReprocessing ? 'Statistiche corrette' : 'Statistiche create'} automaticamente!`;
             
             alert(summaryMessage);
+          } else if (processResponse.status === 409) {
+            // Partita già processata
+            const errorResult = await processResponse.json();
+            console.log('⚠️ Partita già processata:', errorResult);
+            alert(`✅ Risultato salvato con successo!\n⚠️ Nota: ${errorResult.message}\nLe statistiche non sono state modificate per evitare doppi conteggi.`);
           } else {
             console.error('❌ Errore nel processamento premi:', processResponse.status);
             alert('✅ Risultato salvato!\n⚠️ Attenzione: errore nell\'aggiornamento automatico delle statistiche');

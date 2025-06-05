@@ -34,6 +34,19 @@ export async function GET(
 
     console.log('Voti UP/DOWN trovati:', records.length);
 
+    // Recupera i veri premi Man of the Match dalla tabella player_awards
+    let actualMotm = 0;
+    try {
+      const awardsRecords = await base('player_awards').select({
+        filterByFormula: `AND({player_email} = "${email}", {award_type} = "motm")`
+      }).all();
+      actualMotm = awardsRecords.length;
+      console.log('Premi MotM effettivi trovati:', actualMotm);
+    } catch (awardsError) {
+      console.log('Tabella player_awards non disponibile, usando valore 0 per MotM');
+      actualMotm = 0;
+    }
+
     // Mappa i dati usando la nuova struttura UP/DOWN
     const votes = records.map(record => ({
       id: record.id,
@@ -83,7 +96,8 @@ export async function GET(
         netVotes,
         upPercentage: parseFloat(upPercentage),
         totalMatches: Object.keys(votesByMatch).length,
-        potentialMotm: matchResults.filter(match => match.isMotm).length
+        actualMotm: actualMotm, // Veri premi MotM vinti
+        potentialMotm: matchResults.filter(match => match.isMotm).length // Manteniamo anche questo per debug
       },
       matchResults: matchResults.slice(0, 10) // Ultimi 10 match
     });

@@ -43,13 +43,10 @@ function PlayerImage({ player, teamColor, playerName }: PlayerImageProps) {
           alt={playerName}
           className="w-full h-full object-cover"
           onError={() => {
-            console.log(`[CAMPO DEBUG] ❌ Immagine non trovata per: ${player?.email} (Nome: ${playerName})`);
-            console.log(`[CAMPO DEBUG] ❌ URL tentativo: ${photoUrl}`);
             setImageError(true);
           }}
           onLoad={() => {
-            console.log(`[CAMPO DEBUG] ✅ Immagine caricata correttamente per: ${player?.email} (Nome: ${playerName})`);
-            console.log(`[CAMPO DEBUG] ✅ URL: ${photoUrl}`);
+            // Immagine caricata con successo
           }}
         />
       ) : (

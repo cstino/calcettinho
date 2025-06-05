@@ -151,7 +151,16 @@ export default function EditMatchModal({
               const processResult = await processResponse.json();
               console.log('🏆 Premi e statistiche processati:', processResult);
               
-              alert(`✅ Partita aggiornata e completata con successo!\n🏆 Premi assegnati: ${processResult.awards}\n📊 Statistiche aggiornate automaticamente!`);
+              if (processResult.isReprocessing) {
+                alert(`✅ Partita aggiornata con successo!\n🔄 Statistiche corrette automaticamente\n🏆 Premi assegnati: ${processResult.awards}\n📊 Operazione: aggiornamento sicuro`);
+              } else {
+                alert(`✅ Partita completata con successo!\n🏆 Premi assegnati: ${processResult.awards}\n📊 Statistiche create automaticamente`);
+              }
+            } else if (processResponse.status === 409) {
+              // Partita già processata
+              const errorResult = await processResponse.json();
+              console.log('⚠️ Partita già processata:', errorResult);
+              alert(`✅ Partita aggiornata con successo!\n⚠️ Nota: ${errorResult.message}\nLe statistiche non sono state modificate per evitare doppi conteggi.`);
             } else {
               console.error('❌ Errore nel processamento premi:', processResponse.status);
               alert('✅ Partita aggiornata!\n⚠️ Attenzione: errore nell\'aggiornamento automatico delle statistiche');
