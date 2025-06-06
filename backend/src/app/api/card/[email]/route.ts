@@ -114,13 +114,9 @@ export async function GET(
     let useSimpleCard = false;
     let hasPlayerPhoto = false;
     
-    try {
-      await fs.access(cardPath);
-      console.log(`Template trovato: ${template}.png`);
-    } catch {
-      console.log('Template non trovato, userò card semplificata');
-      useSimpleCard = true;
-    }
+    // RIMUOVO IL CONTROLLO fs.access() CHE PUÒ FALLIRE SU VERCEL
+    // Assumo che i template esistano e gestisco gli errori nel try/catch
+    console.log(`Template path: ${cardPath}`);
     
     // Verifica se esiste l'URL della foto di Airtable
     if (playerData.photoUrl && playerData.photoUrl.trim() !== '') {
@@ -128,6 +124,7 @@ export async function GET(
       console.log(`Foto giocatore trovata su Airtable: ${playerData.photoUrl}`);
     } else {
       console.log('Nessuna foto trovata su Airtable');
+      useSimpleCard = true; // Solo se non c'è foto, usa card semplificata
     }
 
     const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
@@ -141,8 +138,9 @@ export async function GET(
     console.log(`🖼️ Photo URL: ${playerData.photoUrl}`);
     console.log(`🚀 Condition (useSimpleCard || !hasPlayerPhoto): ${useSimpleCard || !hasPlayerPhoto}`);
 
-    if (useSimpleCard || !hasPlayerPhoto) {
-      console.log(`⚠️ USANDO CARD SEMPLIFICATA - Motivo: useSimpleCard=${useSimpleCard}, hasPlayerPhoto=${hasPlayerPhoto}`);
+    // PROVA SEMPRE LA CARD COMPLETA SE C'È LA FOTO
+    if (!hasPlayerPhoto) {
+      console.log(`⚠️ USANDO CARD SEMPLIFICATA - Motivo: Nessuna foto disponibile`);
       
       // Background colorato in base al template
       ctx.fillStyle = template === 'ultimate' ? '#4C1D95' : template === 'oro' ? '#B45309' : template === 'argento' ? '#374151' : '#92400E';

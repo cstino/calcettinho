@@ -169,11 +169,22 @@ async function getSpecialCardData(template: string) {
     
     const record = records[0];
     
+    // Gestisce il campo template_image come attachment di Airtable
+    const templateAttachments = record.get('template_image') as any[];
+    let templateUrl = '';
+    
+    if (templateAttachments && Array.isArray(templateAttachments) && templateAttachments.length > 0) {
+      templateUrl = templateAttachments[0].url || '';
+      console.log(`Template immagine trovata per ${template}: ${templateUrl}`);
+    } else {
+      console.log(`Nessuna template immagine per ${template}`);
+    }
+    
     const cardData = {
       name: record.get('name') as string || 'Card Special',
       description: record.get('description') as string || 'Descrizione non disponibile',
       color: record.get('color') as string || '#B45309',
-      // Aggiungi altri campi se necessario
+      templateUrl: templateUrl, // Aggiungo l'URL del template
     };
     
     console.log('Dati card special trovati:', cardData);
@@ -226,18 +237,17 @@ export async function GET(
 
     console.log(`Overall: ${overall}, Template special: ${template}`);
 
-    // Percorsi per card special
-    const cardPath = path.join(process.cwd(), 'public/cards/special', `${template}.png`);
-
-    // Verifica esistenza template e foto
+    // MODIFICATO: Usa template da Airtable invece di file locale
     let useSimpleCard = false;
     let hasPlayerPhoto = false;
+    let hasTemplateImage = false;
     
-    try {
-      await fs.access(cardPath);
-      console.log(`Template special trovato: ${template}.png`);
-    } catch {
-      console.log('Template special non trovato, userò card semplificata');
+    // Verifica se esiste l'URL del template da Airtable
+    if (specialCardData.templateUrl && specialCardData.templateUrl.trim() !== '') {
+      hasTemplateImage = true;
+      console.log(`Template immagine trovata su Airtable: ${specialCardData.templateUrl}`);
+    } else {
+      console.log('Nessuna template immagine trovata su Airtable');
       useSimpleCard = true;
     }
     
@@ -252,7 +262,9 @@ export async function GET(
     const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
     const ctx = canvas.getContext('2d');
 
-    if (useSimpleCard || !hasPlayerPhoto) {
+    if (useSimpleCard || !hasPlayerPhoto || !hasTemplateImage) {
+      console.log(`⚠️ USANDO CARD SPECIAL SEMPLIFICATA - Template: ${hasTemplateImage}, Foto: ${hasPlayerPhoto}`);
+      
       // **CARD SPECIAL SEMPLIFICATA SENZA FILE ESTERNI**
       
       // Background dorato per achievement
@@ -350,7 +362,7 @@ export async function GET(
       
       // Carica immagini
       const [cardImg, playerImg] = await Promise.all([
-        loadImage(cardPath),
+        loadImage(specialCardData.templateUrl),
         loadImage(playerData.photoUrl) // Usa l'URL di Airtable
       ]);
 
