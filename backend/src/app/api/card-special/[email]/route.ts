@@ -222,16 +222,16 @@ export async function GET(
         { label: 'POR', value: Math.round(playerData.POR) }
       ];
 
-      // POSIZIONI AGGIUSTATE PER FONT NEBULAX
-      const leftLabelX = 85;       // Colonna 1: Labels sinistra (era 100)
-      const leftValueX = 185;      // Colonna 2: Valori sinistra (era 200)
-      const rightLabelX = 365;     // Colonna 3: Labels destra (era 380)
-      const rightValueX = 465;     // Colonna 4: Valori destra (era 480)
+      // POSIZIONI AGGIORNATE SU RICHIESTA UTENTE
+      const leftLabelX = 100;      // Colonna 1: Labels sinistra 
+      const leftValueX = 220;      // Colonna 2: Valori sinistra (era 200, ora 220)
+      const rightLabelX = 360;     // Colonna 3: Labels destra (era 380, ora 360)
+      const rightValueX = 480;     // Colonna 4: Valori destra
 
       const startY = 714; // Alzato di 15 pixel (era 729)
       const statSpacing = 45;
 
-      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - POSIZIONI AGGIUSTATE
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = '#F3F4F6';
@@ -240,7 +240,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, leftLabelX, y);
       });
 
-      // Valori statistiche colonna sinistra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      // Valori statistiche colonna sinistra (centrati nella colonna)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#FFD700';
@@ -249,7 +249,7 @@ export async function GET(
         ctx.fillText(String(stat.value), leftValueX, y);
       });
 
-      // Scritte statistiche colonna destra (FOR, DIF, POR) - POSIZIONI AGGIUSTATE
+      // Scritte statistiche colonna destra (FOR, DIF, POR)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = '#F3F4F6';
@@ -258,7 +258,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, rightLabelX, y);
       });
 
-      // Valori statistiche colonna destra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      // Valori statistiche colonna destra (centrati nella colonna)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#FFD700';
@@ -352,13 +352,13 @@ export async function GET(
       const startY = 714; // Alzato di 15 pixel (era 729)
       const statSpacing = 45;
 
-      // POSIZIONI AGGIUSTATE PER FONT NEBULAX
-      const leftLabelX = 85;       // Colonna 1: Labels sinistra (era 100)
-      const leftValueX = 185;      // Colonna 2: Valori sinistra (era 200)
-      const rightLabelX = 365;     // Colonna 3: Labels destra (era 380)
-      const rightValueX = 465;     // Colonna 4: Valori destra (era 480)
+      // POSIZIONI AGGIORNATE SU RICHIESTA UTENTE
+      const leftLabelX = 100;      // Colonna 1: Labels sinistra 
+      const leftValueX = 220;      // Colonna 2: Valori sinistra (era 200, ora 220)
+      const rightLabelX = 360;     // Colonna 3: Labels destra (era 380, ora 360)
+      const rightValueX = 480;     // Colonna 4: Valori destra
 
-      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - POSIZIONI AGGIUSTATE
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
@@ -367,7 +367,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, leftLabelX, y);
       });
 
-      // Valori statistiche colonna sinistra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      // Valori statistiche colonna sinistra (centrati nella colonna)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
@@ -376,7 +376,7 @@ export async function GET(
         ctx.fillText(String(stat.value), leftValueX, y);
       });
 
-      // Scritte statistiche colonna destra (FOR, DIF, POR) - POSIZIONI AGGIUSTATE
+      // Scritte statistiche colonna destra (FOR, DIF, POR)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
@@ -385,7 +385,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, rightLabelX, y);
       });
 
-      // Valori statistiche colonna destra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      // Valori statistiche colonna destra (centrati nella colonna)
       ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
