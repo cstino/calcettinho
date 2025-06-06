@@ -222,17 +222,17 @@ export async function GET(
         { label: 'POR', value: Math.round(playerData.POR) }
       ];
 
-      // Posizioni delle 4 colonne - gap simmetrico di 80px dal centro
-      const leftLabelX = 100;      // Colonna 1: Labels sinistra
-      const leftValueX = 200;      // Colonna 2: Valori sinistra
-      const rightLabelX = 380;     // Colonna 3: Labels destra
-      const rightValueX = 480;     // Colonna 4: Valori destra
+      // POSIZIONI AGGIUSTATE PER FONT NEBULAX
+      const leftLabelX = 85;       // Colonna 1: Labels sinistra (era 100)
+      const leftValueX = 185;      // Colonna 2: Valori sinistra (era 200)
+      const rightLabelX = 365;     // Colonna 3: Labels destra (era 380)
+      const rightValueX = 465;     // Colonna 4: Valori destra (era 480)
 
       const startY = 714; // Alzato di 15 pixel (era 729)
       const statSpacing = 45;
 
-      // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
-      ctx.font = 'bold 32px Arial';
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = '#F3F4F6';
       statsData.slice(0, 3).forEach((stat, i) => {
@@ -240,8 +240,8 @@ export async function GET(
         ctx.fillText(`${stat.label}`, leftLabelX, y);
       });
 
-      // Valori statistiche colonna sinistra
-      ctx.font = 'bold 32px Arial';
+      // Valori statistiche colonna sinistra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#FFD700';
       statsData.slice(0, 3).forEach((stat, i) => {
@@ -249,8 +249,8 @@ export async function GET(
         ctx.fillText(String(stat.value), leftValueX, y);
       });
 
-      // Scritte statistiche colonna destra (FOR, DIF, POR)
-      ctx.font = 'bold 32px Arial';
+      // Scritte statistiche colonna destra (FOR, DIF, POR) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = '#F3F4F6';
       statsData.slice(3, 6).forEach((stat, i) => {
@@ -258,8 +258,8 @@ export async function GET(
         ctx.fillText(`${stat.label}`, rightLabelX, y);
       });
 
-      // Valori statistiche colonna destra
-      ctx.font = 'bold 32px Arial';
+      // Valori statistiche colonna destra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#FFD700';
       statsData.slice(3, 6).forEach((stat, i) => {
@@ -352,40 +352,46 @@ export async function GET(
       const startY = 714; // Alzato di 15 pixel (era 729)
       const statSpacing = 45;
 
-      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - RIMANE ARIAL
-      ctx.font = 'bold 32px Arial';
+      // POSIZIONI AGGIUSTATE PER FONT NEBULAX
+      const leftLabelX = 85;       // Colonna 1: Labels sinistra (era 100)
+      const leftValueX = 185;      // Colonna 2: Valori sinistra (era 200)
+      const rightLabelX = 365;     // Colonna 3: Labels destra (era 380)
+      const rightValueX = 465;     // Colonna 4: Valori destra (era 480)
+
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
       leftStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(`${stat.label}`, 100, y);
+        ctx.fillText(`${stat.label}`, leftLabelX, y);
       });
 
-      // Valori statistiche colonna sinistra (centrati nella colonna) - RIMANE ARIAL
-      ctx.font = 'bold 32px Arial';
+      // Valori statistiche colonna sinistra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
       leftStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(String(stat.value), 200, y);
+        ctx.fillText(String(stat.value), leftValueX, y);
       });
 
-      // Scritte statistiche colonna destra (FOR, DIF, POR) - RIMANE ARIAL
-      ctx.font = 'bold 32px Arial';
+      // Scritte statistiche colonna destra (FOR, DIF, POR) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
       rightStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(`${stat.label}`, 380, y);
+        ctx.fillText(`${stat.label}`, rightLabelX, y);
       });
 
-      // Valori statistiche colonna destra (centrati nella colonna) - RIMANE ARIAL
-      ctx.font = 'bold 32px Arial';
+      // Valori statistiche colonna destra (centrati nella colonna) - POSIZIONI AGGIUSTATE
+      ctx.font = 'bold 32px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
       rightStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(String(stat.value), 480, y);
+        ctx.fillText(String(stat.value), rightValueX, y);
       });
 
     }
