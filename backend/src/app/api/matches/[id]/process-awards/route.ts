@@ -402,89 +402,131 @@ export async function POST(
     }
 
     // 8. Aggiorna le abilità dei giocatori nella tabella players
-    const statUpdates = [] as Array<{
-      email: string;
-      changes: Record<string, number>;
-    }>;
-
-    for (const playerEmail of allPlayers) {
-      // Recupera statistiche attuali
-      const playerRecords = await base('players').select({
-        filterByFormula: `{email} = "${playerEmail}"`
-      }).all();
-
-      if (playerRecords.length === 0) continue;
-
-      const player = playerRecords[0];
-      const currentStats = {
-        ATT: Number(player.get('Attacco')) || 50,
-        DIF: Number(player.get('Difesa')) || 50,
-        VEL: Number(player.get('Velocità')) || 50,
-        PAS: Number(player.get('Passaggio')) || 50,
-        FOR: Number(player.get('Forza')) || 50,
-        POR: Number(player.get('Portiere')) || 50
-      };
-
-      // Calcola overall come media delle 5 migliori statistiche
-      const statValues = Object.values(currentStats);
-      const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
-      const currentOverall = top5Stats.reduce((sum, val) => sum + val, 0) / 5;
-
-      // Calcola cambiamento base (vittoria/sconfitta)
-      const playerTeam = teamA.includes(playerEmail) ? 'A' : 'B';
-      let baseChange = 0;
+    // ⚠️ SKIP ALGORITMO FAIR PER RIPROCESSAMENTI - Solo ricalcolo overall
+    if (isReprocessing) {
+      console.log('🔄 MODALITÀ RIPROCESSAMENTO: Saltando algoritmo Fair, solo ricalcolo overall...');
       
-      if (!isDraw) {
-        if ((playerTeam === 'A' && teamAWins) || (playerTeam === 'B' && !teamAWins)) {
-          baseChange = 0.083; // ~+1 overall ogni 2 vittorie (0.083 * 2 * 6 stats ≈ 1 overall)
-        } else {
-          baseChange = -0.083; // Proporzionale perdita per sconfitta
+      for (const playerEmail of allPlayers) {
+        try {
+          // Recupera statistiche attuali
+          const playerRecords = await base('players').select({
+            filterByFormula: `{email} = "${playerEmail}"`
+          }).all();
+
+          if (playerRecords.length === 0) continue;
+
+          const player = playerRecords[0];
+          const currentStats = {
+            ATT: Number(player.get('Attacco')) || 50,
+            DIF: Number(player.get('Difesa')) || 50,
+            VEL: Number(player.get('Velocità')) || 50,
+            PAS: Number(player.get('Passaggio')) || 50,
+            FOR: Number(player.get('Forza')) || 50,
+            POR: Number(player.get('Portiere')) || 50
+          };
+
+          // Ricalcola solo l'overall dalle statistiche esistenti (migliori 5)
+          const statValues = Object.values(currentStats);
+          const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
+          const newOverall = Math.round(top5Stats.reduce((sum, val) => sum + val, 0) / 5);
+
+          console.log(`📊 ${playerEmail}: Overall ricalcolato = ${newOverall} (da statistiche esistenti)`);
+          
+        } catch (error) {
+          console.error(`❌ Errore nel ricalcolo overall per ${playerEmail}:`, error);
         }
       }
-
-      // Calcola cambiamento con algoritmo fair
-      const netVotes = voteStats[playerEmail]?.net || 0;
-      const totalChange = calculateStatChange(currentOverall, baseChange, netVotes);
-
-      // Applica i cambiamenti
-      const newStats = {} as Record<string, number>;
-      Object.entries(currentStats).forEach(([stat, value]) => {
-        const newValue = Math.max(1.0, Math.min(99.0, value + totalChange));
-        const fieldName = stat === 'ATT' ? 'Attacco' :
-                         stat === 'DIF' ? 'Difesa' :
-                         stat === 'VEL' ? 'Velocità' :
-                         stat === 'PAS' ? 'Passaggio' :
-                         stat === 'FOR' ? 'Forza' :
-                         stat === 'POR' ? 'Portiere' : stat;
-        newStats[fieldName] = Math.round(newValue * 10) / 10; // Arrotonda a 1 decimale
-      });
-
-      // Aggiorna il record
-      await base('players').update(player.id, newStats);
       
-      statUpdates.push({
-        email: playerEmail,
-        changes: Object.fromEntries(
-          Object.entries(currentStats).map(([stat, oldVal]) => [
-            stat, 
-            newStats[stat] - oldVal
-          ])
-        )
-      });
+      console.log('✅ Riprocessamento completato - Solo statistiche base aggiornate, algoritmo Fair saltato');
+      
+    } else {
+      console.log('🆕 NUOVA PARTITA: Applicando algoritmo Fair completo...');
+      
+      const statUpdates = [] as Array<{
+        email: string;
+        changes: Record<string, number>;
+      }>;
+
+      for (const playerEmail of allPlayers) {
+        // Recupera statistiche attuali
+        const playerRecords = await base('players').select({
+          filterByFormula: `{email} = "${playerEmail}"`
+        }).all();
+
+        if (playerRecords.length === 0) continue;
+
+        const player = playerRecords[0];
+        const currentStats = {
+          ATT: Number(player.get('Attacco')) || 50,
+          DIF: Number(player.get('Difesa')) || 50,
+          VEL: Number(player.get('Velocità')) || 50,
+          PAS: Number(player.get('Passaggio')) || 50,
+          FOR: Number(player.get('Forza')) || 50,
+          POR: Number(player.get('Portiere')) || 50
+        };
+
+        // Calcola overall come media delle 5 migliori statistiche
+        const statValues = Object.values(currentStats);
+        const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
+        const currentOverall = top5Stats.reduce((sum, val) => sum + val, 0) / 5;
+
+        // Calcola cambiamento base (vittoria/sconfitta)
+        const playerTeam = teamA.includes(playerEmail) ? 'A' : 'B';
+        let baseChange = 0;
+        
+        if (!isDraw) {
+          if ((playerTeam === 'A' && teamAWins) || (playerTeam === 'B' && !teamAWins)) {
+            baseChange = 0.083; // ~+1 overall ogni 2 vittorie (0.083 * 2 * 6 stats ≈ 1 overall)
+          } else {
+            baseChange = -0.083; // Proporzionale perdita per sconfitta
+          }
+        }
+
+        // Calcola cambiamento con algoritmo fair
+        const netVotes = voteStats[playerEmail]?.net || 0;
+        const totalChange = calculateStatChange(currentOverall, baseChange, netVotes);
+
+        // Applica i cambiamenti
+        const newStats = {} as Record<string, number>;
+        Object.entries(currentStats).forEach(([stat, value]) => {
+          const newValue = Math.max(1.0, Math.min(99.0, value + totalChange));
+          const fieldName = stat === 'ATT' ? 'Attacco' :
+                           stat === 'DIF' ? 'Difesa' :
+                           stat === 'VEL' ? 'Velocità' :
+                           stat === 'PAS' ? 'Passaggio' :
+                           stat === 'FOR' ? 'Forza' :
+                           stat === 'POR' ? 'Portiere' : stat;
+          newStats[fieldName] = Math.round(newValue * 10) / 10; // Arrotonda a 1 decimale
+        });
+
+        // Aggiorna il record
+        await base('players').update(player.id, newStats);
+        
+        statUpdates.push({
+          email: playerEmail,
+          changes: Object.fromEntries(
+            Object.entries(currentStats).map(([stat, oldVal]) => [
+              stat, 
+              newStats[stat] - oldVal
+            ])
+          )
+        });
+      }
+
+      console.log('Statistiche abilità aggiornate per', statUpdates.length, 'giocatori');
     }
 
-    console.log('Statistiche abilità aggiornate per', statUpdates.length, 'giocatori');
     console.log('📊 Processo completato: premi assegnati e statistiche aggiornate!');
 
     return NextResponse.json({
       success: true,
-      message: isReprocessing ? 'Partita aggiornata con successo - statistiche corrette' : 'Premi e statistiche processati con successo',
+      message: isReprocessing ? 'Partita aggiornata con successo - solo statistiche base corrette (algoritmo Fair saltato)' : 'Premi e statistiche processati con successo',
       awards: awards.length,
       awardDetails: awards,
       playersUpdated: allPlayers.length,
       playerStatsUpdated: true,
-      playerAbilitiesUpdated: statUpdates.length,
-      statUpdates,
+      playerAbilitiesUpdated: isReprocessing ? 0 : allPlayers.length,
+      algorithmFairSkipped: isReprocessing,
       voteStats,
       isReprocessing: isReprocessing,
       operation: isReprocessing ? 'update' : 'create'
