@@ -78,11 +78,23 @@ export async function getPlayerByEmail(email: string): Promise<Player | null> {
     }
     
     const record = records[0];
+    
+    // Gestisce il campo photoUrl come attachment di Airtable
+    const photoAttachments = record.get('photoUrl') as any[];
+    let photoUrl = '';
+    
+    if (photoAttachments && Array.isArray(photoAttachments) && photoAttachments.length > 0) {
+      photoUrl = photoAttachments[0].url || '';
+      console.log(`Foto trovata per email ${email}: ${photoUrl}`);
+    } else {
+      console.log(`Nessuna foto per email ${email}`);
+    }
+    
     return {
       nome: record.get('name') as string,
       email: record.get('email') as string,
-      foto: record.get('photoUrl') as string,
-      photoUrl: record.get('photoUrl') as string,
+      foto: photoUrl, // Usiamo l'URL estratto dall'attachment
+      photoUrl: photoUrl, // Usiamo l'URL estratto dall'attachment
       ATT: record.get('Attacco') as number || 0,
       DEF: record.get('Difesa') as number || 0,
       VEL: record.get('Velocità') as number || 0,

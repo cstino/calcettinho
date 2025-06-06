@@ -153,7 +153,7 @@ export async function GET(
     let hasTemplateImage = false;
     
     // Verifica se esiste l'URL del template da Airtable
-    if (specialCardData.templateUrl && specialCardData.templateUrl.trim() !== '') {
+    if (specialCardData.templateUrl && typeof specialCardData.templateUrl === 'string' && specialCardData.templateUrl.trim() !== '') {
       hasTemplateImage = true;
       console.log(`Template immagine trovata su Airtable: ${specialCardData.templateUrl}`);
     } else {
@@ -162,7 +162,7 @@ export async function GET(
     }
     
     // Verifica se esiste l'URL della foto di Airtable
-    if (playerData.photoUrl && playerData.photoUrl.trim() !== '') {
+    if (playerData.photoUrl && typeof playerData.photoUrl === 'string' && playerData.photoUrl.trim() !== '') {
       hasPlayerPhoto = true;
       console.log(`Foto giocatore trovata su Airtable: ${playerData.photoUrl}`);
     } else {
