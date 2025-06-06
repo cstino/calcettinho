@@ -21,9 +21,9 @@ export async function GET(
       matchId: decodeURIComponent(matchId)
     });
 
-    // Cerca voti esistenti per questa combinazione voter + match
-    const records = await base('Votes').select({
-      filterByFormula: `AND({voterEmail} = '${decodeURIComponent(voterEmail)}', {matchId} = '${decodeURIComponent(matchId)}')`
+    // ✅ FIXED: Corretto nome tabella e campi per allinearsi con submit API
+    const records = await base('votes').select({
+      filterByFormula: `AND({fromPlayerId} = '${decodeURIComponent(voterEmail)}', {matchId} = '${decodeURIComponent(matchId)}')`
     }).firstPage();
 
     const hasVoted = records.length > 0;
