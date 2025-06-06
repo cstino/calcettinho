@@ -281,7 +281,84 @@ export async function POST(
       });
     }
 
-    // 6. Salva i premi nella tabella player_awards
+    // 6. ✅ NUOVO: Controlla milestone achievements dalla tabella special_cards
+    console.log('🎯 Controllo milestone achievements...');
+    
+    try {
+      // Recupera tutte le condizioni milestone dalla tabella special_cards
+      const specialCardsRecords = await base('special_cards').select({
+        filterByFormula: `AND({is_active} = TRUE(), {condition_type} = "player_stats", {ranking_behavior} = "threshold_met")`
+      }).all();
+      
+      console.log(`Trovate ${specialCardsRecords.length} milestone da controllare`);
+      
+      // Per ogni giocatore della partita, controlla le milestone
+      const allMatchPlayers = [...teamA, ...teamB];
+      
+      for (const playerEmail of allMatchPlayers) {
+        console.log(`🔍 Controllo milestone per ${playerEmail}`);
+        
+        // Recupera le statistiche aggiornate del giocatore
+        const playerStatsRecords = await base('player_stats').select({
+          filterByFormula: `{playerEmail} = "${playerEmail}"`
+        }).all();
+        
+        if (playerStatsRecords.length === 0) {
+          console.log(`⚠️ Statistiche non trovate per ${playerEmail}`);
+          continue;
+        }
+        
+        const playerStatsRecord = playerStatsRecords[0];
+        
+        // Controlla ogni milestone
+        for (const milestoneRecord of specialCardsRecords) {
+          const templateId = milestoneRecord.get('template_id') as string;
+          const conditionField = milestoneRecord.get('condition_field') as string;
+          const conditionValue = Number(milestoneRecord.get('condition_value')) || 0;
+          
+          console.log(`📊 Controllo ${templateId}: ${conditionField} >= ${conditionValue}`);
+          
+          // Ottieni il valore attuale della statistica
+          const currentValue = Number(playerStatsRecord.get(conditionField)) || 0;
+          
+          console.log(`📈 ${playerEmail}: ${conditionField} = ${currentValue}`);
+          
+          // Verifica se la milestone è raggiunta
+          if (currentValue >= conditionValue) {
+            console.log(`🎉 Milestone raggiunta! ${playerEmail} ha sbloccato ${templateId}`);
+            
+            // Verifica se il giocatore ha già questa card
+            const existingMilestone = await base('player_awards').select({
+              filterByFormula: `AND({player_email} = "${playerEmail}", {award_type} = "${templateId}")`
+            }).all();
+            
+            if (existingMilestone.length === 0) {
+              // Assegna la milestone
+              await base('player_awards').create({
+                player_email: playerEmail,
+                award_type: templateId,
+                match_id: matchId,
+                status: 'pending',
+                unlocked_at: '',
+                selected: false
+              });
+              
+              console.log(`✅ Milestone ${templateId} assegnata a ${playerEmail}`);
+            } else {
+              console.log(`⚠️ ${playerEmail} ha già la milestone ${templateId}`);
+            }
+          } else {
+            console.log(`❌ Milestone non raggiunta: ${currentValue} < ${conditionValue}`);
+          }
+        }
+      }
+      
+    } catch (milestoneError) {
+      console.error('❌ Errore nel controllo milestone:', milestoneError);
+      // Non blocca il processo, continua con le statistiche
+    }
+
+    // 7. Salva i premi nella tabella player_awards
     if (awards.length > 0) {
       try {
         for (const award of awards) {
@@ -311,7 +388,7 @@ export async function POST(
       }
     }
 
-    // 7. Aggiorna le statistiche dei giocatori nella tabella player_stats
+    // 8. Aggiorna le statistiche dei giocatori nella tabella player_stats
     console.log('🔄 Aggiornamento tabella player_stats...');
     console.log('🎯 Players da aggiornare:', [...teamA, ...teamB]);
     console.log('📊 PlayerStats ricevuti:', playerStats);
