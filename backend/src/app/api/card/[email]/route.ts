@@ -133,8 +133,16 @@ export async function GET(
     const canvas = createCanvas(CARD_WIDTH, CARD_HEIGHT);
     const ctx = canvas.getContext('2d');
 
+    console.log(`🔍 DEBUG CARD GENERATION:`);
+    console.log(`📁 useSimpleCard: ${useSimpleCard}`);
+    console.log(`📷 hasPlayerPhoto: ${hasPlayerPhoto}`);
+    console.log(`🎨 Template: ${template}`);
+    console.log(`📂 Card path: ${cardPath}`);
+    console.log(`🖼️ Photo URL: ${playerData.photoUrl}`);
+    console.log(`🚀 Condition (useSimpleCard || !hasPlayerPhoto): ${useSimpleCard || !hasPlayerPhoto}`);
+
     if (useSimpleCard || !hasPlayerPhoto) {
-      // **CARD SEMPLIFICATA SENZA FILE ESTERNI**
+      console.log(`⚠️ USANDO CARD SEMPLIFICATA - Motivo: useSimpleCard=${useSimpleCard}, hasPlayerPhoto=${hasPlayerPhoto}`);
       
       // Background colorato in base al template
       ctx.fillStyle = template === 'ultimate' ? '#4C1D95' : template === 'oro' ? '#B45309' : template === 'argento' ? '#374151' : '#92400E';
@@ -227,6 +235,8 @@ export async function GET(
       });
 
     } else {
+      console.log(`✅ USANDO CARD COMPLETA CON FILE - Template: ${template}, Foto: ${hasPlayerPhoto}`);
+      
       // **CARD COMPLETA CON FILE**
       
       // Carica immagini
