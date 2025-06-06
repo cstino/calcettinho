@@ -104,6 +104,29 @@ export default function EditMatchModal({
     }));
   };
 
+  // Ricalcola automaticamente il punteggio quando cambiano le statistiche
+  useEffect(() => {
+    if (Object.keys(playerStats).length > 0) {
+      // Calcola gol squadra A
+      const goalsTeamA = teamA.reduce((total, email) => {
+        return total + (playerStats[email]?.gol || 0);
+      }, 0);
+      
+      // Calcola gol squadra B
+      const goalsTeamB = teamB.reduce((total, email) => {
+        return total + (playerStats[email]?.gol || 0);
+      }, 0);
+      
+      // Aggiorna i punteggi solo se sono diversi da quelli attuali
+      if (goalsTeamA !== scoreA) {
+        setScoreA(goalsTeamA);
+      }
+      if (goalsTeamB !== scoreB) {
+        setScoreB(goalsTeamB);
+      }
+    }
+  }, [playerStats, teamA, teamB]);
+
   const getAllPlayers = () => [...teamA, ...teamB];
 
   const handleSubmit = async () => {

@@ -73,23 +73,19 @@ export default function Matches() {
         
         // Fetch matches
         const matchesResponse = await fetch('/api/matches');
-        console.log('Response status:', matchesResponse.status);
         
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json();
-          console.log('Matches data received:', matchesData);
           setMatches(matchesData);
           
           if (userEmail) {
             await checkUserVotes(matchesData, userEmail);
           }
         } else {
-          console.log('Nessuna partita trovata, iniziando con lista vuota');
           setMatches([]);
         }
         
       } catch (error) {
-        console.error('Errore nel caricamento dei dati:', error);
         setMatches([]);
       } finally {
         setLoading(false);
@@ -104,41 +100,24 @@ export default function Matches() {
       const completedMatches = matchesData.filter(match => match.completed);
       const votedSet = new Set<string>();
       
-      console.log('🔍 Controllo voti per utente:', userEmail, 'su', completedMatches.length, 'partite completate');
-      
       // Controlla ogni partita completata
       for (const match of completedMatches) {
         try {
           const url = `/api/votes/check/${encodeURIComponent(userEmail)}/${match.matchId}`;
-          console.log('🌐 Chiamando API:', url);
           
           const response = await fetch(url);
-          console.log('📡 Response status:', response.status);
           
           if (response.ok) {
             const data = await response.json();
-            console.log('📊 Dati ricevuti per partita', match.matchId, ':', data);
             
             if (data.hasVoted) {
               votedSet.add(match.matchId);
-              console.log('✅ Utente ha già votato per partita:', match.matchId);
-            } else {
-              console.log('❌ Utente NON ha ancora votato per partita:', match.matchId);
             }
-          } else {
-            console.log('⚠️ Errore response per partita:', match.matchId, 'Status:', response.status);
           }
         } catch (error) {
           console.log(`❌ Errore nel controllo voti per partita ${match.matchId}:`, error);
         }
       }
-      
-      console.log('🏁 Risultato finale controllo voti:', {
-        userEmail,
-        totalMatches: completedMatches.length,
-        votedMatches: Array.from(votedSet),
-        votedCount: votedSet.size
-      });
       
       setVotedMatches(votedSet);
     } catch (error) {
@@ -189,12 +168,10 @@ export default function Matches() {
   };
 
   const handleNewMatch = () => {
-    console.log('🎯 Pulsante "Nuova Partita" cliccato!');
     setShowCreateModal(true);
   };
 
   const handleMatchAction = async (action: string, matchId: string) => {
-    console.log(`🎯 Azione "${action}" per partita ${matchId}`);
     const match = matches.find(m => m.matchId === matchId);
     
     if (!match) {
@@ -534,12 +511,6 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                     // ✅ Controllo se l'utente ha già votato per questa partita
                     (() => {
                       const hasVoted = votedMatches.has(match.matchId);
-                      console.log(`[BUTTON DEBUG] Rendering voto button per partita ${match.matchId}:`, {
-                        userEmail,
-                        hasVoted,
-                        votedMatches: Array.from(votedMatches),
-                        isParticipant: [...match.teamA, ...match.teamB].includes(userEmail)
-                      });
                       
                       return hasVoted ? (
                         <button
@@ -618,7 +589,6 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
               <div className="flex justify-center space-x-1 bg-gray-800/50 p-1 rounded-lg backdrop-blur-sm mb-6 relative z-20">
                 <button
                   onClick={() => {
-                    console.log('🎯 Tab "Prossime" cliccata!');
                     setActiveTab('upcoming');
                   }}
                   className={`px-6 py-3 rounded-md font-runtime font-semibold transition-all duration-300 cursor-pointer pointer-events-auto relative z-30 ${
@@ -632,7 +602,6 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                 </button>
                 <button
                   onClick={() => {
-                    console.log('🎯 Tab "Completate" cliccata!');
                     setActiveTab('completed');
                   }}
                   className={`px-6 py-3 rounded-md font-runtime font-semibold transition-all duration-300 cursor-pointer pointer-events-auto relative z-30 ${
@@ -646,7 +615,6 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                 </button>
                 <button
                   onClick={() => {
-                    console.log('🎯 Tab "Tutte" cliccata!');
                     setActiveTab('all');
                   }}
                   className={`px-6 py-3 rounded-md font-runtime font-semibold transition-all duration-300 cursor-pointer pointer-events-auto relative z-30 ${
