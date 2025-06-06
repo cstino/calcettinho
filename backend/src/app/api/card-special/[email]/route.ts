@@ -320,17 +320,17 @@ export async function GET(
       const overallTextY = 140;
       const overallValueY = 210;
 
-      ctx.font = 'bold 20px Nebulax, Arial';
+      ctx.font = 'bold 20px Arial';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
       ctx.fillText('OVERALL', overallX, overallTextY);
 
-      ctx.font = 'bold 70px Nebulax, Arial';
+      ctx.font = 'bold 70px Arial';
       ctx.fillStyle = valueColor;
       ctx.fillText(String(overall), overallX, overallValueY);
 
       // Nome giocatore - alzato di 5 pixel
-      ctx.font = 'bold 56px Nebulax, Arial';
+      ctx.font = 'bold 56px Arial';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
       ctx.fillText(playerData.nome, CARD_WIDTH / 2, 638); // Alzato di 5 pixel (era 643)
@@ -352,7 +352,7 @@ export async function GET(
       const startY = 714; // Alzato di 15 pixel (era 729)
       const statSpacing = 45;
 
-      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - CAMBIATO A ARIAL
+      // Scritte statistiche colonna sinistra (ATT, VEL, PAS) - RIMANE ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
@@ -361,7 +361,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, 100, y);
       });
 
-      // Valori statistiche colonna sinistra (centrati nella colonna) - CAMBIATO A ARIAL
+      // Valori statistiche colonna sinistra (centrati nella colonna) - RIMANE ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
@@ -370,7 +370,7 @@ export async function GET(
         ctx.fillText(String(stat.value), 200, y);
       });
 
-      // Scritte statistiche colonna destra (FOR, DIF, POR) - CAMBIATO A ARIAL
+      // Scritte statistiche colonna destra (FOR, DIF, POR) - RIMANE ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
@@ -379,7 +379,7 @@ export async function GET(
         ctx.fillText(`${stat.label}`, 380, y);
       });
 
-      // Valori statistiche colonna destra (centrati nella colonna) - CAMBIATO A ARIAL
+      // Valori statistiche colonna destra (centrati nella colonna) - RIMANE ARIAL
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
@@ -388,12 +388,6 @@ export async function GET(
         ctx.fillText(String(stat.value), 480, y);
       });
 
-      // Aggiungi dati della card special
-      ctx.font = 'bold 20px Arial';
-      ctx.fillStyle = textColor;
-      ctx.textAlign = 'center';
-      ctx.fillText(specialCardData.name, CARD_WIDTH / 2, 50);
-      ctx.fillText(specialCardData.description, CARD_WIDTH / 2, 80);
     }
 
     // Converti canvas in PNG Buffer
