@@ -712,11 +712,40 @@ export default function PlayerProfile() {
       'goleador': 'Più gol segnati in partita',
       'assistman': 'Più assist forniti in partita',
       'motm': 'Più UP ricevuti in partita',
-      'win3': '3 vittorie consecutive',
-      'win5': '5 vittorie consecutive',
-      'win10': '10 vittorie consecutive'
+      'win10': '10 vittorie consecutive',
+      'win25': '25 vittorie consecutive',
+      'win50': '50 vittorie consecutive'
     };
     return descriptions[awardType] || 'Achievement speciale';
+  };
+
+  // ✅ NUOVO: Lista completa di tutte le card speciali disponibili
+  const allSpecialCards = [
+    { id: '1presenza', name: 'Prima Presenza', description: 'Prima partita giocata', color: 'from-blue-600 to-blue-800' },
+    { id: 'goleador', name: 'Goleador', description: 'Più gol segnati in partita', color: 'from-red-600 to-red-800' },
+    { id: 'assistman', name: 'Assist Man', description: 'Più assist forniti in partita', color: 'from-green-600 to-green-800' },
+    { id: 'motm', name: 'Man of the Match', description: 'Più UP ricevuti in partita', color: 'from-yellow-600 to-yellow-800' },
+    { id: 'win10', name: '10 Vittorie', description: '10 vittorie consecutive', color: 'from-purple-600 to-purple-800' },
+    { id: 'win25', name: '25 Vittorie', description: '25 vittorie consecutive', color: 'from-pink-600 to-pink-800' },
+    { id: 'win50', name: '50 Vittorie', description: '50 vittorie consecutive', color: 'from-indigo-600 to-indigo-800' }
+  ];
+
+  // ✅ NUOVO: Stato per modal di selezione card
+  const [selectedCardModal, setSelectedCardModal] = useState<string | null>(null);
+
+  // ✅ NUOVO: Funzione per controllare se una card è sbloccata
+  const isCardUnlocked = (cardId: string) => {
+    return playerAwards?.unlockedAwards.some(award => award.awardType === cardId) || false;
+  };
+
+  // ✅ NUOVO: Funzione per ottenere l'award di una card
+  const getCardAward = (cardId: string) => {
+    return playerAwards?.unlockedAwards.find(award => award.awardType === cardId) || null;
+  };
+
+  // ✅ NUOVO: Funzione per controllare se una card è selezionata
+  const isCardSelected = (cardId: string) => {
+    return playerAwards?.selectedCard?.awardType === cardId || false;
   };
 
   // Componente per immagine STATICO - NO RELOAD
@@ -998,146 +1027,159 @@ export default function PlayerProfile() {
                   </div>
                 )}
 
-                {/* Card Sbloccate */}
-                {playerAwards.unlockedAwards.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-green-400 font-runtime mb-4">✅ Collezione Evoluzioni</h3>
-                    
-                    {/* 🎯 CAROUSEL ORIZZONTALE SCORREVOLE - Tutte le card sempre visibili */}
-                    <div className="relative">
-                      <div 
-                        className="flex gap-4 overflow-x-auto overflow-y-hidden pb-4 px-2 scroll-smooth carousel-scroll"
-                        style={{
-                          scrollbarWidth: 'thin',
-                          scrollbarColor: '#4B5563 #1F2937',
-                          WebkitOverflowScrolling: 'touch'
-                        }}
-                      >
-                        {/* Card Base - sempre presente */}
-                        <div 
-                          className={`flex-shrink-0 w-72 border-2 rounded-lg p-4 transition-all duration-300 ${
-                            !playerAwards.selectedCard 
-                              ? 'border-blue-400 bg-blue-900/30' 
-                              : 'border-gray-600 bg-gray-800/50'
-                          }`}
-                        >
-                          <div className="text-center">
-                            <CardImage 
-                              src={getCardUrl(player?.email || '')}
-                              alt="Card Base"
-                            />
-                            <h4 className="text-white font-runtime font-bold mb-1">Card Base</h4>
-                            <p className="text-gray-300 text-sm font-runtime mb-3">La card principale</p>
-                            
-                            {/* Indicatore stato per visitatori */}
-                            {!isOwner && !playerAwards.selectedCard && (
-                              <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded font-runtime font-bold mb-2">
-                                ATTIVA
-                              </div>
-                            )}
-                            
-                            {/* Bottone selezione per proprietario */}
-                            {isOwner && (
-                              <button
-                                onClick={() => handleSelectCard(null)}
-                                className={`w-full py-2 px-4 rounded-lg font-runtime font-semibold text-sm transition-all duration-300 ${
-                                  !playerAwards.selectedCard
-                                    ? 'bg-green-600 text-white border-2 border-green-600'
-                                    : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600 hover:border-gray-500'
-                                }`}
-                              >
-                                {!playerAwards.selectedCard ? 'Evoluzione Selezionata' : 'Seleziona Evoluzione'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Card Sbloccate */}
-                        {playerAwards.unlockedAwards.map((award) => (
-                          <div 
-                            key={`unlocked-${award.id}`}
-                            className={`flex-shrink-0 w-72 border-2 rounded-lg p-4 transition-all duration-300 ${
-                              award.selected 
-                                ? 'border-green-400 bg-green-900/30' 
-                                : 'border-gray-600 bg-gray-800/50'
-                            }`}
-                          >
-                            <div className="text-center">
-                              <CardImage 
-                                src={getSpecialCardUrl(player?.email || '', award.awardType)}
-                                alt={`Card ${award.awardType}`}
-                              />
-                              <h4 className="text-white font-runtime font-bold mb-1">{getAwardLabel(award.awardType)}</h4>
-                              <p className="text-gray-300 text-sm font-runtime mb-3">{getAwardDescription(award.awardType)}</p>
-                              
-                              {/* Indicatore stato per visitatori */}
-                              {!isOwner && award.selected && (
-                                <div className="bg-green-500 text-white text-xs px-2 py-1 rounded font-runtime font-bold mb-2">
-                                  ATTIVA
-                                </div>
-                              )}
-                              
-                              {/* Bottone selezione per proprietario */}
-                              {isOwner && (
-                                <button
-                                  onClick={() => handleSelectCard(award.id)}
-                                  className={`w-full py-2 px-4 rounded-lg font-runtime font-semibold text-sm transition-all duration-300 ${
-                                    award.selected
-                                      ? 'bg-green-600 text-white border-2 border-green-600'
-                                      : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600 hover:border-gray-500'
-                                  }`}
-                                >
-                                  {award.selected ? 'Evoluzione Selezionata' : 'Seleziona Evoluzione'}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                {/* ✅ NUOVA INTERFACCIA: Collezione Evoluzioni a Griglia */}
+                <div>
+                  <h3 className="text-lg font-semibold text-green-400 font-runtime mb-4">✅ Collezione Evoluzioni</h3>
+                  
+                  {/* Griglia di tutte le card speciali */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
+                    {/* Card Base - sempre presente */}
+                    <div 
+                      className={`relative aspect-square rounded-lg border-2 transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                        !playerAwards.selectedCard 
+                          ? 'border-blue-400 bg-blue-900/30 shadow-lg shadow-blue-400/20' 
+                          : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                      }`}
+                      onClick={() => isOwner && setSelectedCardModal('base')}
+                    >
+                      <div className="absolute inset-2 rounded-lg overflow-hidden">
+                        <CardImage 
+                          src={getCardUrl(player?.email || '')}
+                          alt="Card Base"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                      
-                      {/* Hint per lo scroll */}
-                      {playerAwards.unlockedAwards.length > 2 && (
-                        <div className="text-center mt-2">
-                          <p className="text-gray-400 text-sm font-runtime">
-                            ← Scorri orizzontalmente per vedere tutte le card →
-                          </p>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <p className="text-white text-xs font-runtime font-bold text-center">Card Base</p>
+                      </div>
+                      {!playerAwards.selectedCard && (
+                        <div className="absolute top-1 right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                          ATTIVA
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
 
-                {/* Messaggio se nessuna card sbloccata */}
-                {playerAwards.total === 0 && (
-                  <div className="text-center py-8">
-                    <div className="w-24 h-24 mx-auto mb-4 bg-gray-700/50 rounded-full flex items-center justify-center">
-                      <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-400 font-runtime mb-2">Nessuna Evoluzione Ancora</h3>
-                    <p className="text-gray-500 font-runtime">Partecipa alle partite per sbloccare card speciali!</p>
+                    {/* Card Speciali */}
+                    {allSpecialCards.map((card) => {
+                      const isUnlocked = isCardUnlocked(card.id);
+                      const isSelected = isCardSelected(card.id);
+                      const award = getCardAward(card.id);
+                      
+                      return (
+                        <div 
+                          key={card.id}
+                          className={`relative aspect-square rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
+                            isUnlocked 
+                              ? `cursor-pointer ${isSelected 
+                                  ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
+                                  : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                                }`
+                              : 'border-gray-700 bg-gray-900/50 cursor-not-allowed'
+                          }`}
+                          onClick={() => isUnlocked && isOwner && setSelectedCardModal(card.id)}
+                        >
+                          {isUnlocked ? (
+                            <>
+                              {/* Card sbloccata - mostra preview */}
+                              <div className="absolute inset-2 rounded-lg overflow-hidden">
+                                <CardImage 
+                                  src={getSpecialCardUrl(player?.email || '', card.id)}
+                                  alt={`Card ${card.name}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                                <p className="text-white text-xs font-runtime font-bold text-center">{card.name}</p>
+                              </div>
+                              {isSelected && (
+                                <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                                  ATTIVA
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {/* Card bloccata - mostra lucchetto */}
+                              <div className={`absolute inset-2 rounded-lg bg-gradient-to-br ${card.color} opacity-20`}></div>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <svg className="w-8 h-8 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                <p className="text-gray-500 text-xs font-runtime font-bold text-center px-1">{card.name}</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
 
                 {/* Info sul Sistema */}
                 <div className="mt-6 p-4 bg-blue-900/20 border border-blue-400/30 rounded-lg">
                   <h4 className="text-blue-400 font-runtime font-bold mb-2">💡 Come Funziona</h4>
                   {isOwner ? (
                     <ul className="text-gray-300 text-sm font-runtime space-y-1">
-                      <li>• Gioca partite per guadagnare achievement</li>
-                      <li>• Sblocca le evoluzioni cliccando sui premi disponibili</li>
-                      <li>• Usa i bottoni "Seleziona Evoluzione" per scegliere la card da mostrare</li>
-                      <li>• La card selezionata apparirà quando gli altri vedranno il tuo profilo</li>
+                      <li>• Gioca partite per sbloccare le card speciali</li>
+                      <li>• Clicca sui premi "Nuovi" per sbloccarli con l'animazione</li>
+                      <li>• Clicca sulle card sbloccate per selezionarle come retro</li>
+                      <li>• La card "ATTIVA" è quella che vedranno gli altri giocatori</li>
                     </ul>
                   ) : (
                     <ul className="text-gray-300 text-sm font-runtime space-y-1">
                       <li>• Questa è la collezione di card di {player?.name}</li>
-                      <li>• Le card con indicatore "ATTIVA" sono quelle selezionate dal proprietario</li>
-                      <li>• Solo il proprietario può gestire e sbloccare le card</li>
+                      <li>• Le card con lucchetto non sono ancora state sbloccate</li>
+                      <li>• La card "ATTIVA" è quella selezionata dal proprietario</li>
                       <li>• Le evoluzioni si guadagnano giocando alle partite</li>
                     </ul>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* ✅ NUOVO: Modal per selezione card */}
+            {selectedCardModal && isOwner && (
+              <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-gray-900 rounded-2xl w-full max-w-md border border-gray-700">
+                  <div className="p-6">
+                    <div className="text-center mb-6">
+                      <h3 className="text-2xl font-bold text-white font-runtime mb-2">
+                        {selectedCardModal === 'base' ? 'Card Base' : allSpecialCards.find(c => c.id === selectedCardModal)?.name}
+                      </h3>
+                      <p className="text-gray-400 font-runtime">
+                        {selectedCardModal === 'base' ? 'La card principale' : allSpecialCards.find(c => c.id === selectedCardModal)?.description}
+                      </p>
+                    </div>
+                    
+                    <div className="mb-6">
+                      <CardImage 
+                        src={selectedCardModal === 'base' 
+                          ? getCardUrl(player?.email || '') 
+                          : getSpecialCardUrl(player?.email || '', selectedCardModal)
+                        }
+                        alt={`Card ${selectedCardModal}`}
+                        className="w-full max-w-xs mx-auto"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setSelectedCardModal(null)}
+                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-xl font-runtime font-semibold transition-all"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectCard(selectedCardModal === 'base' ? null : getCardAward(selectedCardModal)?.id || null);
+                          setSelectedCardModal(null);
+                        }}
+                        className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-runtime font-semibold transition-all"
+                      >
+                        Seleziona come Retro
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
