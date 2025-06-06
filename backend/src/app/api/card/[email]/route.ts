@@ -187,10 +187,10 @@ export async function GET(
         { label: 'POR', value: Math.round(playerData.POR) }
       ];
 
-      // Posizioni delle 4 colonne - gap simmetrico di 80px dal centro
+      // Posizioni delle 4 colonne - ALLINEATE CON CARD SPECIALI
       const leftLabelX = 100;      // Colonna 1: Labels sinistra
-      const leftValueX = 200;      // Colonna 2: Valori sinistra
-      const rightLabelX = 380;     // Colonna 3: Labels destra
+      const leftValueX = 220;      // Colonna 2: Valori sinistra (era 200, ora 220)
+      const rightLabelX = 360;     // Colonna 3: Labels destra (era 380, ora 360)
       const rightValueX = 480;     // Colonna 4: Valori destra
 
       const startY = 689; // Alzato di 2 punti
@@ -315,7 +315,7 @@ export async function GET(
       ctx.fillStyle = valueColor;
       leftStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(String(stat.value), 200, y);
+        ctx.fillText(String(stat.value), 220, y); // Cambiato da 200 a 220
       });
 
       // Scritte statistiche colonna destra (FOR, DIF, POR)
@@ -324,7 +324,7 @@ export async function GET(
       ctx.fillStyle = textColor;
       rightStats.forEach((stat, i) => {
         const y = startY + i * statSpacing;
-        ctx.fillText(`${stat.label}`, 380, y);
+        ctx.fillText(`${stat.label}`, 360, y); // Cambiato da 380 a 360
       });
 
       // Valori statistiche colonna destra (centrati nella colonna)
