@@ -72,14 +72,21 @@ export async function POST(request: NextRequest) {
           id: record.id,
           name: record.get('name'),
           email: email,
-          overall: Math.round((
-            Number(record.get('Attacco')) + 
-            Number(record.get('Difesa')) + 
-            Number(record.get('Velocità')) + 
-            Number(record.get('Forza')) + 
-            Number(record.get('Passaggio')) + 
-            Number(record.get('Portiere'))
-          ) / 6),
+          overall: (() => {
+            // Calcola overall dalle migliori 5 statistiche (nuovo metodo)
+            const playerStats = [
+              Number(record.get('Attacco')) || 0,
+              Number(record.get('Difesa')) || 0,
+              Number(record.get('Velocità')) || 0,
+              Number(record.get('Forza')) || 0,
+              Number(record.get('Passaggio')) || 0,
+              Number(record.get('Portiere')) || 0
+            ];
+            
+            // Ordina le statistiche in ordine decrescente e prendi le migliori 5
+            const top5Stats = playerStats.sort((a, b) => b - a).slice(0, 5);
+            return Math.round(top5Stats.reduce((sum, val) => sum + val, 0) / 5);
+          })(),
           attacco: Number(record.get('Attacco')),
           difesa: Number(record.get('Difesa')),
           velocità: Number(record.get('Velocità')),

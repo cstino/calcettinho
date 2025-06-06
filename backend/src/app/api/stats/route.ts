@@ -65,15 +65,19 @@ export async function GET() {
           cartelliniRossi: 0
         };
         
-        // Calcola overall dalla tabella players
-        const overall = Math.round((
-          Number(player.get('Attacco')) + 
-          Number(player.get('Difesa')) + 
-          Number(player.get('Velocità')) + 
-          Number(player.get('Forza')) + 
-          Number(player.get('Passaggio')) + 
-          Number(player.get('Portiere'))
-        ) / 6);
+        // Calcola overall dalle migliori 5 statistiche (nuovo metodo)
+        const playerStats = [
+          Number(player.get('Attacco')) || 0,
+          Number(player.get('Difesa')) || 0,
+          Number(player.get('Velocità')) || 0,
+          Number(player.get('Forza')) || 0,
+          Number(player.get('Passaggio')) || 0,
+          Number(player.get('Portiere')) || 0
+        ];
+        
+        // Ordina le statistiche in ordine decrescente e prendi le migliori 5
+        const top5Stats = playerStats.sort((a, b) => b - a).slice(0, 5);
+        const overall = Math.round(top5Stats.reduce((sum, val) => sum + val, 0) / 5);
         
         return {
           id: (index + 1).toString(),
