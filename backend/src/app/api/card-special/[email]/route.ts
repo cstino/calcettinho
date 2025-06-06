@@ -3,6 +3,7 @@ import { createCanvas, loadImage, registerFont } from 'canvas';
 import path from 'path';
 import { promises as fs } from 'fs';
 import Airtable from 'airtable';
+import { getPlayerByEmail, getSpecialCardData } from '@/utils/airtable';
 
 // Configurazione Airtable
 const apiKey = process.env.AIRTABLE_API_KEY;
@@ -101,97 +102,6 @@ function getOptimalColors(ctx: any): { textColor: string, valueColor: string } {
       textColor: '#FFFFFF',    // Bianco per nomi stats e "OVERALL"
       valueColor: '#FFD700'    // Oro per valori stats e valore overall
     };
-  }
-}
-
-// Funzione per ottenere i dati del giocatore direttamente da Airtable
-async function getPlayerByEmail(email: string) {
-  try {
-    console.log('Recupero dati giocatore per email:', email);
-    
-    // Accesso diretto ad Airtable invece di chiamata HTTP ricorsiva
-    const records = await base('players').select({
-      filterByFormula: `{email} = '${email}'`
-    }).all();
-    
-    if (records.length === 0) {
-      console.log('Giocatore non trovato per email:', email);
-      return null;
-    }
-    
-    const record = records[0];
-    
-    // Gestisce il campo photoUrl come attachment di Airtable
-    const photoAttachments = record.get('photoUrl') as any[];
-    let fotoUrl = '';
-    
-    if (photoAttachments && Array.isArray(photoAttachments) && photoAttachments.length > 0) {
-      fotoUrl = photoAttachments[0].url || '';
-      console.log(`Foto trovata per email ${email}: ${fotoUrl}`);
-    } else {
-      console.log(`Nessuna foto per email ${email}`);
-    }
-    
-    const playerData = {
-      nome: record.get('name') as string || 'Giocatore Sconosciuto',
-      email: record.get('email') as string || email,
-      photoUrl: fotoUrl,
-      ATT: Number(record.get('Attacco')) || 50,
-      DEF: Number(record.get('Difesa')) || 50,
-      VEL: Number(record.get('Velocità')) || 50,
-      FOR: Number(record.get('Forza')) || 50,
-      PAS: Number(record.get('Passaggio')) || 50,
-      POR: Number(record.get('Portiere')) || 50
-    };
-    
-    console.log('Dati giocatore trovati:', playerData);
-    return playerData;
-  } catch (error) {
-    console.error('Errore nel recupero dati giocatore:', error);
-    return null;
-  }
-}
-
-// Funzione per ottenere i dati delle card special da Airtable
-async function getSpecialCardData(template: string) {
-  try {
-    console.log('Recupero dati card special per template:', template);
-    
-    // Accesso diretto ad Airtable per recuperare i dati della card special
-    const records = await base('special_cards').select({
-      filterByFormula: `{template_id} = '${template}'`
-    }).all();
-    
-    if (records.length === 0) {
-      console.log('Card special non trovata per template:', template);
-      return null;
-    }
-    
-    const record = records[0];
-    
-    // Gestisce il campo template_image come attachment di Airtable
-    const templateAttachments = record.get('template_image') as any[];
-    let templateUrl = '';
-    
-    if (templateAttachments && Array.isArray(templateAttachments) && templateAttachments.length > 0) {
-      templateUrl = templateAttachments[0].url || '';
-      console.log(`Template immagine trovata per ${template}: ${templateUrl}`);
-    } else {
-      console.log(`Nessuna template immagine per ${template}`);
-    }
-    
-    const cardData = {
-      name: record.get('name') as string || 'Card Special',
-      description: record.get('description') as string || 'Descrizione non disponibile',
-      color: record.get('color') as string || '#B45309',
-      templateUrl: templateUrl, // Aggiungo l'URL del template
-    };
-    
-    console.log('Dati card special trovati:', cardData);
-    return cardData;
-  } catch (error) {
-    console.error('Errore nel recupero dati card special:', error);
-    return null;
   }
 }
 
