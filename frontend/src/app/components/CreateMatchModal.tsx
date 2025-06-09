@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, Users, MapPin, Minus } from 'lucide-react';
+import { X, Calendar, Users, MapPin, Minus, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Player {
@@ -19,6 +19,7 @@ interface CreateMatchModalProps {
 export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateMatchModalProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     date: '',
     location: 'Campo Centrale',
@@ -29,6 +30,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
   useEffect(() => {
     if (isOpen) {
       fetchPlayers();
+      setSearchQuery('');
     }
   }, [isOpen]);
 
@@ -43,6 +45,10 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
       console.error('Errore nel caricamento giocatori:', error);
     }
   };
+
+  const filteredPlayers = players.filter(player =>
+    player.nome.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handlePlayerToggle = (playerEmail: string, team: 'A' | 'B') => {
     setFormData(prev => {
@@ -144,6 +150,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
           teamA: [],
           teamB: []
         });
+        setSearchQuery('');
       } else {
         const error = await response.json();
         alert(`❌ Errore: ${error.error}`);
@@ -211,50 +218,80 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
               </div>
             </div>
 
-            {/* Lista Giocatori Disponibili */}
-            <div className="bg-gray-700/30 rounded-lg p-4">
+            {/* Barra di Ricerca */}
+            <div className="bg-gray-700/50 rounded-lg p-4">
               <h3 className="text-lg font-semibold text-white mb-3 font-runtime">
                 Giocatori Disponibili
               </h3>
+              
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Cerca giocatore per nome..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none placeholder-gray-400"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                {players.map(player => {
-                  const isSelected = isPlayerSelected(player.email);
-                  const team = getPlayerTeam(player.email);
-                  
-                  return (
-                    <div key={player.email} className="flex items-center gap-2">
-                      <span className={`text-sm flex-1 ${isSelected ? 'text-gray-400' : 'text-white'}`}>
-                        {player.nome}
-                      </span>
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handlePlayerToggle(player.email, 'A')}
-                          disabled={!isSelected && formData.teamA.length >= 5 && team !== 'A'}
-                          className={`px-2 py-1 text-xs rounded transition-colors ${
-                            team === 'A' 
-                              ? 'bg-red-600 text-white' 
-                              : 'bg-red-900/30 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                          }`}
-                        >
-                          A
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handlePlayerToggle(player.email, 'B')}
-                          disabled={!isSelected && formData.teamB.length >= 5 && team !== 'B'}
-                          className={`px-2 py-1 text-xs rounded transition-colors ${
-                            team === 'B' 
-                              ? 'bg-blue-600 text-white' 
-                              : 'bg-blue-900/30 text-blue-400 hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'
-                          }`}
-                        >
-                          B
-                        </button>
+                {filteredPlayers.length === 0 ? (
+                  <div className="col-span-2 text-center py-8 text-gray-400">
+                    {searchQuery ? 
+                      `Nessun giocatore trovato per "${searchQuery}"` : 
+                      'Nessun giocatore disponibile'
+                    }
+                  </div>
+                ) : (
+                  filteredPlayers.map(player => {
+                    const isSelected = isPlayerSelected(player.email);
+                    const team = getPlayerTeam(player.email);
+                    
+                    return (
+                      <div key={player.email} className="flex items-center gap-2">
+                        <span className={`text-sm flex-1 ${isSelected ? 'text-gray-400' : 'text-white'}`}>
+                          {player.nome}
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handlePlayerToggle(player.email, 'A')}
+                            disabled={!isSelected && formData.teamA.length >= 5 && team !== 'A'}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${
+                              team === 'A' 
+                                ? 'bg-red-600 text-white' 
+                                : 'bg-red-900/30 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                            }`}
+                          >
+                            A
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePlayerToggle(player.email, 'B')}
+                            disabled={!isSelected && formData.teamB.length >= 5 && team !== 'B'}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${
+                              team === 'B' 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-blue-900/30 text-blue-400 hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                            }`}
+                          >
+                            B
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -316,7 +353,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
             </div>
 
             {/* Pulsanti */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-4">
               <button
                 type="button"
                 onClick={onClose}

@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 
-// Configurazione Airtable (usa le stesse credenziali)
+// Configurazione Airtable
+const airtable = new Airtable({
+  apiKey: process.env.AIRTABLE_API_KEY,
+});
+
 const apiKey = process.env.AIRTABLE_API_KEY;
 const baseId = process.env.AIRTABLE_BASE_ID;
 
 if (!apiKey || !baseId) {
-  throw new Error('Credenziali Airtable mancanti');
+  throw new Error('Missing Airtable configuration in environment variables');
 }
-
-Airtable.configure({
-  endpointUrl: 'https://api.airtable.com',
-  apiKey: apiKey
-});
 
 const base = Airtable.base(baseId);
 
@@ -63,13 +62,16 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Validazione: ogni voto deve essere 'UP' o 'DOWN'
-    const invalidVotes = votes.filter(vote => vote.voteType !== 'UP' && vote.voteType !== 'DOWN');
+    // ✅ NUOVO: Validazione aggiornata per includere NEUTRAL e MOTM
+    const invalidVotes = votes.filter(vote => 
+      !['UP', 'DOWN', 'NEUTRAL'].includes(vote.voteType) ||
+      typeof vote.motmVote !== 'boolean'
+    );
     if (invalidVotes.length > 0) {
       console.log('Validazione fallita: voti non validi', invalidVotes);
       return NextResponse.json({ 
         success: false, 
-        error: 'Voti non validi: ogni voto deve essere UP o DOWN' 
+        error: 'Voti non validi: ogni voto deve essere UP, DOWN o NEUTRAL con motmVote boolean' 
       }, { status: 400 });
     }
 
@@ -82,20 +84,27 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    console.log('✅ Validazione passata. Ricevuta richiesta di votazione UP/DOWN:', { voterEmail, matchId, votesCount: votes.length });
+    console.log('✅ Validazione passata. Ricevuta richiesta di votazione con NEUTRAL e MOTM:', { 
+      voterEmail, 
+      matchId, 
+      votesCount: votes.length,
+      motmVotes: votes.filter(v => v.motmVote).length
+    });
 
-    // Prepara i record da inserire con la nuova struttura UP/DOWN
+    // ✅ NUOVO: Prepara i record con il nuovo formato che include motm_vote
     const voteRecords = votes.map(vote => ({
       fields: {
         matchId: matchId,
         fromPlayerId: voterEmail, // Email del votante
         toPlayerId: vote.playerEmail, // Email del giocatore votato
-        voteType: vote.voteType // 'UP' o 'DOWN'
+        voteType: vote.voteType, // 'UP', 'DOWN' o 'NEUTRAL'
+        motm_vote: vote.motmVote // true/false per il voto MOTM
       }
     }));
 
     console.log('✅ Records preparati per Airtable:', voteRecords.length, 'records');
     console.log('Primo record di esempio:', voteRecords[0]);
+    console.log('MOTM votes trovati:', voteRecords.filter(r => r.fields.motm_vote).length);
 
     // Test credenziali Airtable
     console.log('🔑 Controllo credenziali Airtable...');
@@ -110,17 +119,29 @@ export async function POST(req: NextRequest) {
     console.log('📤 Tentativo inserimento in Airtable...');
     const createdRecords = await base('votes').create(voteRecords);
     
-    console.log('✅ Voti UP/DOWN salvati con successo:', createdRecords.length);
+    console.log('✅ Voti con NEUTRAL e MOTM salvati con successo:', createdRecords.length);
+
+    // ✅ NUOVO: Statistiche dettagliate per il log
+    const stats = {
+      total: createdRecords.length,
+      upVotes: votes.filter(v => v.voteType === 'UP').length,
+      downVotes: votes.filter(v => v.voteType === 'DOWN').length,
+      neutralVotes: votes.filter(v => v.voteType === 'NEUTRAL').length,
+      motmVotes: votes.filter(v => v.motmVote).length
+    };
+
+    console.log('📊 Statistiche voti salvati:', stats);
 
     return NextResponse.json({ 
       success: true, 
-      message: `${createdRecords.length} voti UP/DOWN salvati con successo per la partita ${matchId}`,
+      message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
       votesSubmitted: createdRecords.length,
-      matchId: matchId
+      matchId: matchId,
+      stats: stats
     });
     
   } catch (error) {
-    console.error('❌ ERRORE DETTAGLIATO nel salvare i voti UP/DOWN:');
+    console.error('❌ ERRORE DETTAGLIATO nel salvare i voti:');
     console.error('Tipo errore:', typeof error);
     console.error('Nome errore:', error instanceof Error ? error.name : 'N/A');
     console.error('Messaggio errore:', error instanceof Error ? error.message : 'N/A');

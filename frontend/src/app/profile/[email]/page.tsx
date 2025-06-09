@@ -696,12 +696,21 @@ export default function PlayerProfile() {
   const getAwardLabel = (awardType: string) => {
     const labels: Record<string, string> = {
       '1presenza': 'Prima Presenza',
+      // ⚽ Catena Goleador
       'goleador': 'Goleador',
+      'matador': 'Matador',
+      'goldenboot': 'Golden Boot',
+      // 🅰️ Catena Assistman  
       'assistman': 'Assist Man',
+      'regista': 'Regista',
+      'elfutbol': 'El fútbol',
+      // 🏆 Altri premi
       'motm': 'Man of the Match',
       'win3': 'Streak Winner 3',
       'win5': 'Streak Winner 5',
-      'win10': 'Streak Winner 10'
+      'win10': 'Streak Winner 10',
+      'win25': 'Streak Winner 25',
+      'win50': 'Streak Winner 50'
     };
     return labels[awardType] || awardType.toUpperCase();
   };
@@ -709,9 +718,18 @@ export default function PlayerProfile() {
   const getAwardDescription = (awardType: string) => {
     const descriptions: Record<string, string> = {
       '1presenza': 'Prima partita giocata',
+      // ⚽ Catena Goleador Progressive
       'goleador': 'Più gol segnati in partita',
+      'matador': 'Goleador esperto (richiede Goleador)',
+      'goldenboot': 'Leggenda del gol (richiede Matador)',
+      // 🅰️ Catena Assistman Progressive
       'assistman': 'Più assist forniti in partita',
-      'motm': 'Più UP ricevuti in partita',
+      'regista': 'Maestro degli assist (richiede Assistman)',
+      'elfutbol': 'Genio del passaggio (richiede Regista)',
+      // 🏆 Altri premi
+      'motm': 'Più voti MOTM ricevuti in partita',
+      'win3': '3 vittorie consecutive',
+      'win5': '5 vittorie consecutive',
       'win10': '10 vittorie consecutive',
       'win25': '25 vittorie consecutive',
       'win50': '50 vittorie consecutive'
@@ -719,12 +737,23 @@ export default function PlayerProfile() {
     return descriptions[awardType] || 'Achievement speciale';
   };
 
-  // ✅ NUOVO: Lista completa di tutte le card speciali disponibili
+  // ✅ NUOVO: Lista completa di tutte le card speciali disponibili - ORGANIZZATE PER CATENE PROGRESSIVE
   const allSpecialCards = [
+    // 🔹 Card Base/Introduzione
     { id: '1presenza', name: 'Prima Presenza', description: 'Prima partita giocata', color: 'from-blue-600 to-blue-800' },
+    
+    // ⚽ Catena Goleador (Progressive)
     { id: 'goleador', name: 'Goleador', description: 'Più gol segnati in partita', color: 'from-red-600 to-red-800' },
+    { id: 'matador', name: 'Matador', description: 'Goleador esperto (richiede Goleador)', color: 'from-red-800 to-red-900' },
+    { id: 'goldenboot', name: 'Golden Boot', description: 'Leggenda del gol (richiede Matador)', color: 'from-yellow-600 to-yellow-800' },
+    
+    // 🅰️ Catena Assistman (Progressive)
     { id: 'assistman', name: 'Assist Man', description: 'Più assist forniti in partita', color: 'from-green-600 to-green-800' },
-    { id: 'motm', name: 'Man of the Match', description: 'Più UP ricevuti in partita', color: 'from-yellow-600 to-yellow-800' },
+    { id: 'regista', name: 'Regista', description: 'Maestro degli assist (richiede Assistman)', color: 'from-green-700 to-green-900' },
+    { id: 'elfutbol', name: 'El fútbol', description: 'Genio del passaggio (richiede Regista)', color: 'from-purple-600 to-purple-800' },
+    
+    // 🏆 Altri Premi
+    { id: 'motm', name: 'Man of the Match', description: 'Più voti MOTM ricevuti in partita', color: 'from-yellow-600 to-yellow-800' },
     { id: 'win10', name: '10 Vittorie', description: '10 vittorie consecutive', color: 'from-purple-600 to-purple-800' },
     { id: 'win25', name: '25 Vittorie', description: '25 vittorie consecutive', color: 'from-pink-600 to-pink-800' },
     { id: 'win50', name: '50 Vittorie', description: '50 vittorie consecutive', color: 'from-indigo-600 to-indigo-800' }
@@ -1115,53 +1144,80 @@ export default function PlayerProfile() {
                   </div>
                 </div>
 
-                {/* Info sul Sistema */}
+                {/* Info sul Sistema Progressivo */}
                 <div className="mt-6 p-4 bg-blue-900/20 border border-blue-400/30 rounded-lg">
-                  <h4 className="text-blue-400 font-runtime font-bold mb-2">💡 Come Funziona</h4>
+                  <h4 className="text-blue-400 font-runtime font-bold mb-2">💡 Sistema Card Progressive</h4>
                   {isOwner ? (
                     <ul className="text-gray-300 text-sm font-runtime space-y-1">
-                      <li>• Gioca partite per sbloccare le card speciali</li>
-                      <li>• Clicca sui premi "Nuovi" per sbloccarli con l'animazione</li>
-                      <li>• Clicca sulle card sbloccate per selezionarle come retro</li>
-                      <li>• La card "ATTIVA" è quella che vedranno gli altri giocatori</li>
+                      <li>• ⚽ <strong>Catena Goleador:</strong> Goleador → Matador → Golden Boot</li>
+                      <li>• 🅰️ <strong>Catena Assistman:</strong> Assistman → Regista → El fútbol</li>
+                      <li>• 🏆 Ogni vittoria nella stessa categoria sblocca la card successiva</li>
+                      <li>• 🎯 Clicca sui premi "Nuovi" per sbloccarli con l'animazione</li>
+                      <li>• 🎨 Clicca sulle card sbloccate per selezionarle come retro</li>
                     </ul>
                   ) : (
                     <ul className="text-gray-300 text-sm font-runtime space-y-1">
-                      <li>• Questa è la collezione di card di {player?.name}</li>
-                      <li>• Le card con lucchetto non sono ancora state sbloccate</li>
-                      <li>• La card "ATTIVA" è quella selezionata dal proprietario</li>
-                      <li>• Le evoluzioni si guadagnano giocando alle partite</li>
+                      <li>• 📚 Collezione di {player?.name} - {playerAwards?.unlocked || 0} card sbloccate</li>
+                      <li>• ⚽ <strong>Catena Goleador:</strong> Goleador → Matador → Golden Boot</li>
+                      <li>• 🅰️ <strong>Catena Assistman:</strong> Assistman → Regista → El fútbol</li>
+                      <li>• 🔒 Le card progressive si sbloccano vincendo nella stessa categoria</li>
                     </ul>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ✅ NUOVO: Modal per selezione card */}
+            {/* ✅ MODAL CARD RESPONSIVE - Ottimizzato per Desktop */}
             {selectedCardModal && isOwner && (
-              <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-gray-900 rounded-2xl w-full max-w-md border border-gray-700">
-                  <div className="p-6">
-                    <div className="text-center mb-6">
-                      <h3 className="text-2xl font-bold text-white font-runtime mb-2">
-                        {selectedCardModal === 'base' ? 'Card Base' : allSpecialCards.find(c => c.id === selectedCardModal)?.name}
-                      </h3>
-                      <p className="text-gray-400 font-runtime">
-                        {selectedCardModal === 'base' ? 'La card principale' : allSpecialCards.find(c => c.id === selectedCardModal)?.description}
-                      </p>
+              <div 
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setSelectedCardModal(null);
+                  }
+                }}
+              >
+                <div className="bg-gray-900 rounded-2xl w-full max-w-sm border border-gray-700 my-8 max-h-[90vh] overflow-y-auto">
+                  {/* Header fisso */}
+                  <div className="sticky top-0 bg-gray-900 rounded-t-2xl border-b border-gray-700 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white font-runtime">
+                          {selectedCardModal === 'base' ? 'Card Base' : allSpecialCards.find(c => c.id === selectedCardModal)?.name}
+                        </h3>
+                        <p className="text-gray-400 font-runtime text-sm mt-1">
+                          {selectedCardModal === 'base' ? 'La card principale' : allSpecialCards.find(c => c.id === selectedCardModal)?.description}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedCardModal(null)}
+                        className="ml-4 text-gray-400 hover:text-white transition-colors"
+                      >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                    
-                    <div className="mb-6">
-                      <CardImage 
-                        src={selectedCardModal === 'base' 
-                          ? getCardUrl(player?.email || '') 
-                          : getSpecialCardUrl(player?.email || '', selectedCardModal)
-                        }
-                        alt={`Card ${selectedCardModal}`}
-                        className="w-full max-w-xs mx-auto"
-                      />
+                  </div>
+                  
+                  {/* Contenuto scrollabile */}
+                  <div className="p-4">
+                    {/* Preview card - Dimensioni ottimizzate per desktop */}
+                    <div className="mb-6 flex justify-center">
+                      <div className="w-48 max-w-full">
+                        <CardImage 
+                          src={selectedCardModal === 'base' 
+                            ? getCardUrl(player?.email || '') 
+                            : getSpecialCardUrl(player?.email || '', selectedCardModal)
+                          }
+                          alt={`Card ${selectedCardModal}`}
+                        />
+                      </div>
                     </div>
-                    
+                  </div>
+                  
+                  {/* Footer con bottoni - Sempre visibile */}
+                  <div className="sticky bottom-0 bg-gray-900 rounded-b-2xl border-t border-gray-700 p-4">
                     <div className="flex gap-3">
                       <button
                         onClick={() => setSelectedCardModal(null)}
@@ -1176,7 +1232,7 @@ export default function PlayerProfile() {
                         }}
                         className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-runtime font-semibold transition-all"
                       >
-                        Seleziona come Retro
+                        ✅ Seleziona
                       </button>
                     </div>
                   </div>
@@ -1242,28 +1298,36 @@ export default function PlayerProfile() {
               <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6">
                 <h2 className="text-2xl font-bold text-white font-runtime mb-6 text-center">Storico Votazioni</h2>
                 
-                {/* Statistiche Votazioni */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                {/* ✅ NUOVO: Statistiche Votazioni Complete */}
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
                   <div className="text-center transform transition-all duration-300 hover:scale-105">
-                    <div className="text-3xl font-bold text-blue-400 font-runtime">{voteHistory.statistics.totalVotes}</div>
-                    <div className="text-gray-300 font-runtime">Voti Ricevuti</div>
+                    <div className="text-2xl font-bold text-blue-400 font-runtime">{voteHistory.statistics.totalVotes}</div>
+                    <div className="text-gray-300 font-runtime text-sm">Voti Totali</div>
                   </div>
                   <div className="text-center transform transition-all duration-300 hover:scale-105">
-                    <div className="text-3xl font-bold text-green-400 font-runtime">{voteHistory.statistics.upVotes}</div>
-                    <div className="text-gray-300 font-runtime">Voti UP</div>
+                    <div className="text-2xl font-bold text-green-400 font-runtime">{voteHistory.statistics.upVotes}</div>
+                    <div className="text-gray-300 font-runtime text-sm">UP</div>
                   </div>
                   <div className="text-center transform transition-all duration-300 hover:scale-105">
-                    <div className="text-3xl font-bold text-red-400 font-runtime">{voteHistory.statistics.downVotes}</div>
-                    <div className="text-gray-300 font-runtime">Voti DOWN</div>
+                    <div className="text-2xl font-bold text-gray-400 font-runtime">{voteHistory.statistics.neutralVotes || 0}</div>
+                    <div className="text-gray-300 font-runtime text-sm">NEUTRAL</div>
                   </div>
                   <div className="text-center transform transition-all duration-300 hover:scale-105">
-                    <div className={`text-3xl font-bold font-runtime ${
+                    <div className="text-2xl font-bold text-red-400 font-runtime">{voteHistory.statistics.downVotes}</div>
+                    <div className="text-gray-300 font-runtime text-sm">DOWN</div>
+                  </div>
+                  <div className="text-center transform transition-all duration-300 hover:scale-105">
+                    <div className="text-2xl font-bold text-amber-400 font-runtime">{voteHistory.statistics.motmVotes || 0}</div>
+                    <div className="text-gray-300 font-runtime text-sm">MOTM Voti</div>
+                  </div>
+                  <div className="text-center transform transition-all duration-300 hover:scale-105">
+                    <div className={`text-2xl font-bold font-runtime ${
                       voteHistory.statistics.netVotes > 0 ? 'text-green-400' :
                       voteHistory.statistics.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
                     }`}>
                       {voteHistory.statistics.netVotes > 0 ? '+' : ''}{voteHistory.statistics.netVotes}
                     </div>
-                    <div className="text-gray-300 font-runtime">Net Votes</div>
+                    <div className="text-gray-300 font-runtime text-sm">Net Score</div>
                   </div>
                 </div>
 
@@ -1287,27 +1351,32 @@ export default function PlayerProfile() {
                       {(() => {
                         const lastMatch = voteHistory.matchResults[0];
                         return (
-                          <div className="flex items-center justify-center space-x-4">
-                            <div className="flex items-center space-x-3">
-                              <span className="bg-green-600 text-white px-4 py-2 rounded text-sm font-runtime font-semibold min-w-[70px] text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
                                 {lastMatch.upVotes} UP
                               </span>
-                              <span className="bg-red-600 text-white px-4 py-2 rounded text-sm font-runtime font-semibold min-w-[70px] text-center">
+                              {lastMatch.neutralVotes > 0 && (
+                                <span className="bg-gray-500 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
+                                  {lastMatch.neutralVotes} NEU
+                                </span>
+                              )}
+                              <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
                                 {lastMatch.downVotes} DOWN
                               </span>
+                              {lastMatch.motmVotes > 0 && (
+                                <span className="bg-amber-500 text-black px-2 py-1 rounded text-xs font-runtime font-bold min-w-[45px] text-center">
+                                  {lastMatch.motmVotes} MOTM
+                                </span>
+                              )}
                             </div>
-                            <div className="flex items-center space-x-3">
-                              <div className={`font-runtime font-bold text-lg ${
+                            <div className="flex items-center space-x-2">
+                              <div className={`font-runtime font-bold text-sm ${
                                 lastMatch.netVotes > 0 ? 'text-green-400' :
                                 lastMatch.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
                               }`}>
-                                {lastMatch.netVotes > 0 ? '+' : ''}{lastMatch.netVotes}
+                                Net: {lastMatch.netVotes > 0 ? '+' : ''}{lastMatch.netVotes}
                               </div>
-                              {lastMatch.isMotm && (
-                                <div className="bg-yellow-500 text-black px-3 py-1 rounded text-sm font-runtime font-bold">
-                                  MotM
-                                </div>
-                              )}
                             </div>
                           </div>
                         );

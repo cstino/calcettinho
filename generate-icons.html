@@ -88,6 +88,21 @@
             <p>2. L'app sarà pronta per essere installata su mobile!</p>
             <p>3. Gli utenti potranno aggiungerla alla home screen con il tuo logo</p>
         </div>
+
+        <!-- Existing card buttons -->
+        <button onclick="generateSpecialCard('1presenza')">1ª Presenza</button>
+        <button onclick="generateSpecialCard('motm')">Man of the Match</button>
+        <button onclick="generateSpecialCard('goleador')">Goleador</button>
+        <button onclick="generateSpecialCard('assistman')">Assistman</button>
+        <button onclick="generateSpecialCard('win3')">3 Vittorie</button>
+        <button onclick="generateSpecialCard('win5')">5 Vittorie</button>
+        <button onclick="generateSpecialCard('win10')">10 Vittorie</button>
+        
+        <!-- ✅ NUOVE CARD PROGRESSIVE -->
+        <button onclick="generateSpecialCard('matador')">Matador</button>
+        <button onclick="generateSpecialCard('goldenboot')">Golden Boot</button>
+        <button onclick="generateSpecialCard('regista')">Regista</button>
+        <button onclick="generateSpecialCard('elfutbol')">El fútbol</button>
     </div>
 
     <script>
@@ -246,6 +261,148 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+
+        // ✅ NUOVE FUNZIONI per le card progressive
+        function generateSpecialCard(cardType) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 600;
+            canvas.height = 900;
+            const ctx = canvas.getContext('2d');
+            
+            // Configurazioni per ogni tipo di card
+            const cardConfigs = {
+                '1presenza': {
+                    title: '1ª PRESENZA',
+                    subtitle: 'Benvenuto in squadra!',
+                    mainColor: '#059669',
+                    accentColor: '#10B981',
+                    icon: '🟢'
+                },
+                'motm': {
+                    title: 'MAN OF THE MATCH',
+                    subtitle: 'Giocatore della partita',
+                    mainColor: '#F59E0B',
+                    accentColor: '#FCD34D',
+                    icon: '👑'
+                },
+                'goleador': {
+                    title: 'GOLEADOR',
+                    subtitle: 'Re del gol',
+                    mainColor: '#DC2626',
+                    accentColor: '#F87171',
+                    icon: '⚽'
+                },
+                'assistman': {
+                    title: 'ASSISTMAN',
+                    subtitle: 'Maestro degli assist',
+                    mainColor: '#7C3AED',
+                    accentColor: '#A855F7',
+                    icon: '🅰️'
+                },
+                'win3': {
+                    title: '3 VITTORIE',
+                    subtitle: 'Vincitore seriale',
+                    mainColor: '#059669',
+                    accentColor: '#10B981',
+                    icon: '🥉'
+                },
+                'win5': {
+                    title: '5 VITTORIE',
+                    subtitle: 'Campione emergente',
+                    mainColor: '#C0392B',
+                    accentColor: '#E74C3C',
+                    icon: '🥈'
+                },
+                'win10': {
+                    title: '10 VITTORIE',
+                    subtitle: 'Leggenda del campo',
+                    mainColor: '#F39C12',
+                    accentColor: '#F4D03F',
+                    icon: '🥇'
+                },
+                'matador': {
+                    title: 'MATADOR',
+                    subtitle: 'Goleador esperto',
+                    mainColor: '#8B0000',
+                    accentColor: '#DC143C',
+                    icon: '🗡️'
+                },
+                'goldenboot': {
+                    title: 'GOLDEN BOOT',
+                    subtitle: 'Leggenda del gol',
+                    mainColor: '#DAA520',
+                    accentColor: '#FFD700',
+                    icon: '👢'
+                },
+                'regista': {
+                    title: 'REGISTA',
+                    subtitle: 'Maestro degli assist',
+                    mainColor: '#2E8B57',
+                    accentColor: '#32CD32',
+                    icon: '🎭'
+                },
+                'elfutbol': {
+                    title: 'EL FÚTBOL',
+                    subtitle: 'Genio del passaggio',
+                    mainColor: '#4B0082',
+                    accentColor: '#9370DB',
+                    icon: '⚡'
+                }
+            };
+            
+            const config = cardConfigs[cardType];
+            if (!config) return;
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, 900);
+            gradient.addColorStop(0, config.mainColor);
+            gradient.addColorStop(1, config.accentColor);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 600, 900);
+            
+            // Border oro
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(4, 4, 592, 892);
+            
+            // Icon centrale grande
+            ctx.font = 'bold 120px Arial';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+            ctx.fillText(config.icon, 300, 200);
+            
+            // Titolo
+            ctx.font = 'bold 36px Arial';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+            ctx.fillText(config.title, 300, 300);
+            
+            // Sottotitolo
+            ctx.font = 'bold 24px Arial';
+            ctx.fillStyle = '#F0F0F0';
+            ctx.textAlign = 'center';
+            ctx.fillText(config.subtitle, 300, 340);
+            
+            // Logo Calcettino stilizzato in basso
+            ctx.font = 'bold 20px Arial';
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'center';
+            ctx.fillText('CALCETTINHO', 300, 800);
+            
+            // Scarica automaticamente
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${cardType}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log(`✅ Card ${cardType} generata e scaricata!`);
             }, 'image/png');
         }
 

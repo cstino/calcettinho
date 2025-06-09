@@ -13,7 +13,9 @@ export async function GET() {
   try {
     console.log('=== RECUPERO PARTITE ===');
     
-    const records = await matchesTable.select().all();
+    const records = await matchesTable.select({
+      sort: [{ field: 'date', direction: 'desc' }]
+    }).all();
     console.log(`Record trovati: ${records.length}`);
 
     const matches = records.map((record) => {
@@ -61,7 +63,7 @@ export async function GET() {
     };
     });
     
-    console.log('Partite processate:', matches.length);
+    console.log('Partite processate e ordinate:', matches.length);
 
     const response = NextResponse.json(matches);
     

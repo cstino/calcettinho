@@ -1,24 +1,70 @@
 # 📋 PROGRESS REPORT - Sistema Calcettinho Completo
 
 **Data**: Dicembre 2024  
-**Stato**: ✅ **SISTEMA COMPLETAMENTE FUNZIONALE** 
+**Stato**: ✅ **SISTEMA COMPLETAMENTE FUNZIONALE v2.1** 
 
 ---
 
 ## 🎯 **RISULTATO FINALE**
 Sistema completo di gestione lega calcetto con:
+- **Sistema Card Progressive v2.1** con catene evolutive intelligenti
 - **Votazioni UP/DOWN anonime** con interfaccia carte scorrevoli
 - **Sistema ruoli admin** con controlli autorizzazioni
 - **Gestione partite avanzata** con modifica completa
 - **Profili giocatori** con statistiche aggregate anonime
-- **Sistema Evoluzioni Card** con premi sbloccabili e personalizzazione
+- **Sistema Evoluzioni Card Avanzato** con premi progressivi e personalizzazione
 - **Autenticazione sicura** con whitelist Airtable
 
 ---
 
 ## ✅ **COMPLETATO AL 100%**
 
-### 🏆 **Sistema Evoluzioni Card - COMPLETATO**
+### 🏆 **Sistema Card Progressive v2.1 - COMPLETATO** 🆕
+- **✅ Algoritmo Card Progressive Intelligente**:
+  - **Catena Goleador**: Goleador → Matador → Golden Boot (per più gol in partita)
+  - **Catena Assistman**: Assistman → Regista → El fútbol (per più assist in partita)
+  - Controllo automatico premi già vinti per assegnare card progressiva
+  - Query Airtable per storico premi giocatore via `checkProgressiveCard()`
+  - Sistema completamente automatico senza intervento manuale
+
+- **✅ Template Database Setup**:
+  - 4 nuovi template aggiunti in Airtable `special_cards`:
+    - **Matador** (seconda evoluzione Goleador) - Rosso
+    - **Golden Boot** (terza evoluzione Goleador) - Oro
+    - **Regista** (seconda evoluzione Assistman) - Verde
+    - **El fútbol** (terza evoluzione Assistman) - Blu
+  - Generazione dinamica card da template esistenti
+
+- **✅ Menu Evoluzioni Organizzato**:
+  - Sezione "Card Base" sempre presente
+  - Sezione "Prima Presenza" per nuovo giocatore
+  - **Sezione "Catena Goleador"** (Goleador → Matador → Golden Boot)
+  - **Sezione "Catena Assistman"** (Assistman → Regista → El fútbol)
+  - Sezione "Altri Premi" per MOTM e vittorie consecutive
+  - Descrizioni dettagliate per ogni card progressive
+  - Testo di aiuto aggiornato con spiegazione catene evolutive
+
+### 🎨 **UX Miglioramenti Desktop v2.1 - COMPLETATO** 🆕
+- **✅ Modal Card Ottimizzato per Desktop**:
+  - Ridimensionamento da `max-w-md` a `max-w-sm` per compattezza
+  - Altezza massima `max-h-[90vh]` con scroll interno `overflow-y-auto`
+  - Header e footer fissi con contenuto scrollabile
+  - Preview card ridotta da full-width a `w-48` per proporzionalità
+  - Click-outside-to-close implementato
+  - Bottoni sempre accessibili in footer sticky
+  - Risolto problema accessibilità su desktop senza zoom-out
+
+### 🔤 **Font Consistency Fix v2.1 - COMPLETATO** 🆕
+- **✅ Font Nebulax per Card Special**:
+  - Aggiornato nome giocatore da Arial a `'bold 48px Nebulax, Arial'`
+  - Aggiornato testo "OVERALL" da Arial a `'bold 20px Nebulax, Arial'`
+  - Aggiornato valore overall da Arial a `'bold 36px Nebulax, Arial'`
+  - Aggiornato template label da Arial a `'bold 16px Nebulax, Arial'`
+  - Aggiornato placeholder "FOTO" da Arial a `'bold 14px Nebulax, Arial'`
+  - Mantenuta consistenza con statistiche che già usavano Nebulax
+  - Font uniforme su tutte le card special
+
+### 🏆 **Sistema Evoluzioni Card Base - COMPLETATO**
 - **✅ API Player Awards** (`/api/player-awards/[email]/`):
   - GET: Recupera premi giocatore (pending, unlocked, selectedCard)
   - POST: Sblocca premio da pending a unlocked con timestamp
@@ -38,9 +84,10 @@ Sistema completo di gestione lega calcetto con:
   - **Animazione Unlock**: Effetto speciale 3 secondi con anelli animati
   - **Sistema Info**: Spiegazione funzionamento per utenti
 
-- **✅ Sistema Premi Automatico**:
-  - 7 tipi di premi: 1presenza, goleador, assistman, motm, win3, win5, win10
-  - Assegnazione automatica post-partita
+- **✅ Sistema Premi Automatico Potenziato**:
+  - 7 tipi di premi base: 1presenza, goleador, assistman, motm, win3, win5, win10
+  - **4 premi progressivi**: matador, goldenboot, regista, elfutbol
+  - Assegnazione automatica post-partita con logica progressiva
   - Stati pending/unlocked per gestione sblocco
   - Selezione card attiva per personalizzazione hover
 
@@ -203,13 +250,14 @@ src/app/api/
 ├── matches/
 │   ├── index               # GET/POST - Lista/creazione partite
 │   └── [id]/               # PUT/DELETE - Modifica/eliminazione
+│       └── process-awards/ # POST - Sistema card progressive con checkProgressiveCard()
 ├── player-awards/[email]/  # GET/POST/PUT - Gestione premi evoluzioni
 ├── auth/
 │   └── role/[email]/       # GET - Controllo ruolo admin
 ├── players/                # GET - Lista giocatori
 ├── player-stats/[email]/   # GET - Statistiche giocatore
 ├── card/[email]/           # GET - Card base personalizzata
-└── card-special/[email]/   # GET - Card evoluzione con template
+└── card-special/[email]/   # GET - Card evoluzione con template (font Nebulax)
 ```
 
 ### **Database** (Airtable)
@@ -219,7 +267,8 @@ src/app/api/
 ├── players (email, nome, ATT, DIF, VEL, PAS, FOR, POR)
 ├── matches (matchId, date, teamA, teamB, completed, scoreA, scoreB, playerStats)
 ├── votes (matchId, fromPlayerEmail, toPlayerEmail, voteType: UP/DOWN)
-└── player_awards (player_email, award_type, match_id, status, unlocked_at, selected)
+├── player_awards (player_email, award_type, match_id, status, unlocked_at, selected)
+└── special_cards (4 template progressivi: matador, goldenboot, regista, elfutbol)
 ```
 
 ---
@@ -258,7 +307,10 @@ AIRTABLE_BASE_ID=your_base_id
 - ✅ Inserimento risultati e statistiche
 - ✅ Modifica completa partite (admin only)
 - ✅ Sistema votazioni UP/DOWN anonime
-- ✅ Sistema evoluzioni card con premi
+- ✅ **Sistema card progressive v2.1** con catene evolutive
+- ✅ **Algoritmo intelligente** per premi progressivi
+- ✅ **Modal UX desktop** ottimizzato e accessibile
+- ✅ **Font Nebulax** uniforme su card special
 - ✅ Profili giocatori con dati real-time
 - ✅ Carousel navigazione card fluido
 - ✅ Responsive design su mobile/desktop
@@ -274,22 +326,22 @@ AIRTABLE_BASE_ID=your_base_id
 
 ## 🎯 **PROSSIMI PASSI**
 
-### **Priorità Immediata** 🔥
-1. **🎮 Completamento Carousel Ultra-Fluido** (IN CORSO)
-   - Finalizzazione animazioni transizione
-   - Ottimizzazione timing e curve bezier
-   - Test performance cross-browser
-   - Polish micro-interazioni
-
 ### **Priorità Alta** 🔥
+1. **Testing Sistema Card Progressive v2.1**
+   - Verifica funzionamento catene evolutive in produzione
+   - Test edge cases per assegnazione premi
+   - Monitoraggio performance query Airtable
+
 2. **Classifiche e Ranking**
    - Pagina classifiche con Net Votes
    - Top performers per categoria
-   - Statistiche comparative evolution
+   - **Statistiche progressive**: Chi ha più card evolute
+   - Hall of Fame con prime evoluzioni ottenute
 
 3. **Dashboard Analytics**
    - Grafici trend performance evoluzioni
-   - Report periodici card sbloccate
+   - **Report progressioni**: Goleador → Matador → Golden Boot
+   - **Statistiche catene**: % completamento per giocatore
    - Export dati (PDF/Excel)
 
 ### **Priorità Media** 📈
@@ -298,10 +350,11 @@ AIRTABLE_BASE_ID=your_base_id
    - Notifiche push per nuovi premi
    - Modalità offline con sync
 
-5. **Sistema Premi Avanzato**
-   - Nuovi achievement personalizzati
+5. **Sistema Premi Avanzato v2.2**
+   - **Nuove catene progressive**: Difesa, Velocità, Passaggi
    - Premi stagionali limitati
-   - Sistema rarità card
+   - Sistema rarità card con livelli leggendari
+   - Achievement combo (es: Goleador + Assistman nella stessa partita)
 
 ### **Priorità Bassa** 💡
 6. **Social Features**
@@ -318,22 +371,26 @@ AIRTABLE_BASE_ID=your_base_id
 
 ## 🎉 **CONCLUSIONI**
 
-**🏆 SISTEMA COMPLETAMENTE OPERATIVO CON EVOLUZIONI CARD**
+**🏆 SISTEMA COMPLETAMENTE OPERATIVO CON CARD PROGRESSIVE v2.1**
 
-Il sistema Calcettinho è ora una piattaforma completa e moderna per la gestione di leghe calcetto amatoriali, con il nuovissimo sistema evoluzioni che aggiunge un layer di gamification e personalizzazione mai visto prima:
+Il sistema Calcettinho è ora una piattaforma completa e rivoluzionaria per la gestione di leghe calcetto amatoriali, con il nuovissimo **sistema card progressive** che introduce catene evolutive intelligenti:
 
 - **Gestione partite completa** dalla creazione alla modifica avanzata
 - **Sistema votazioni anonime** fair e bilanciato  
 - **Controlli admin granulari** per amministrazione sicura
-- **Sistema evoluzioni card rivoluzionario** con 7 tipi di premi
-- **Carousel navigazione ultra-fluido** (in fase di finalizzazione)
-- **Profili giocatori evoluiti** con personalizzazione card hover
+- **🆕 Sistema card progressive v2.1** con catene evolutive automatiche:
+  - **Catena Goleador**: Goleador → Matador → Golden Boot
+  - **Catena Assistman**: Assistman → Regista → El fútbol
+  - **Algoritmo intelligente** per progressioni automatiche
+- **🆕 UX ottimizzata desktop** con modal compatti e accessibili
+- **🆕 Font uniformità** Nebulax su tutte le card special  
+- **Profili giocatori evoluiti** con personalizzazione card hover avanzata
 - **UI moderna e responsive** con animazioni butter-smooth
-- **Architecture scalabile** pronta per evoluzioni future
+- **Architecture scalabile** pronta per nuove catene evolutive
 
-**La piattaforma non è più solo un gestionale, ma un'esperienza di gioco completa che motiva e premia la partecipazione attiva alla lega.** 🚀
+**La piattaforma è ora un vero RPG calcettistico che motiva la crescita personale attraverso progressioni intelligenti e premi stratificati.** 🚀⚽
 
 ---
 
 *Ultimo aggiornamento: Dicembre 2024*
-*Versione: 2.1 - Sistema Evoluzioni Card Completo* 
+*Versione: 2.1 - Sistema Card Progressive con Catene Evolutive* 
