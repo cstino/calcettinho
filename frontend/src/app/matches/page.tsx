@@ -130,10 +130,18 @@ export default function Matches() {
       const response = await fetch('/api/matches');
       if (response.ok) {
         const matchesData = await response.json();
-        setMatches(matchesData);
+        
+        // ✅ NUOVO: Ordinamento cronologico di backup nel frontend
+        const sortedMatches = matchesData.sort((a: Match, b: Match) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB.getTime() - dateA.getTime(); // Prima le più recenti
+        });
+        
+        setMatches(sortedMatches);
         
         if (userEmail) {
-          await checkUserVotes(matchesData, userEmail);
+          await checkUserVotes(sortedMatches, userEmail);
         }
       }
     } catch (error) {

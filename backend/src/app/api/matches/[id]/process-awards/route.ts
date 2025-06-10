@@ -33,6 +33,56 @@ function calculateStatChange(currentOverall: number, baseChange: number, netVote
   return totalChange * multiplier;
 }
 
+// ✅ NUOVO: Funzione per controllare i prerequisiti delle card progressive
+const checkProgressiveCard = async (playerEmail: string, baseAwardType: string): Promise<string> => {
+  try {
+    // Recupera tutti i premi vinti dal giocatore
+    const playerAwards = await base('player_awards').select({
+      filterByFormula: `{player_email} = "${playerEmail}"`
+    }).all();
+    
+    const ownedAwards = new Set(playerAwards.map(award => award.get('award_type') as string));
+    
+    console.log(`🎯 Checking progressive cards for ${playerEmail}, baseType: ${baseAwardType}`);
+    console.log(`🏆 Player owns: ${Array.from(ownedAwards).join(', ')}`);
+    
+    // ⚽ Catena Goleador: goleador → matador → goldenboot
+    if (baseAwardType === 'goleador') {
+      if (ownedAwards.has('matador')) {
+        console.log(`✨ ${playerEmail} può ottenere Golden Boot!`);
+        return 'goldenboot';
+      } else if (ownedAwards.has('goleador')) {
+        console.log(`✨ ${playerEmail} può ottenere Matador!`);
+        return 'matador';
+      } else {
+        console.log(`✨ ${playerEmail} ottiene il primo Goleador!`);
+        return 'goleador';
+      }
+    }
+    
+    // 🅰️ Catena Assistman: assistman → regista → elfutbol  
+    if (baseAwardType === 'assistman') {
+      if (ownedAwards.has('regista')) {
+        console.log(`✨ ${playerEmail} può ottenere El fútbol!`);
+        return 'elfutbol';
+      } else if (ownedAwards.has('assistman')) {
+        console.log(`✨ ${playerEmail} può ottenere Regista!`);
+        return 'regista';
+      } else {
+        console.log(`✨ ${playerEmail} ottiene il primo Assistman!`);
+        return 'assistman';
+      }
+    }
+    
+    // Per altri tipi, ritorna il tipo base
+    return baseAwardType;
+    
+  } catch (error) {
+    console.error(`❌ Errore nel controllo card progressive per ${playerEmail}:`, error);
+    return baseAwardType; // Fallback al tipo base
+  }
+};
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -172,25 +222,43 @@ export async function POST(
       filterByFormula: `{matchId} = "${matchId}"`
     }).all();
 
-    // 4. Calcola statistiche UP/DOWN per ogni giocatore
-    const voteStats = {} as Record<string, { up: number; down: number; net: number }>;
+    // ✅ NUOVO: Calcola statistiche per UP/DOWN/NEUTRAL + MOTM
+    const voteStats = {} as Record<string, { 
+      up: number; 
+      down: number; 
+      neutral: number; 
+      net: number; 
+      motm: number; 
+    }>;
     
     voteRecords.forEach(vote => {
       const playerEmail = vote.get('toPlayerId') as string;
       const voteType = vote.get('voteType') as string;
+      const motmVote = vote.get('motm_vote') as boolean;
       
       if (!voteStats[playerEmail]) {
-        voteStats[playerEmail] = { up: 0, down: 0, net: 0 };
+        voteStats[playerEmail] = { up: 0, down: 0, neutral: 0, net: 0, motm: 0 };
       }
       
+      // Conta i voti per tipo
       if (voteType === 'UP') {
         voteStats[playerEmail].up++;
-      } else {
+      } else if (voteType === 'DOWN') {
         voteStats[playerEmail].down++;
+      } else if (voteType === 'NEUTRAL') {
+        voteStats[playerEmail].neutral++;
       }
       
+      // Conta i voti MOTM separatamente
+      if (motmVote) {
+        voteStats[playerEmail].motm++;
+      }
+      
+      // Calcola net votes (UP - DOWN, NEUTRAL non influisce)
       voteStats[playerEmail].net = voteStats[playerEmail].up - voteStats[playerEmail].down;
     });
+
+    console.log('📊 Statistiche voti calcolate:', voteStats);
 
     // 5. Calcola i premi post-partita
     const awards = [] as Array<{
@@ -199,14 +267,20 @@ export async function POST(
       matchId: string;
     }>;
 
-    // Man of the Match (più UP ricevuti)
-    const sortedByUP = Object.entries(voteStats)
-      .sort(([,a], [,b]) => b.up - a.up)
-      .filter(([email]) => [...teamA, ...teamB].includes(email));
+    // ✅ NUOVO: Man of the Match (più voti MOTM ricevuti)
+    const sortedByMOTM = Object.entries(voteStats)
+      .sort(([,a], [,b]) => b.motm - a.motm)
+      .filter(([email]) => [...teamA, ...teamB].includes(email))
+      .filter(([,stats]) => stats.motm > 0); // Solo chi ha ricevuto almeno 1 voto MOTM
 
-    if (sortedByUP.length > 0) {
-      const [topPlayerEmail, topPlayerVotes] = sortedByUP[0];
-      const tied = sortedByUP.filter(([,votes]) => votes.up === topPlayerVotes.up);
+    console.log('🏆 Classifica MOTM:', sortedByMOTM.map(([email, stats]) => ({ email, motmVotes: stats.motm })));
+
+    if (sortedByMOTM.length > 0) {
+      const [topPlayerEmail, topPlayerVotes] = sortedByMOTM[0];
+      const tied = sortedByMOTM.filter(([,votes]) => votes.motm === topPlayerVotes.motm);
+      
+      console.log(`🥇 Top MOTM: ${topPlayerEmail} con ${topPlayerVotes.motm} voti MOTM`);
+      console.log(`🤝 Giocatori in pareggio: ${tied.length}`);
       
       if (tied.length === 1) {
         // Un solo vincitore
@@ -215,6 +289,7 @@ export async function POST(
           awardType: 'motm',
           matchId
         });
+        console.log(`✅ MOTM assegnato a: ${topPlayerEmail}`);
       } else {
         // Pareggio - decide la squadra vincente o entrambi se stessa squadra
         const tiedFromWinningTeam = tied.filter(([email]) => 
@@ -230,6 +305,7 @@ export async function POST(
               matchId
             });
           });
+          console.log(`✅ MOTM assegnato a squadra vincente: ${tiedFromWinningTeam.map(([email]) => email).join(', ')}`);
         } else {
           // Stessa squadra o pareggio - tutti vincono
           tied.forEach(([email]) => {
@@ -239,11 +315,14 @@ export async function POST(
               matchId
             });
           });
+          console.log(`✅ MOTM assegnato a tutti i pareggiati: ${tied.map(([email]) => email).join(', ')}`);
         }
       }
+    } else {
+      console.log('❌ Nessun voto MOTM ricevuto, premio non assegnato');
     }
 
-    // Goleador (più gol segnati)
+    // ✅ AGGIORNATO: Goleador con sistema progressivo
     const goalScorers = Object.entries(playerStats)
       .map(([email, stats]: [string, any]) => ({ email, goals: stats.gol || 0 }))
       .filter(player => player.goals > 0)
@@ -253,16 +332,22 @@ export async function POST(
       const topScorer = goalScorers[0];
       const tiedScorers = goalScorers.filter(p => p.goals === topScorer.goals);
       
-      tiedScorers.forEach(scorer => {
+      console.log(`⚽ Top Goleador: ${topScorer.email} con ${topScorer.goals} gol`);
+      console.log(`🤝 Marcatori in pareggio: ${tiedScorers.length}`);
+      
+      // Assegna la card progressiva appropriata a ogni vincitore
+      for (const scorer of tiedScorers) {
+        const progressiveAward = await checkProgressiveCard(scorer.email, 'goleador');
         awards.push({
           playerEmail: scorer.email,
-          awardType: 'goleador',
+          awardType: progressiveAward,
           matchId
         });
-      });
+        console.log(`✅ ${progressiveAward.toUpperCase()} assegnato a: ${scorer.email}`);
+      }
     }
 
-    // Assist Man (più assist forniti)
+    // ✅ AGGIORNATO: Assist Man con sistema progressivo
     const assistProviders = Object.entries(playerStats)
       .map(([email, stats]: [string, any]) => ({ email, assists: stats.assist || 0 }))
       .filter(player => player.assists > 0)
@@ -272,13 +357,19 @@ export async function POST(
       const topAssist = assistProviders[0];
       const tiedAssists = assistProviders.filter(p => p.assists === topAssist.assists);
       
-      tiedAssists.forEach(provider => {
+      console.log(`🅰️ Top Assistman: ${topAssist.email} con ${topAssist.assists} assist`);
+      console.log(`🤝 Assistman in pareggio: ${tiedAssists.length}`);
+      
+      // Assegna la card progressiva appropriata a ogni vincitore
+      for (const provider of tiedAssists) {
+        const progressiveAward = await checkProgressiveCard(provider.email, 'assistman');
         awards.push({
           playerEmail: provider.email,
-          awardType: 'assistman',
+          awardType: progressiveAward,
           matchId
         });
-      });
+        console.log(`✅ ${progressiveAward.toUpperCase()} assegnato a: ${provider.email}`);
+      }
     }
 
     // 6. ✅ NUOVO: Controlla milestone achievements dalla tabella special_cards

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Check, X, Minus, Crown } from 'lucide-react';
 
 interface Player {
   name: string;
@@ -25,6 +25,13 @@ interface Match {
   teamB: string[];
 }
 
+// ✅ NUOVO: Aggiornato tipo per includere NEUTRAL e MOTM
+interface Vote {
+  playerEmail: string;
+  voteType: 'UP' | 'DOWN' | 'NEUTRAL';
+  motmVote: boolean;
+}
+
 interface VotingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -43,7 +50,8 @@ export default function VotingModal({
   onSuccess 
 }: VotingModalProps) {
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-  const [votes, setVotes] = useState<Record<string, 'UP' | 'DOWN'>>({});
+  // ✅ NUOVO: Stato aggiornato per supportare NEUTRAL e MOTM
+  const [votes, setVotes] = useState<Record<string, { voteType: 'UP' | 'DOWN' | 'NEUTRAL'; motmVote: boolean }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({});
@@ -130,7 +138,8 @@ export default function VotingModal({
 
   const currentPlayer = playersToVote[currentPlayerIndex];
 
-  const handleVote = (voteType: 'UP' | 'DOWN') => {
+  // ✅ NUOVO: Gestione voto principale (UP/DOWN/NEUTRAL)
+  const handleVote = (voteType: 'UP' | 'DOWN' | 'NEUTRAL') => {
     if (!currentPlayer) return;
 
     console.log(`[VOTING DEBUG] handleVote chiamata:`, {
@@ -142,7 +151,11 @@ export default function VotingModal({
     });
 
     const newVotes = { ...votes };
-    newVotes[currentPlayer.email] = voteType;
+    if (!newVotes[currentPlayer.email]) {
+      newVotes[currentPlayer.email] = { voteType, motmVote: false };
+    } else {
+      newVotes[currentPlayer.email].voteType = voteType;
+    }
     setVotes(newVotes);
 
     console.log(`[VOTING DEBUG] Stato voti aggiornato:`, newVotes);
@@ -154,6 +167,23 @@ export default function VotingModal({
         setCurrentPlayerIndex(currentPlayerIndex + 1);
       }, 300);
     }
+  };
+
+  // ✅ NUOVO: Gestione voto MOTM
+  const handleMotmVote = () => {
+    if (!currentPlayer) return;
+
+    console.log(`[VOTING DEBUG] handleMotmVote chiamata per ${currentPlayer.name}`);
+
+    const newVotes = { ...votes };
+    if (!newVotes[currentPlayer.email]) {
+      newVotes[currentPlayer.email] = { voteType: 'NEUTRAL', motmVote: true };
+    } else {
+      newVotes[currentPlayer.email].motmVote = !newVotes[currentPlayer.email].motmVote;
+    }
+    setVotes(newVotes);
+
+    console.log(`[VOTING DEBUG] MOTM voto aggiornato:`, newVotes[currentPlayer.email]);
   };
 
   const goToPrevious = () => {
@@ -176,9 +206,11 @@ export default function VotingModal({
     setIsSubmitting(true);
     
     try {
-      const voteArray = Object.entries(votes).map(([playerEmail, voteType]) => ({
+      // ✅ NUOVO: Converti formato voti per API
+      const voteArray = Object.entries(votes).map(([playerEmail, vote]) => ({
         playerEmail,
-        voteType
+        voteType: vote.voteType,
+        motmVote: vote.motmVote
       }));
 
       console.log('Dati da inviare:', {
@@ -353,18 +385,19 @@ export default function VotingModal({
                   )}
                 </div>
 
-                {/* Vote Buttons - ✅ Migliorati con reset forzato */}
-                <div className="flex gap-4 mb-6">
+                {/* ✅ NUOVO: Vote Buttons - 3 bottoni principali + MOTM */}
+                <div className="flex gap-2 mb-4">
+                  {/* DOWN Button */}
                   <motion.button
                     key={`down-${currentPlayer.email}-${buttonResetKey}`}
                     initial={{ scale: 1, backgroundColor: 'rgb(31, 41, 55)' }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     animate={{
-                      backgroundColor: getVoteForPlayer(currentPlayer.email) === 'DOWN' 
+                      backgroundColor: getVoteForPlayer(currentPlayer.email)?.voteType === 'DOWN' 
                         ? 'rgb(220, 38, 38)' // red-600
                         : 'rgb(31, 41, 55)', // gray-800
-                      borderColor: getVoteForPlayer(currentPlayer.email) === 'DOWN'
+                      borderColor: getVoteForPlayer(currentPlayer.email)?.voteType === 'DOWN'
                         ? 'rgb(239, 68, 68)' // red-500
                         : 'rgb(75, 85, 99)', // gray-600
                     }}
@@ -373,27 +406,56 @@ export default function VotingModal({
                       console.log(`[VOTING DEBUG] Voto DOWN per ${currentPlayer.name} (${currentPlayer.email})`);
                       handleVote('DOWN');
                     }}
-                    className={`flex-1 p-4 rounded-xl border-2 transition-all ${
-                      getVoteForPlayer(currentPlayer.email) === 'DOWN'
+                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                      getVoteForPlayer(currentPlayer.email)?.voteType === 'DOWN'
                         ? 'text-white'
                         : 'text-gray-300 hover:border-red-500 hover:bg-red-600/20'
                     }`}
                   >
-                    <ThumbsDown className="w-8 h-8 mx-auto mb-2" />
-                    <div className="font-semibold">DOWN</div>
-                    <div className="text-xs opacity-75">Può migliorare</div>
+                    <ThumbsDown className="w-6 h-6 mx-auto mb-1" />
+                    <div className="font-semibold text-sm">DOWN</div>
                   </motion.button>
 
+                  {/* NEUTRAL Button */}
+                  <motion.button
+                    key={`neutral-${currentPlayer.email}-${buttonResetKey}`}
+                    initial={{ scale: 1, backgroundColor: 'rgb(31, 41, 55)' }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    animate={{
+                      backgroundColor: getVoteForPlayer(currentPlayer.email)?.voteType === 'NEUTRAL' 
+                        ? 'rgb(107, 114, 128)' // gray-500
+                        : 'rgb(31, 41, 55)', // gray-800
+                      borderColor: getVoteForPlayer(currentPlayer.email)?.voteType === 'NEUTRAL'
+                        ? 'rgb(156, 163, 175)' // gray-400
+                        : 'rgb(75, 85, 99)', // gray-600
+                    }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => {
+                      console.log(`[VOTING DEBUG] Voto NEUTRAL per ${currentPlayer.name} (${currentPlayer.email})`);
+                      handleVote('NEUTRAL');
+                    }}
+                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                      getVoteForPlayer(currentPlayer.email)?.voteType === 'NEUTRAL'
+                        ? 'text-white'
+                        : 'text-gray-300 hover:border-gray-400 hover:bg-gray-500/20'
+                    }`}
+                  >
+                    <Minus className="w-6 h-6 mx-auto mb-1" />
+                    <div className="font-semibold text-sm">NEUTRAL</div>
+                  </motion.button>
+
+                  {/* UP Button */}
                   <motion.button
                     key={`up-${currentPlayer.email}-${buttonResetKey}`}
                     initial={{ scale: 1, backgroundColor: 'rgb(31, 41, 55)' }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     animate={{
-                      backgroundColor: getVoteForPlayer(currentPlayer.email) === 'UP' 
+                      backgroundColor: getVoteForPlayer(currentPlayer.email)?.voteType === 'UP' 
                         ? 'rgb(22, 163, 74)' // green-600
                         : 'rgb(31, 41, 55)', // gray-800
-                      borderColor: getVoteForPlayer(currentPlayer.email) === 'UP'
+                      borderColor: getVoteForPlayer(currentPlayer.email)?.voteType === 'UP'
                         ? 'rgb(34, 197, 94)' // green-500
                         : 'rgb(75, 85, 99)', // gray-600
                     }}
@@ -402,15 +464,48 @@ export default function VotingModal({
                       console.log(`[VOTING DEBUG] Voto UP per ${currentPlayer.name} (${currentPlayer.email})`);
                       handleVote('UP');
                     }}
-                    className={`flex-1 p-4 rounded-xl border-2 transition-all ${
-                      getVoteForPlayer(currentPlayer.email) === 'UP'
+                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                      getVoteForPlayer(currentPlayer.email)?.voteType === 'UP'
                         ? 'text-white'
                         : 'text-gray-300 hover:border-green-500 hover:bg-green-600/20'
                     }`}
                   >
-                    <ThumbsUp className="w-8 h-8 mx-auto mb-2" />
-                    <div className="font-semibold">UP</div>
-                    <div className="text-xs opacity-75">Ottima prestazione</div>
+                    <ThumbsUp className="w-6 h-6 mx-auto mb-1" />
+                    <div className="font-semibold text-sm">UP</div>
+                  </motion.button>
+                </div>
+
+                {/* ✅ NUOVO: MOTM Button - Separato e opzionale */}
+                <div className="mb-6">
+                  <motion.button
+                    key={`motm-${currentPlayer.email}-${buttonResetKey}`}
+                    initial={{ scale: 1, backgroundColor: 'rgb(31, 41, 55)' }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    animate={{
+                      backgroundColor: getVoteForPlayer(currentPlayer.email)?.motmVote 
+                        ? 'rgb(251, 191, 36)' // amber-400
+                        : 'rgb(31, 41, 55)', // gray-800
+                      borderColor: getVoteForPlayer(currentPlayer.email)?.motmVote
+                        ? 'rgb(245, 158, 11)' // amber-500
+                        : 'rgb(75, 85, 99)', // gray-600
+                    }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => {
+                      console.log(`[VOTING DEBUG] Voto MOTM per ${currentPlayer.name} (${currentPlayer.email})`);
+                      handleMotmVote();
+                    }}
+                    className={`w-full p-3 rounded-xl border-2 transition-all ${
+                      getVoteForPlayer(currentPlayer.email)?.motmVote
+                        ? 'text-black'
+                        : 'text-gray-300 hover:border-amber-400 hover:bg-amber-400/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Crown className="w-5 h-5" />
+                      <span className="font-semibold">MAN OF THE MATCH</span>
+                    </div>
+                    <div className="text-xs opacity-75 mt-1">Il migliore in campo (opzionale)</div>
                   </motion.button>
                 </div>
 

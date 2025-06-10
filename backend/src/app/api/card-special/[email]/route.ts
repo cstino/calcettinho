@@ -190,25 +190,25 @@ export async function GET(
       ctx.fillStyle = '#6B7280';
       ctx.fillRect(90, 150, 420, 420);
       ctx.fillStyle = '#F3F4F6';
-      ctx.font = 'bold 48px Arial';
+      ctx.font = 'bold 48px Nebulax, Arial';
       ctx.textAlign = 'center';
       ctx.fillText('FOTO', CARD_WIDTH / 2, 380);
 
       // Template label
-      ctx.font = 'bold 20px Arial';
+      ctx.font = 'bold 20px Nebulax, Arial';
       ctx.fillStyle = '#F3F4F6';
       ctx.textAlign = 'center';
       ctx.fillText(`SPECIAL: ${template.toUpperCase()}`, CARD_WIDTH / 2, 50);
 
       // Overall
-      ctx.font = 'bold 20px Arial';
+      ctx.font = 'bold 20px Nebulax, Arial';
       ctx.fillText('OVERALL', 90, 140);
-      ctx.font = 'bold 70px Arial';
+      ctx.font = 'bold 70px Nebulax, Arial';
       ctx.fillStyle = '#FFD700';
       ctx.fillText(String(overall), 90, 210);
 
       // Nome
-      ctx.font = 'bold 48px Arial';
+      ctx.font = 'bold 48px Nebulax, Arial';
       ctx.fillStyle = '#F3F4F6';
       ctx.fillText(playerData.nome, CARD_WIDTH / 2, 660); // Abbassato di altri 20 punti (era 640)
 
@@ -320,17 +320,17 @@ export async function GET(
       const overallTextY = 140;
       const overallValueY = 210;
 
-      ctx.font = 'bold 20px Arial';
+      ctx.font = 'bold 20px Nebulax, Arial';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
       ctx.fillText('OVERALL', overallX, overallTextY);
 
-      ctx.font = 'bold 70px Arial';
+      ctx.font = 'bold 70px Nebulax, Arial';
       ctx.fillStyle = valueColor;
       ctx.fillText(String(overall), overallX, overallValueY);
 
       // Nome giocatore - alzato di 5 pixel
-      ctx.font = 'bold 56px Arial';
+      ctx.font = 'bold 56px Nebulax, Arial';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
       ctx.fillText(playerData.nome, CARD_WIDTH / 2, 638); // Alzato di 5 pixel (era 643)
