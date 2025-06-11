@@ -11,7 +11,7 @@ Gestione gratuita, su invito, di una lega di calcetto 5vs5!
 ### 🗳️ Votazioni Up/Down
 - **Interfaccia**: Sistema di carte a scorrimento post-partita
 - **Meccanismo**: Ogni partecipante vota gli altri 9 giocatori con "UP" 👍 o "DOWN" 👎
-- **Chiusura votazioni**: Automatica dopo che tutti hanno votato O dopo 48 ore dalla fine partita
+- **Chiusura votazioni**: Automatica dopo che tutti hanno votato O dopo 24 ore dalla fine partita
 - **Range voti**: Min 9 DOWN, Max 9 UP per giocatore
 - **Stato votazioni**: Bottone "Vota Ora" diventa "Voti Inviati" dopo aver votato
 - **Prevenzione duplicati**: Sistema che impedisce voti multipli per la stessa partita
