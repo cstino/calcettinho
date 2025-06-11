@@ -157,12 +157,28 @@ export async function POST(req: NextRequest) {
         const uniqueVoters = new Set(allVoteRecords.map(vote => vote.get('fromPlayerId') as string));
         const votersFromMatch = allMatchPlayers.filter(email => uniqueVoters.has(email));
 
-        console.log(`🗳️ Hanno votato (${votersFromMatch.length}):`, Array.from(uniqueVoters));
-        console.log(`📊 Votazioni: ${votersFromMatch.length}/${allMatchPlayers.length} giocatori`);
+                 console.log(`🗳️ Hanno votato (${votersFromMatch.length}):`, Array.from(uniqueVoters));
+         console.log(`📊 Votazioni: ${votersFromMatch.length}/${allMatchPlayers.length} giocatori`);
 
-        // 3. Se tutti hanno votato, triggera finalize-voting
-        if (votersFromMatch.length === allMatchPlayers.length) {
-          console.log('🎉 TUTTI HANNO VOTATO! Triggerando finalize-voting...');
+         // 3. Controlla anche se sono passate 24 ore (backup del Cron)
+         const votingStartedAt = match.get('voting_started_at') as string;
+         let timeoutReached = false;
+         
+         if (votingStartedAt) {
+           const startTime = new Date(votingStartedAt).getTime();
+           const now = new Date().getTime();
+           const hours24 = 24 * 60 * 60 * 1000;
+           timeoutReached = (now - startTime) > hours24;
+           
+           if (timeoutReached) {
+             console.log('⏰ BACKUP: Timeout 24h rilevato durante votazione');
+           }
+         }
+
+         // 4. Se tutti hanno votato OR timeout raggiunto, triggera finalize-voting
+                    if (votersFromMatch.length === allMatchPlayers.length || timeoutReached) {
+           const reason = timeoutReached ? 'TIMEOUT 24H RAGGIUNTO' : 'TUTTI HANNO VOTATO';
+           console.log(`🎉 ${reason}! Triggerando finalize-voting...`);
           
           try {
             const finalizeResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/matches/${matchId}/finalize-voting`, {
