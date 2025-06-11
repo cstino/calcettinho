@@ -63,14 +63,14 @@ async function checkVotingClosed(matchId: string): Promise<{ closed: boolean, re
     const allPlayers = [...teamA, ...teamB];
     const votingStartedAt = match.get('voting_started_at') as string;
 
-    // 2. Controlla se sono passate 48 ore
+    // 2. Controlla se sono passate 24 ore
     if (votingStartedAt) {
       const startTime = new Date(votingStartedAt).getTime();
       const now = new Date().getTime();
-      const hours48 = 48 * 60 * 60 * 1000; // 48 ore in millisecondi
+      const hours24 = 24 * 60 * 60 * 1000; // 24 ore in millisecondi
 
-      if (now - startTime > hours48) {
-        return { closed: true, reason: '48 ore trascorse - chiusura automatica' };
+      if (now - startTime > hours24) {
+        return { closed: true, reason: '24 ore trascorse - chiusura automatica' };
       }
     }
 

@@ -52,7 +52,7 @@ export async function POST(
       });
     }
 
-    // 3. Controlla se sono passate 48 ore
+    // 3. Controlla se sono passate 24 ore
     if (!votingStartedAt) {
       console.log('⚠️ Timestamp votazioni non trovato');
       return NextResponse.json({
@@ -63,14 +63,14 @@ export async function POST(
 
     const startTime = new Date(votingStartedAt).getTime();
     const now = new Date().getTime();
-    const hours48 = 48 * 60 * 60 * 1000; // 48 ore in millisecondi
+    const hours24 = 24 * 60 * 60 * 1000; // 24 ore in millisecondi
     const timeElapsed = now - startTime;
     const hoursElapsed = timeElapsed / (60 * 60 * 1000);
 
-    console.log(`⏰ Tempo trascorso: ${hoursElapsed.toFixed(1)} ore (limite: 48 ore)`);
+    console.log(`⏰ Tempo trascorso: ${hoursElapsed.toFixed(1)} ore (limite: 24 ore)`);
 
-    if (timeElapsed <= hours48) {
-      const remainingHours = Math.max(0, 48 - hoursElapsed);
+    if (timeElapsed <= hours24) {
+      const remainingHours = Math.max(0, 24 - hoursElapsed);
       console.log(`🔄 Votazioni ancora aperte, restano ${remainingHours.toFixed(1)} ore`);
       
       return NextResponse.json({
@@ -84,7 +84,7 @@ export async function POST(
     }
 
     // 4. ⏰ TIMEOUT RAGGIUNTO! Chiudi automaticamente le votazioni
-    console.log('🚨 TIMEOUT 48 ORE RAGGIUNTO! Chiudendo votazioni automaticamente...');
+    console.log('🚨 TIMEOUT 24 ORE RAGGIUNTO! Chiudendo votazioni automaticamente...');
 
     try {
       const finalizeResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/matches/${matchId}/finalize-voting`, {
@@ -97,11 +97,11 @@ export async function POST(
       const finalizeData = await finalizeResponse.json();
       
       if (finalizeData.success) {
-        console.log('✅ TIMEOUT: FASE 2 completata automaticamente dopo 48 ore');
+        console.log('✅ TIMEOUT: FASE 2 completata automaticamente dopo 24 ore');
         
         return NextResponse.json({
           success: true,
-          message: 'Votazioni chiuse automaticamente dopo 48 ore',
+          message: 'Votazioni chiuse automaticamente dopo 24 ore',
           timeout: true,
           hoursElapsed: Math.round(hoursElapsed * 10) / 10,
           autoFinalized: true,
@@ -109,7 +109,7 @@ export async function POST(
           finalizeMessage: finalizeData.message,
           motmAwarded: finalizeData.motmAwards || 0,
           abilitiesUpdated: finalizeData.playerAbilitiesUpdated || 0,
-          votingCloseReason: '48 ore trascorse - chiusura automatica'
+          votingCloseReason: '24 ore trascorse - chiusura automatica'
         });
       } else {
         console.log('❌ TIMEOUT: Finalize-voting fallito:', finalizeData.error);
