@@ -16,19 +16,31 @@ Airtable.configure({
 
 const base = Airtable.base(baseId);
 
-// Algoritmo Fair per evoluzione statistiche (spostato qui dalla FASE 1)
+// ✅ NUOVO: Algoritmo Fair Graduale v1.3 - Bilanciamento Avanzato
 function calculateStatChange(currentOverall: number, baseChange: number, netVotes: number): number {
-  const voteBonus = netVotes * 0.02; // Range: -0.18 a +0.18
-  const totalChange = baseChange + voteBonus;
+  // Parametri bilanciati per crescita ottimale
+  const voteBonus = netVotes * 0.095; // Impatto voti aumentato
+  const totalChange = baseChange + voteBonus; // baseChange ora è ±0.25
   
-  // Moltiplicatore Fair basato sull'overall
+  // Moltiplicatore Fair graduale basato sulla distanza dalla media
+  const MEDIA = 83.95; // Media attuale del sistema
+  const MIN_OVERALL = 56; // Minimo registrato
+  const MAX_OVERALL = 99; // Massimo possibile
+  
+  // Calcola distanza normalizzata dalla media (-1 a +1)
+  const distanceFromMean = (currentOverall - MEDIA) / (MAX_OVERALL - MIN_OVERALL);
+  
   let multiplier = 1.0;
-  if (currentOverall < 50) {
-    multiplier = totalChange > 0 ? 1.1 : 0.95;
-  } else if (currentOverall < 70) {
-    multiplier = totalChange > 0 ? 1.02 : 0.98;
+  
+  if (totalChange > 0) {
+    // CRESCITA: Più sei forte, più è difficile crescere
+    // Range: da 1.302 (overall 56) a 0.918 (overall 91)
+    multiplier = 1.0 - (distanceFromMean * 0.5);
+  } else {
+    // DECRESCITA: Più sei forte, più cali drasticamente  
+    // Range: da 0.577 (overall 56, protetto) a 1.115 (overall 91, penalizzato)
+    multiplier = 1.0 + (distanceFromMean * 0.7);
   }
-  // Overall >= 70: normale (1.0)
   
   return totalChange * multiplier;
 }
@@ -298,17 +310,18 @@ export async function POST(
         const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
         const currentOverall = top5Stats.reduce((sum, val) => sum + val, 0) / 5;
 
-        // Calcola cambiamento base (vittoria/sconfitta)
+        // ✅ AGGIORNATO: Calcola cambiamento base con nuovo bilanciamento
         const playerTeam = teamA.includes(playerEmail) ? 'A' : 'B';
         let baseChange = 0;
         
         if (!isDraw) {
           if ((playerTeam === 'A' && teamAWins) || (playerTeam === 'B' && !teamAWins)) {
-            baseChange = 0.083; // ~+1 overall ogni 2 vittorie
+            baseChange = 0.25; // Vittoria: impatto aumentato per bilanciamento
           } else {
-            baseChange = -0.083; // Proporzionale perdita per sconfitta
+            baseChange = -0.25; // Sconfitta: penalità proporzionale
           }
         }
+        // Pareggio: baseChange = 0 (solo voti influiscono)
 
         // ✅ ORA I VOTI SONO DISPONIBILI! Calcola cambiamento con algoritmo fair
         const netVotes = voteStats[playerEmail]?.net || 0;
