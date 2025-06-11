@@ -132,13 +132,129 @@ export async function POST(req: NextRequest) {
 
     console.log('📊 Statistiche voti salvati:', stats);
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
-      votesSubmitted: createdRecords.length,
-      matchId: matchId,
-      stats: stats
-    });
+    // ✅ NUOVO: Controllo se tutti hanno votato e triggerio finalize-voting
+    try {
+      console.log('🗳️ Controllo se le votazioni sono complete...');
+      
+      // 1. Recupera la partita per ottenere i giocatori
+      const matchRecords = await base('matches').select({
+        filterByFormula: `{IDmatch} = "${matchId}"`
+      }).all();
+
+      if (matchRecords.length > 0) {
+        const match = matchRecords[0];
+        const teamA = JSON.parse(match.get('teamA') as string || '[]');
+        const teamB = JSON.parse(match.get('teamB') as string || '[]');
+        const allMatchPlayers = [...teamA, ...teamB];
+
+        console.log(`🎯 Giocatori partita (${allMatchPlayers.length}):`, allMatchPlayers);
+
+        // 2. Conta quanti giocatori hanno votato
+        const allVoteRecords = await base('votes').select({
+          filterByFormula: `{matchId} = "${matchId}"`
+        }).all();
+
+        const uniqueVoters = new Set(allVoteRecords.map(vote => vote.get('fromPlayerId') as string));
+        const votersFromMatch = allMatchPlayers.filter(email => uniqueVoters.has(email));
+
+        console.log(`🗳️ Hanno votato (${votersFromMatch.length}):`, Array.from(uniqueVoters));
+        console.log(`📊 Votazioni: ${votersFromMatch.length}/${allMatchPlayers.length} giocatori`);
+
+        // 3. Se tutti hanno votato, triggera finalize-voting
+        if (votersFromMatch.length === allMatchPlayers.length) {
+          console.log('🎉 TUTTI HANNO VOTATO! Triggerando finalize-voting...');
+          
+          try {
+            const finalizeResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/matches/${matchId}/finalize-voting`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            });
+
+            const finalizeData = await finalizeResponse.json();
+            
+            if (finalizeData.success) {
+              console.log('✅ FASE 2 completata automaticamente:', finalizeData.message);
+              
+              return NextResponse.json({ 
+                success: true, 
+                message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+                votesSubmitted: createdRecords.length,
+                matchId: matchId,
+                stats: stats,
+                autoFinalized: true,
+                phase2Complete: true,
+                finalizeMessage: finalizeData.message,
+                motmAwarded: finalizeData.motmAwards || 0,
+                abilitiesUpdated: finalizeData.playerAbilitiesUpdated || 0
+              });
+            } else {
+              console.log('⚠️ Finalize-voting fallito, ma voti salvati:', finalizeData.error);
+              
+              return NextResponse.json({ 
+                success: true, 
+                message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+                votesSubmitted: createdRecords.length,
+                matchId: matchId,
+                stats: stats,
+                autoFinalized: false,
+                finalizeError: finalizeData.error
+              });
+            }
+          } catch (finalizeError) {
+            console.error('❌ Errore durante finalize-voting automatico:', finalizeError);
+            
+            // Ritorna successo per i voti anche se finalize-voting fallisce
+            return NextResponse.json({ 
+              success: true, 
+              message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+              votesSubmitted: createdRecords.length,
+              matchId: matchId,
+              stats: stats,
+              autoFinalized: false,
+              finalizeError: 'Errore durante finalizzazione automatica'
+            });
+          }
+        } else {
+          console.log(`🔄 Votazioni in corso: ${votersFromMatch.length}/${allMatchPlayers.length} giocatori hanno votato`);
+          
+          return NextResponse.json({ 
+            success: true, 
+            message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+            votesSubmitted: createdRecords.length,
+            matchId: matchId,
+            stats: stats,
+            autoFinalized: false,
+            votingProgress: `${votersFromMatch.length}/${allMatchPlayers.length} giocatori hanno votato`
+          });
+        }
+      } else {
+        console.log('⚠️ Partita non trovata per controllo votazioni');
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+          votesSubmitted: createdRecords.length,
+          matchId: matchId,
+          stats: stats,
+          autoFinalized: false,
+          note: 'Partita non trovata per controllo auto-finalizzazione'
+        });
+      }
+    } catch (checkError) {
+      console.error('⚠️ Errore nel controllo auto-finalizzazione (voti comunque salvati):', checkError);
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+        votesSubmitted: createdRecords.length,
+        matchId: matchId,
+        stats: stats,
+        autoFinalized: false,
+        checkError: 'Errore nel controllo auto-finalizzazione'
+      });
+    }
     
   } catch (error) {
     console.error('❌ ERRORE DETTAGLIATO nel salvare i voti:');

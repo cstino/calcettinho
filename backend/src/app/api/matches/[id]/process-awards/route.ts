@@ -16,23 +16,6 @@ Airtable.configure({
 
 const base = Airtable.base(baseId);
 
-// Algoritmo Fair per evoluzione statistiche
-function calculateStatChange(currentOverall: number, baseChange: number, netVotes: number): number {
-  const voteBonus = netVotes * 0.02; // Ridotto da 0.05 a 0.02 (Range: -0.18 a +0.18)
-  const totalChange = baseChange + voteBonus;
-  
-  // Moltiplicatore Fair basato sull'overall (molto ridotto)
-  let multiplier = 1.0;
-  if (currentOverall < 50) {
-    multiplier = totalChange > 0 ? 1.1 : 0.95; // Ridotto da 1.15/0.9 a 1.1/0.95
-  } else if (currentOverall < 70) {
-    multiplier = totalChange > 0 ? 1.02 : 0.98; // Ridotto da 1.05/0.95 a 1.02/0.98
-  }
-  // Overall >= 70: normale (1.0)
-  
-  return totalChange * multiplier;
-}
-
 // ✅ NUOVO: Funzione per controllare i prerequisiti delle card progressive
 const checkProgressiveCard = async (playerEmail: string, baseAwardType: string): Promise<string> => {
   try {
@@ -90,7 +73,7 @@ export async function POST(
   try {
     const { id: matchId } = await params;
     
-    console.log('Processando premi per partita:', matchId);
+    console.log('🏁 FASE 1: Processando awards immediate per partita:', matchId);
 
     // ⚠️ CONTROLLO AGGIORNAMENTO SICURO: Verifica se la partita è già stata processata
     let isReprocessing = false;
@@ -118,16 +101,22 @@ export async function POST(
           oldPlayerStats = JSON.parse(oldMatch.get('playerStats') as string || '{}');
           console.log(`📋 Statistiche vecchie recuperate:`, Object.keys(oldPlayerStats).length, 'giocatori');
         
-          // 1. Rimuovi i premi esistenti
-          const deletePromises = [];
-          for (let i = 0; i < existingAwards.length; i += 10) {
-            const batch = existingAwards.slice(i, i + 10);
-            deletePromises.push(
-              base('player_awards').destroy(batch.map(r => r.id))
-            );
+          // 1. Rimuovi i premi esistenti (SOLO immediate, non MOTM che non era assegnato)
+          const immediateAwards = existingAwards.filter(award => 
+            award.get('award_type') !== 'motm' // Mantieni MOTM se esiste (sarà gestito da finalize-voting)
+          );
+          
+          if (immediateAwards.length > 0) {
+            const deletePromises = [];
+            for (let i = 0; i < immediateAwards.length; i += 10) {
+              const batch = immediateAwards.slice(i, i + 10);
+              deletePromises.push(
+                base('player_awards').destroy(batch.map(r => r.id))
+              );
+            }
+            await Promise.all(deletePromises);
+            console.log(`✅ Rimossi ${immediateAwards.length} premi immediate obsoleti`);
           }
-          await Promise.all(deletePromises);
-          console.log(`✅ Rimossi ${existingAwards.length} premi obsoleti`);
           
           // 2. Sottrai le statistiche vecchie dalla tabella player_stats
           const oldTeamA = JSON.parse(oldMatch.get('teamA') as string || '[]');
@@ -216,113 +205,17 @@ export async function POST(
     // 2. Determina la squadra vincente
     const isDraw = scoreA === scoreB;
     const teamAWins = scoreA > scoreB;
-    
-    // 3. Recupera tutti i voti per questa partita
-    const voteRecords = await base('votes').select({
-      filterByFormula: `{matchId} = "${matchId}"`
-    }).all();
 
-    // ✅ NUOVO: Calcola statistiche per UP/DOWN/NEUTRAL + MOTM
-    const voteStats = {} as Record<string, { 
-      up: number; 
-      down: number; 
-      neutral: number; 
-      net: number; 
-      motm: number; 
-    }>;
-    
-    voteRecords.forEach(vote => {
-      const playerEmail = vote.get('toPlayerId') as string;
-      const voteType = vote.get('voteType') as string;
-      const motmVote = vote.get('motm_vote') as boolean;
-      
-      if (!voteStats[playerEmail]) {
-        voteStats[playerEmail] = { up: 0, down: 0, neutral: 0, net: 0, motm: 0 };
-      }
-      
-      // Conta i voti per tipo
-      if (voteType === 'UP') {
-        voteStats[playerEmail].up++;
-      } else if (voteType === 'DOWN') {
-        voteStats[playerEmail].down++;
-      } else if (voteType === 'NEUTRAL') {
-        voteStats[playerEmail].neutral++;
-      }
-      
-      // Conta i voti MOTM separatamente
-      if (motmVote) {
-        voteStats[playerEmail].motm++;
-      }
-      
-      // Calcola net votes (UP - DOWN, NEUTRAL non influisce)
-      voteStats[playerEmail].net = voteStats[playerEmail].up - voteStats[playerEmail].down;
-    });
-
-    console.log('📊 Statistiche voti calcolate:', voteStats);
-
-    // 5. Calcola i premi post-partita
+    // 3. ✅ FASE 1: Calcola solo i premi IMMEDIATE (senza votazioni)
     const awards = [] as Array<{
       playerEmail: string;
       awardType: string;
       matchId: string;
     }>;
 
-    // ✅ NUOVO: Man of the Match (più voti MOTM ricevuti)
-    const sortedByMOTM = Object.entries(voteStats)
-      .sort(([,a], [,b]) => b.motm - a.motm)
-      .filter(([email]) => [...teamA, ...teamB].includes(email))
-      .filter(([,stats]) => stats.motm > 0); // Solo chi ha ricevuto almeno 1 voto MOTM
+    console.log('⚽ Calcolando premi immediate (Goleador, Assistman, Milestone)...');
 
-    console.log('🏆 Classifica MOTM:', sortedByMOTM.map(([email, stats]) => ({ email, motmVotes: stats.motm })));
-
-    if (sortedByMOTM.length > 0) {
-      const [topPlayerEmail, topPlayerVotes] = sortedByMOTM[0];
-      const tied = sortedByMOTM.filter(([,votes]) => votes.motm === topPlayerVotes.motm);
-      
-      console.log(`🥇 Top MOTM: ${topPlayerEmail} con ${topPlayerVotes.motm} voti MOTM`);
-      console.log(`🤝 Giocatori in pareggio: ${tied.length}`);
-      
-      if (tied.length === 1) {
-        // Un solo vincitore
-        awards.push({
-          playerEmail: topPlayerEmail,
-          awardType: 'motm',
-          matchId
-        });
-        console.log(`✅ MOTM assegnato a: ${topPlayerEmail}`);
-      } else {
-        // Pareggio - decide la squadra vincente o entrambi se stessa squadra
-        const tiedFromWinningTeam = tied.filter(([email]) => 
-          !isDraw && ((teamAWins && teamA.includes(email)) || (!teamAWins && teamB.includes(email)))
-        );
-        
-        if (tiedFromWinningTeam.length > 0) {
-          // Vince chi è nella squadra vincente
-          tiedFromWinningTeam.forEach(([email]) => {
-            awards.push({
-              playerEmail: email,
-              awardType: 'motm',
-              matchId
-            });
-          });
-          console.log(`✅ MOTM assegnato a squadra vincente: ${tiedFromWinningTeam.map(([email]) => email).join(', ')}`);
-        } else {
-          // Stessa squadra o pareggio - tutti vincono
-          tied.forEach(([email]) => {
-            awards.push({
-              playerEmail: email,
-              awardType: 'motm',
-              matchId
-            });
-          });
-          console.log(`✅ MOTM assegnato a tutti i pareggiati: ${tied.map(([email]) => email).join(', ')}`);
-        }
-      }
-    } else {
-      console.log('❌ Nessun voto MOTM ricevuto, premio non assegnato');
-    }
-
-    // ✅ AGGIORNATO: Goleador con sistema progressivo
+    // ✅ GOLEADOR con sistema progressivo (IMMEDIATE)
     const goalScorers = Object.entries(playerStats)
       .map(([email, stats]: [string, any]) => ({ email, goals: stats.gol || 0 }))
       .filter(player => player.goals > 0)
@@ -347,7 +240,7 @@ export async function POST(
       }
     }
 
-    // ✅ AGGIORNATO: Assist Man con sistema progressivo
+    // ✅ ASSISTMAN con sistema progressivo (IMMEDIATE)
     const assistProviders = Object.entries(playerStats)
       .map(([email, stats]: [string, any]) => ({ email, assists: stats.assist || 0 }))
       .filter(player => player.assists > 0)
@@ -372,7 +265,7 @@ export async function POST(
       }
     }
 
-    // 6. ✅ NUOVO: Controlla milestone achievements dalla tabella special_cards
+    // ✅ MILESTONE ACHIEVEMENTS (IMMEDIATE - basate su statistiche raggiunte)
     console.log('🎯 Controllo milestone achievements...');
     
     try {
@@ -449,7 +342,7 @@ export async function POST(
       // Non blocca il processo, continua con le statistiche
     }
 
-    // 7. Salva i premi nella tabella player_awards
+    // 4. Salva i premi IMMEDIATE nella tabella player_awards
     if (awards.length > 0) {
       try {
         for (const award of awards) {
@@ -472,15 +365,15 @@ export async function POST(
             console.log(`⚠️ Giocatore ${award.playerEmail} ha già sbloccato la card ${award.awardType} - Premio non attribuito`);
           }
         }
-        console.log('Premi salvati:', awards.length);
+        console.log('✅ Premi immediate salvati:', awards.length);
       } catch (error) {
-        console.error('Errore nel salvare premi:', error);
+        console.error('❌ Errore nel salvare premi immediate:', error);
         // Continua comunque con l'aggiornamento statistiche
       }
     }
 
-    // 8. Aggiorna le statistiche dei giocatori nella tabella player_stats
-    console.log('🔄 Aggiornamento tabella player_stats...');
+    // 5. ✅ AGGIORNA SOLO STATISTICHE BASE (player_stats)
+    console.log('📊 Aggiornamento statistiche base (player_stats)...');
     console.log('🎯 Players da aggiornare:', [...teamA, ...teamB]);
     console.log('📊 PlayerStats ricevuti:', playerStats);
     
@@ -488,7 +381,7 @@ export async function POST(
     
     for (const playerEmail of allPlayers) {
       try {
-        console.log(`\n🔍 Processando ${playerEmail}...`);
+        console.log(`\n🔍 Processando statistiche base per ${playerEmail}...`);
         
         // Recupera le statistiche attuali del giocatore dalla tabella player_stats
         const existingStatsRecords = await base('player_stats').select({
@@ -496,9 +389,6 @@ export async function POST(
         }).all();
 
         console.log(`📋 Record esistenti trovati per ${playerEmail}:`, existingStatsRecords.length);
-        if (existingStatsRecords.length > 0) {
-          console.log('📋 Primo record esistente:', existingStatsRecords[0].fields);
-        }
 
         // Statistiche della partita per questo giocatore
         const matchStats = playerStats[playerEmail] || { gol: 0, assist: 0, gialli: 0, rossi: 0 };
@@ -561,151 +451,46 @@ export async function POST(
 
       } catch (error) {
         console.error(`❌ Errore nell'aggiornamento statistiche per ${playerEmail}:`, error);
-        if (error instanceof Error) {
-          console.error(`❌ Dettagli errore: ${error.message}`);
-          console.error(`❌ Stack: ${error.stack}`);
-        }
         // Continua con gli altri giocatori
       }
     }
 
-    // 8. Aggiorna le abilità dei giocatori nella tabella players
-    // ⚠️ SKIP ALGORITMO FAIR PER RIPROCESSAMENTI - Solo ricalcolo overall
-    if (isReprocessing) {
-      console.log('🔄 MODALITÀ RIPROCESSAMENTO: Saltando algoritmo Fair, solo ricalcolo overall...');
-      
-      for (const playerEmail of allPlayers) {
-        try {
-          // Recupera statistiche attuali
-          const playerRecords = await base('players').select({
-            filterByFormula: `{email} = "${playerEmail}"`
-          }).all();
-
-          if (playerRecords.length === 0) continue;
-
-          const player = playerRecords[0];
-          const currentStats = {
-            ATT: Number(player.get('Attacco')) || 50,
-            DIF: Number(player.get('Difesa')) || 50,
-            VEL: Number(player.get('Velocità')) || 50,
-            PAS: Number(player.get('Passaggio')) || 50,
-            FOR: Number(player.get('Forza')) || 50,
-            POR: Number(player.get('Portiere')) || 50
-          };
-
-          // Ricalcola solo l'overall dalle statistiche esistenti (migliori 5)
-          const statValues = Object.values(currentStats);
-          const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
-          const newOverall = Math.round(top5Stats.reduce((sum, val) => sum + val, 0) / 5);
-
-          console.log(`📊 ${playerEmail}: Overall ricalcolato = ${newOverall} (da statistiche esistenti)`);
-          
-        } catch (error) {
-          console.error(`❌ Errore nel ricalcolo overall per ${playerEmail}:`, error);
-        }
-      }
-      
-      console.log('✅ Riprocessamento completato - Solo statistiche base aggiornate, algoritmo Fair saltato');
-      
-    } else {
-      console.log('🆕 NUOVA PARTITA: Applicando algoritmo Fair completo...');
-      
-      const statUpdates = [] as Array<{
-        email: string;
-        changes: Record<string, number>;
-      }>;
-
-      for (const playerEmail of allPlayers) {
-        // Recupera statistiche attuali
-        const playerRecords = await base('players').select({
-          filterByFormula: `{email} = "${playerEmail}"`
-        }).all();
-
-        if (playerRecords.length === 0) continue;
-
-        const player = playerRecords[0];
-        const currentStats = {
-          ATT: Number(player.get('Attacco')) || 50,
-          DIF: Number(player.get('Difesa')) || 50,
-          VEL: Number(player.get('Velocità')) || 50,
-          PAS: Number(player.get('Passaggio')) || 50,
-          FOR: Number(player.get('Forza')) || 50,
-          POR: Number(player.get('Portiere')) || 50
-        };
-
-        // Calcola overall come media delle 5 migliori statistiche
-        const statValues = Object.values(currentStats);
-        const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
-        const currentOverall = top5Stats.reduce((sum, val) => sum + val, 0) / 5;
-
-        // Calcola cambiamento base (vittoria/sconfitta)
-        const playerTeam = teamA.includes(playerEmail) ? 'A' : 'B';
-        let baseChange = 0;
-        
-        if (!isDraw) {
-          if ((playerTeam === 'A' && teamAWins) || (playerTeam === 'B' && !teamAWins)) {
-            baseChange = 0.083; // ~+1 overall ogni 2 vittorie (0.083 * 2 * 6 stats ≈ 1 overall)
-          } else {
-            baseChange = -0.083; // Proporzionale perdita per sconfitta
-          }
-        }
-
-        // Calcola cambiamento con algoritmo fair
-        const netVotes = voteStats[playerEmail]?.net || 0;
-        const totalChange = calculateStatChange(currentOverall, baseChange, netVotes);
-
-        // Applica i cambiamenti
-        const newStats = {} as Record<string, number>;
-        Object.entries(currentStats).forEach(([stat, value]) => {
-          const newValue = Math.max(1.0, Math.min(99.0, value + totalChange));
-          const fieldName = stat === 'ATT' ? 'Attacco' :
-                           stat === 'DIF' ? 'Difesa' :
-                           stat === 'VEL' ? 'Velocità' :
-                           stat === 'PAS' ? 'Passaggio' :
-                           stat === 'FOR' ? 'Forza' :
-                           stat === 'POR' ? 'Portiere' : stat;
-          newStats[fieldName] = Math.round(newValue * 10) / 10; // Arrotonda a 1 decimale
-        });
-
-        // Aggiorna il record
-        await base('players').update(player.id, newStats);
-        
-        statUpdates.push({
-          email: playerEmail,
-          changes: Object.fromEntries(
-            Object.entries(currentStats).map(([stat, oldVal]) => [
-              stat, 
-              newStats[stat] - oldVal
-            ])
-          )
-        });
-      }
-
-      console.log('Statistiche abilità aggiornate per', statUpdates.length, 'giocatori');
+    // 6. ✅ IMPOSTA TIMESTAMP PER VOTAZIONI (nuovo campo per tracking)
+    try {
+      await base('matches').update(match.id, {
+        voting_started_at: new Date().toISOString(),
+        voting_status: 'open'
+      });
+      console.log('🗳️ Timestamp votazioni impostato');
+    } catch (error) {
+      console.log('⚠️ Errore nell\'impostare timestamp votazioni (campo potrebbe non esistere):', error);
     }
 
-    console.log('📊 Processo completato: premi assegnati e statistiche aggiornate!');
+    console.log('🏁 FASE 1 completata: premi immediate assegnati e statistiche base aggiornate!');
+    console.log('🗳️ PROSSIMO: Le votazioni sono ora aperte. MOTM e abilità saranno processati dopo la chiusura.');
 
     return NextResponse.json({
       success: true,
-      message: isReprocessing ? 'Partita aggiornata con successo - solo statistiche base corrette (algoritmo Fair saltato)' : 'Premi e statistiche processati con successo',
+      message: isReprocessing ? 'Partita aggiornata - premi immediate corretti' : 'FASE 1: Premi immediate assegnati e statistiche base aggiornate',
+      phase: 1,
       awards: awards.length,
       awardDetails: awards,
       playersUpdated: allPlayers.length,
       playerStatsUpdated: true,
-      playerAbilitiesUpdated: isReprocessing ? 0 : allPlayers.length,
-      algorithmFairSkipped: isReprocessing,
-      voteStats,
+      playerAbilitiesUpdated: 0, // Saranno aggiornate in FASE 2
+      votingOpen: true,
+      nextPhase: 'Votazioni aperte - MOTM e abilità processati dopo chiusura',
       isReprocessing: isReprocessing,
       operation: isReprocessing ? 'update' : 'create'
     });
 
   } catch (error) {
-    console.error('Errore nel processare premi:', error);
+    console.error('❌ Errore nel processare FASE 1:', error);
     return NextResponse.json({
       success: false,
-      error: 'Errore nel processare premi e statistiche',
+      error: 'Errore nel processare premi immediate e statistiche base',
       details: error instanceof Error ? error.message : 'Errore sconosciuto'
     }, { status: 500 });
   }
+} 
 } 
