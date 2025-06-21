@@ -176,7 +176,7 @@ export default function Players() {
           <Navigation />
           
           {/* Header Section */}
-          <section className="pt-1 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+          <section className="pt-8 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto text-center">
               <Logo
                 type="simbolo"
