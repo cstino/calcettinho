@@ -214,10 +214,10 @@ html {
 /* Effetto neon pulito per titoli principali - effetto sottile e leggibile */
 .text-neon-clean {
   text-shadow: 
-    0 0 5px rgba(168, 85, 247, 0.3),
-    0 0 10px rgba(236, 72, 153, 0.2),
-    0 0 15px rgba(59, 130, 246, 0.15),
-    0 0 20px rgba(34, 211, 238, 0.1);
+    0 0 5px rgba(168, 85, 247, 0.045),
+    0 0 10px rgba(236, 72, 153, 0.045),
+    0 0 15px rgba(59, 130, 246, 0.045),
+    0 0 20px rgba(34, 211, 238, 0.045);
   filter: drop-shadow(none);
   animation: neonPulseClean 4s ease-in-out infinite;
 }
@@ -225,17 +225,17 @@ html {
 @keyframes neonPulseClean {
   0%, 100% {
     text-shadow: 
-      0 0 5px rgba(168, 85, 247, 0.3),
-      0 0 10px rgba(236, 72, 153, 0.2),
-      0 0 15px rgba(59, 130, 246, 0.15),
-      0 0 20px rgba(34, 211, 238, 0.1);
+      0 0 5px rgba(168, 85, 247, 0.045),
+      0 0 10px rgba(236, 72, 153, 0.045),
+      0 0 15px rgba(59, 130, 246, 0.045),
+      0 0 20px rgba(34, 211, 238, 0.045);
   }
   50% {
     text-shadow: 
-      0 0 8px rgba(168, 85, 247, 0.4),
-      0 0 12px rgba(236, 72, 153, 0.25),
-      0 0 18px rgba(59, 130, 246, 0.2),
-      0 0 25px rgba(34, 211, 238, 0.15);
+      0 0 8px rgba(168, 85, 247, 0.045),
+      0 0 12px rgba(236, 72, 153, 0.045),
+      0 0 18px rgba(59, 130, 246, 0.045),
+      0 0 25px rgba(34, 211, 238, 0.045);
   }
 }
 

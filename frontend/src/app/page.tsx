@@ -9,6 +9,7 @@ import Logo from "./components/Logo";
 import PlayerCard from "./components/PlayerCard";
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { getPlayerPhotoUrl } from '../utils/api';
 
 interface PlayerData {
   id: string;
@@ -256,7 +257,7 @@ function TopPlayersCarousel({ players }: { players: PlayerStatsData[] }) {
                 {/* Foto giocatore - DIMENSIONI UNIFORMI */}
                 <div className="w-10 h-10 rounded-full bg-gray-600 overflow-hidden flex-shrink-0 ml-2">
                   <img 
-                    src={`/players/${player.email}.jpg`}
+                    src={getPlayerPhotoUrl(player.email)}
                     alt={player.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
