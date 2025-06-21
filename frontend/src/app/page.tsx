@@ -431,7 +431,7 @@ export default function Home() {
           <div 
             className="px-6 relative overflow-hidden bg-black"
             style={{ 
-              paddingTop: 'env(safe-area-inset-top, 20px)',
+              paddingTop: 'calc(env(safe-area-inset-top, 20px) + 32px)',
               marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))'
             }}
           >
