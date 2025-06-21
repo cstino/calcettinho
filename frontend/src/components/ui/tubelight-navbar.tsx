@@ -79,12 +79,12 @@ export function NavBar({ items, className, logo, userComponent }: NavBarProps) {
     <div
       className={cn(
         "fixed bottom-0 sm:top-0 left-1/2 -translate-x-1/2 z-10 mb-6 sm:pt-6 transition-transform duration-300 ease-in-out",
-        // Nasconde/mostra la navbar in base allo scroll
-        isVisible ? "translate-y-0" : isMobile ? "translate-y-full" : "-translate-y-full",
+        // Nasconde/mostra la navbar in base allo scroll - nascosta su mobile per non occupare spazio
+        isVisible ? (isMobile ? "translate-y-full" : "translate-y-0") : isMobile ? "translate-y-full" : "-translate-y-full",
         className,
       )}
     >
-      <div className="flex items-center gap-3 bg-gray-900/20 border border-gray-600/50 backdrop-blur-lg py-1 px-1 rounded-full shadow-lg">
+      <div className="flex items-center gap-3 bg-black/98 border border-gray-600/50 backdrop-blur-lg py-1 px-1 rounded-full shadow-lg">
         {/* Logo opzionale sul lato sinistro (solo desktop) */}
         {logo && (
           <div className="hidden sm:flex items-center pl-2">

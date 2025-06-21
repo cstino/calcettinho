@@ -120,7 +120,7 @@ export default function PlayerCard({ player }: PlayerCardProps) {
         rotateY: 5,
         transition: { duration: 0.3 }
       } : {}}
-      className={`relative group cursor-pointer ${
+      className={`relative group cursor-pointer w-full max-w-xs sm:max-w-sm mx-auto ${
         player.email && player.email !== 'email@non-disponibile.com'
           ? ''
           : 'cursor-not-allowed opacity-60'
@@ -135,7 +135,7 @@ export default function PlayerCard({ player }: PlayerCardProps) {
     >
       {/* ✅ Card Container con swipe gesture e flip */}
       <motion.div 
-        className="relative w-full max-w-xs mx-auto"
+        className="relative w-full"
         style={{
           transformStyle: 'preserve-3d',
         }}

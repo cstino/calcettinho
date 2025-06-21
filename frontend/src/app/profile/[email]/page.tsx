@@ -10,6 +10,7 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import { motion, AnimatePresence } from 'framer-motion';
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { getCardUrl, getSpecialCardUrl } from '../../../utils/api';
+import ProfileTiltCard from '../../components/ProfileTiltCard';
 
 interface Player {
   id: string;
@@ -867,18 +868,9 @@ export default function PlayerProfile() {
   }
 
   return (
-    <div 
-      className="min-h-screen bg-gray-900 relative"
-      style={{
-        backgroundImage: 'url("/stadium-background.jpg")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}
-    >
-      {/* Overlay per migliorare la leggibilità */}
-      <div className="absolute inset-0 bg-black/60"></div>
+          <div className="min-h-screen bg-black relative">
+        {/* Overlay nero per OLED */}
+        <div className="absolute inset-0 bg-black"></div>
 
       {/* Stili per la scrollbar del carousel */}
       <style jsx>{`
@@ -925,12 +917,12 @@ export default function PlayerProfile() {
         <Navigation />
         
         {/* Header Section */}
-        <section className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+        <section className="pt-1 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             {/* Bottone Indietro */}
             <button 
               onClick={() => router.push('/players')}
-              className="mb-6 flex items-center text-gray-300 hover:text-white transition-colors font-runtime cursor-pointer z-50 relative pointer-events-auto"
+              className="mb-2 flex items-center text-gray-300 hover:text-white transition-colors font-runtime cursor-pointer z-50 relative pointer-events-auto"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -939,7 +931,7 @@ export default function PlayerProfile() {
             </button>
 
             {/* Header con nome giocatore */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-4">
               <h1 className="text-4xl sm:text-5xl font-bold font-runtime text-white mb-2 drop-shadow-lg">
                 {player.name}
               </h1>
@@ -953,13 +945,16 @@ export default function PlayerProfile() {
               )}
             </div>
 
-            {/* Card del Giocatore */}
-            <div className="text-center mb-8">
-              <img 
-                src={getCardUrl(player.email)}
-                alt={`Card di ${player.name}`}
-                className="w-80 h-auto mx-auto mb-4 inline-block"
-              />
+            {/* Card del Giocatore con Effetto Tilt */}
+            <div className="text-center mb-4">
+              <div className="w-80 mx-auto mb-4">
+                <ProfileTiltCard
+                  src={getCardUrl(player.email)}
+                  alt={`Card di ${player.name}`}
+                  enableTilt={true}
+                  intensity={0.6}
+                />
+              </div>
               
               {/* Bottone Download Card */}
               <div>

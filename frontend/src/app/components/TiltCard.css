@@ -1,0 +1,51 @@
+/* TiltCard Styles */
+.tilt-wrapper {
+  display: inline-block;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  background: transparent;
+}
+
+.tilt-card {
+  transform-style: preserve-3d;
+  will-change: transform, box-shadow;
+  backface-visibility: hidden;
+  background: transparent;
+}
+
+.tilt-card.tilt-active {
+  transition: none !important;
+}
+
+.tilt-wrapper.tilt-active {
+  z-index: 10;
+}
+
+/* Miglioramenti per le performance */
+.tilt-card * {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+/* Effetti hover aggiuntivi */
+.tilt-card:hover {
+  transform-origin: center center;
+}
+
+/* Supporto per dispositivi touch */
+@media (hover: none) and (pointer: coarse) {
+  .tilt-card {
+    transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+  }
+  
+  .tilt-card:active {
+    transform: perspective(1000px) rotateX(2deg) rotateY(2deg) translateZ(10px) !important;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4) !important;
+  }
+}
+
+/* Animazioni fluide per il reset */
+.tilt-card:not(.tilt-active) {
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), 
+              box-shadow 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+} 
