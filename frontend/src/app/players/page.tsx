@@ -29,6 +29,7 @@ export default function Players() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'overall' | 'rarity'>('name');
   const [selectedRarities, setSelectedRarities] = useState<string[]>(['Ultimate', 'Gold', 'Silver', 'Bronze']);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Dati reali dall'API con cleanup
   useEffect(() => {
@@ -166,25 +167,16 @@ export default function Players() {
 
   return (
     <ProtectedRoute>
-      <div 
-        className="min-h-screen bg-gray-900 relative"
-        style={{
-          backgroundImage: 'url("/stadium-background.jpg")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed'
-        }}
-      >
-        {/* Overlay per migliorare la leggibilità */}
-        <div className="absolute inset-0 bg-black/60"></div>
+              <div className="min-h-screen bg-black relative">
+          {/* Overlay nero per OLED */}
+          <div className="absolute inset-0 bg-black"></div>
 
         {/* Contenuto principale */}
         <div className="relative z-10">
           <Navigation />
           
           {/* Header Section */}
-          <section className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+          <section className="pt-1 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto text-center">
               <Logo
                 type="simbolo"
@@ -238,8 +230,25 @@ export default function Players() {
 
               {/* Filtri e Ricerca */}
               {!loading && !error && (
-                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 mb-8">
-                  <h3 className="text-lg font-bold text-white font-runtime mb-4">Filtri e Ricerca</h3>
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl mb-8">
+                  {/* Header collassabile */}
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-700/30 transition-colors rounded-xl"
+                  >
+                    <h3 className="text-lg font-bold text-white font-runtime">
+                      🔍 Filtri e Ricerca
+                    </h3>
+                    <div className={`transform transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`}>
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+                  
+                  {/* Contenuto collassabile */}
+                  {showFilters && (
+                    <div className="px-6 pb-6">{/* Nota: il padding top è già nel bottone */}
                   
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Barra di Ricerca */}
@@ -315,19 +324,21 @@ export default function Players() {
                     </div>
                   </div>
 
-                  {/* Reset Filtri */}
-                  <div className="mt-4 text-center">
-                    <button
-                      onClick={() => {
-                        setSearchTerm('');
-                        setSortBy('name');
-                        setSelectedRarities(['Ultimate', 'Gold', 'Silver', 'Bronze']);
-                      }}
-                      className="px-4 py-2 bg-gray-600/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition-colors font-runtime text-sm"
-                    >
-                      Reset Filtri
-                    </button>
-                  </div>
+                      {/* Reset Filtri */}
+                      <div className="mt-4 text-center">
+                        <button
+                          onClick={() => {
+                            setSearchTerm('');
+                            setSortBy('name');
+                            setSelectedRarities(['Ultimate', 'Gold', 'Silver', 'Bronze']);
+                          }}
+                          className="px-4 py-2 bg-gray-600/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition-colors font-runtime text-sm"
+                        >
+                          Reset Filtri
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -382,7 +393,7 @@ export default function Players() {
 
               {/* Players Cards Grid */}
               {!loading && !error && filteredAndSortedPlayers.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
                   {filteredAndSortedPlayers.map((player) => (
                     <PlayerCard key={player.id} player={player} />
                   ))}

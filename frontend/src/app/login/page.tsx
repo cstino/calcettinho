@@ -41,14 +41,7 @@ export default function LoginPage() {
 
   return (
     <div 
-      className="min-h-screen bg-gray-900 relative flex items-center justify-center"
-      style={{
-        backgroundImage: 'url("/stadium-background.jpg")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}
+              className="min-h-screen bg-black relative flex items-center justify-center"
     >
       {/* Overlay per migliorare la leggibilità */}
       <div className="absolute inset-0 bg-black/70"></div>

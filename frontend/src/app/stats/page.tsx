@@ -81,12 +81,15 @@ interface ComparisonData {
 }
 
 // Componente per l'avatar del giocatore con foto
-const PlayerAvatar = ({ player }: { player: { email: string; name: string } }) => {
+const PlayerAvatar = ({ player, size = "normal" }: { player: { email: string; name: string }, size?: "small" | "normal" }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
+  const sizeClasses = size === "small" ? "w-8 h-8" : "w-10 h-10";
+  const textSize = size === "small" ? "text-xs" : "text-sm";
 
   return (
-    <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden transition-transform duration-200 hover:scale-110">
+    <div className={`${sizeClasses} bg-gray-600 rounded-full flex items-center justify-center overflow-hidden transition-transform duration-200 hover:scale-110`}>
       {!imageError ? (
         <img 
           src={getPlayerPhotoUrl(player.email)}
@@ -97,10 +100,97 @@ const PlayerAvatar = ({ player }: { player: { email: string; name: string } }) =
         />
       ) : null}
       {(imageError || !imageLoaded) && (
-        <span className="text-white font-bold font-runtime text-sm">
+        <span className={`text-white font-bold font-runtime ${textSize}`}>
           {player.name.split(' ').map(n => n[0]).join('')}
         </span>
       )}
+    </div>
+  );
+};
+
+// Componente per tabella completa con stile TOP 5
+const FullTable = ({ 
+  title, 
+  players, 
+  statKey, 
+  statColor
+}: { 
+  title: string;
+  players: PlayerStats[];
+  statKey: keyof PlayerStats;
+  statColor: string;
+}) => {
+  return (
+    <div className="glass-card liquid-border neon-border p-4 relative overflow-hidden">
+      <div className="mb-4">
+        <h3 className="text-xl font-bold text-white font-runtime text-center">
+          {title}
+        </h3>
+      </div>
+      
+      <div className="space-y-4">
+        {players.map((player, index) => (
+          <div key={player.id} className="flex items-center gap-4">
+            {/* Cerchio posizione - DIMENSIONI UNIFORMI */}
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shadow-lg flex-shrink-0 ${
+              index === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black neon-glow' :
+              index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-500 text-black' :
+              index === 2 ? 'bg-gradient-to-r from-amber-500 to-amber-700 text-white' :
+              'bg-gradient-to-r from-purple-500 to-purple-700 text-white'
+            }`}>
+              {index + 1}
+            </div>
+
+            {/* Riquadro giocatore - DIMENSIONI UNIFORMI */}
+            <div className="flex-1 glass-dark liquid-border neon-border p-4 h-16 flex items-center hover:neon-glow transition-all duration-300 group">
+              {/* Foto giocatore - DIMENSIONI UNIFORMI */}
+              <div className="w-10 h-10 rounded-full bg-gray-600 overflow-hidden flex-shrink-0 ml-2">
+                <img 
+                  src={getPlayerPhotoUrl(player.email)}
+                  alt={player.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.nextElementSibling!.classList.remove('hidden');
+                  }}
+                />
+                <div className="hidden w-full h-full bg-gray-600 flex items-center justify-center text-gray-300 text-sm font-bold">
+                  {player.name.charAt(0).toUpperCase()}
+                </div>
+              </div>
+
+              {/* Nome giocatore - POSIZIONE UNIFORME */}
+              <div className="flex-1 ml-4">
+                <h4 className="text-white font-medium text-base group-hover:text-purple-200 transition-colors truncate">
+                  {player.name}
+                </h4>
+              </div>
+
+              {/* Cerchio/Rettangolo valore - DIMENSIONI UNIFORMI */}
+              {statKey === 'wins' ? (
+                <div className="bg-gradient-to-r from-green-400 to-green-600 px-3 py-2 rounded-lg flex items-center justify-center text-xs font-bold shadow-lg neon-glow flex-shrink-0 mr-2 min-w-[70px] h-12">
+                  <div className="flex items-center space-x-1">
+                    <span className="text-black">{player.wins}</span>
+                    <span className="text-black">/</span>
+                    <span className="text-black">{player.draws}</span>
+                    <span className="text-black">/</span>
+                    <span className="text-black">{player.losses}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shadow-lg neon-glow flex-shrink-0 mr-2 ${
+                  statKey === 'goals' ? 'bg-gradient-to-r from-blue-400 to-blue-600 text-white' :
+                  statKey === 'assists' ? 'bg-gradient-to-r from-purple-400 to-purple-600 text-white' :
+                  'bg-gradient-to-r from-green-400 to-green-600 text-white'
+                }`}>
+                  {player[statKey]}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -361,7 +451,7 @@ export default function Stats() {
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'overall' | 'goals' | 'wins'>('overall');
+  const [sortBy, setSortBy] = useState<'overall' | 'goals' | 'wins' | 'assists'>('overall');
   const [showComparison, setShowComparison] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<[string | null, string | null]>([null, null]);
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
@@ -397,10 +487,17 @@ export default function Stats() {
     switch (sortBy) {
       case 'goals': return b.goals - a.goals;
       case 'wins': return b.wins - a.wins;
+      case 'assists': return b.assists - a.assists;
       case 'overall':
       default: return b.overall - a.overall;
     }
   });
+
+  // Creo le classifiche separate per ogni categoria
+  const overallRanking = [...players].sort((a, b) => b.overall - a.overall);
+  const goalsRanking = [...players].sort((a, b) => b.goals - a.goals);
+  const assistsRanking = [...players].sort((a, b) => b.assists - a.assists);
+  const winsRanking = [...players].sort((a, b) => b.wins - a.wins);
 
   // Funzione per confrontare due giocatori
   const comparePlayersData = async (player1Email: string, player2Email: string) => {
@@ -428,21 +525,12 @@ export default function Stats() {
   };
 
   return (
-    <div 
-      className="min-h-screen bg-gray-900 relative"
-      style={{
-        backgroundImage: 'url("/stadium-background.jpg")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}
-    >
-      <div className="absolute inset-0 bg-black/60"></div>
+          <div className="min-h-screen bg-black relative">
+        <div className="absolute inset-0 bg-black"></div>
       <div className="relative z-10">
         <Navigation />
         
-        <section className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+        <section className="pt-1 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto text-center">
             <Logo
               type="simbolo"
@@ -467,14 +555,14 @@ export default function Stats() {
         {/* Sort Controls */}
         <section className="pb-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
-            <div className="flex justify-center space-x-1 bg-gray-800/50 p-1 rounded-lg backdrop-blur-sm relative z-20">
+            <div className="grid grid-cols-2 sm:flex sm:justify-center gap-1 sm:space-x-1 bg-gray-800/50 p-1 rounded-lg backdrop-blur-sm relative z-20">
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   console.log('Click Overall button');
                   setSortBy('overall');
                 }}
-                className={`px-4 py-2 rounded-md font-runtime font-semibold transition-colors cursor-pointer pointer-events-auto ${
+                className={`px-3 py-2 rounded-md font-runtime font-semibold transition-colors cursor-pointer pointer-events-auto text-sm sm:text-base ${
                   sortBy === 'overall' ? 'bg-white text-gray-900' : 'text-gray-200 hover:text-white hover:bg-gray-700/30'
                 }`}
               >
@@ -486,7 +574,7 @@ export default function Stats() {
                   console.log('Click Gol button');
                   setSortBy('goals');
                 }}
-                className={`px-4 py-2 rounded-md font-runtime font-semibold transition-colors cursor-pointer pointer-events-auto ${
+                className={`px-3 py-2 rounded-md font-runtime font-semibold transition-colors cursor-pointer pointer-events-auto text-sm sm:text-base ${
                   sortBy === 'goals' ? 'bg-white text-gray-900' : 'text-gray-200 hover:text-white hover:bg-gray-700/30'
                 }`}
               >
@@ -495,10 +583,22 @@ export default function Stats() {
               <button
                 onClick={(e) => {
                   e.preventDefault();
+                  console.log('Click Assist button');
+                  setSortBy('assists');
+                }}
+                className={`px-3 py-2 rounded-md font-runtime font-semibold transition-colors cursor-pointer pointer-events-auto text-sm sm:text-base ${
+                  sortBy === 'assists' ? 'bg-white text-gray-900' : 'text-gray-200 hover:text-white hover:bg-gray-700/30'
+                }`}
+              >
+                Assist
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
                   console.log('Click Vittorie button');
                   setSortBy('wins');
                 }}
-                className={`px-4 py-2 rounded-md font-runtime font-semibold transition-colors cursor-pointer pointer-events-auto ${
+                className={`px-3 py-2 rounded-md font-runtime font-semibold transition-colors cursor-pointer pointer-events-auto text-sm sm:text-base ${
                   sortBy === 'wins' ? 'bg-white text-gray-900' : 'text-gray-200 hover:text-white hover:bg-gray-700/30'
                 }`}
               >
@@ -508,7 +608,7 @@ export default function Stats() {
           </div>
         </section>
 
-        {/* Stats Table */}
+        {/* Compact Stats Tables */}
         <section className="py-8 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             {loading ? (
@@ -543,59 +643,39 @@ export default function Stats() {
                 <p className="text-gray-500 font-runtime">I dati delle statistiche non sono ancora disponibili.</p>
               </div>
             ) : (
-              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-700/50">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-white font-runtime font-semibold">#</th>
-                        <th className="px-6 py-4 text-left text-white font-runtime font-semibold">Giocatore</th>
-                        <th className="px-6 py-4 text-center text-white font-runtime font-semibold">Overall</th>
-                        <th className="px-6 py-4 text-center text-white font-runtime font-semibold">Partite</th>
-                        <th className="px-6 py-4 text-center text-white font-runtime font-semibold">V/P/S</th>
-                        <th className="px-6 py-4 text-center text-white font-runtime font-semibold">Gol</th>
-                        <th className="px-6 py-4 text-center text-white font-runtime font-semibold">Assist</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedPlayers.map((player, index) => (
-                        <tr key={player.id} className="border-t border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                          <td className="px-6 py-4">
-                            <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold font-runtime ${
-                              index === 0 ? 'bg-yellow-500 text-black' :
-                              index === 1 ? 'bg-gray-400 text-black' :
-                              index === 2 ? 'bg-amber-600 text-white' :
-                              'bg-gray-600 text-white'
-                            }`}>
-                              {index + 1}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center">
-                              <div className="mr-3">
-                                <PlayerAvatar player={{ email: player.email, name: player.name }} />
-                              </div>
-                              <span className="text-white font-runtime font-semibold">{player.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="font-bold text-green-400 font-runtime">{player.overall}</span>
-                          </td>
-                          <td className="px-6 py-4 text-center text-gray-300 font-runtime">{player.matches}</td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-green-400 font-runtime">{player.wins}</span>
-                            <span className="text-gray-400 font-runtime">/</span>
-                            <span className="text-gray-400 font-runtime">{player.draws}</span>
-                            <span className="text-red-400 font-runtime">/</span>
-                            <span className="text-red-400 font-runtime">{player.losses}</span>
-                          </td>
-                          <td className="px-6 py-4 text-center text-blue-400 font-runtime font-bold">{player.goals}</td>
-                          <td className="px-6 py-4 text-center text-purple-400 font-runtime font-bold">{player.assists}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div>
+                {sortBy === 'overall' && (
+                  <FullTable
+                    title="🏆 Classifica Overall"
+                    players={overallRanking}
+                    statKey="overall"
+                    statColor="text-green-400"
+                  />
+                )}
+                {sortBy === 'goals' && (
+                  <FullTable
+                    title="⚽ Classifica Gol"
+                    players={goalsRanking}
+                    statKey="goals"
+                    statColor="text-blue-400"
+                  />
+                )}
+                {sortBy === 'assists' && (
+                  <FullTable
+                    title="🎯 Classifica Assist"
+                    players={assistsRanking}
+                    statKey="assists"
+                    statColor="text-purple-400"
+                  />
+                )}
+                {sortBy === 'wins' && (
+                  <FullTable
+                    title="🏅 Classifica Vittorie"
+                    players={winsRanking}
+                    statKey="wins"
+                    statColor="text-green-400"
+                  />
+                )}
               </div>
             )}
           </div>

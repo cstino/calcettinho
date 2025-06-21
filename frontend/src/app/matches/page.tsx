@@ -566,15 +566,15 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] pointer-events-none z-0"></div>
+      <div className="min-h-screen bg-black">
+        {/* Background Pattern rimosso per OLED */}
+        <div className="absolute inset-0 bg-black pointer-events-none z-0"></div>
         
         <div className="relative z-10 pointer-events-auto">
           <Navigation />
           
           {/* Header */}
-          <section className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+          <section className="pt-1 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto text-center">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}

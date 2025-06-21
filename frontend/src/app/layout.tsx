@@ -21,7 +21,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#00a273',
+  themeColor: '#000000',
 }
 
 export const metadata: Metadata = {
@@ -87,7 +87,9 @@ export default function RootLayout({
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="msapplication-navbutton-color" content="#000000" />
         <meta name="apple-mobile-web-app-title" content="Calcettinho" />
         <meta name="application-name" content="Calcettinho" />
         <meta name="msapplication-TileColor" content="#00a273" />
@@ -95,7 +97,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-green-50 to-blue-50 min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black min-h-screen`}
       >
         <AuthProvider>
           <NotificationProvider>
