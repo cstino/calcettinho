@@ -1,15 +1,11 @@
 [build]
   command = "cd frontend && npm install && npm run build && cd ../netlify/functions && npm install"
+  publish = "frontend/out"
   functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
-  NETLIFY_NEXT_PLUGIN_SKIP = "true"
-
-# Plugin Next.js configurato per saltare con export statico
-[[plugins]]
-package = "@netlify/plugin-nextjs"
 
 # Configurazione delle redirects per le API specifiche
 [[redirects]]
@@ -75,6 +71,12 @@ package = "@netlify/plugin-nextjs"
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
+  status = 200
+
+# Redirect per SPA routing - IMPORTANTE per pagine dinamiche
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
 
 # Headers per sicurezza e performance
