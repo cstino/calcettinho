@@ -12,6 +12,8 @@ import VotingStatusModal from "../components/VotingStatusModal";
 import { Calendar, Users, Star, Plus, Trophy, Clock, Vote, ChevronDown, ChevronUp, Check, Activity, AlertTriangle } from 'lucide-react';
 import { useAuth } from "../contexts/AuthContext";
 import { useAdminGuard } from "../hooks/useAdminGuard";
+import { useMatchGuard } from "../hooks/useMatchGuard";
+import MatchManagementModal from "../components/MatchManagementModal";
 import { motion } from 'framer-motion';
 import ProtectedRoute from "../components/ProtectedRoute";
 
@@ -37,7 +39,9 @@ interface Match {
   assistA?: string;
   assistB?: string;
   playerStats?: { [email: string]: PlayerMatchStats };
-  status: 'scheduled' | 'completed';
+  status: 'scheduled' | 'completed' | 'in_progress';
+  match_status?: 'scheduled' | 'completed' | 'in_progress';
+  referee?: string;
 }
 
 interface CampoPlayer {
@@ -48,6 +52,7 @@ interface CampoPlayer {
 export default function Matches() {
   const { userEmail } = useAuth();
   const { AdminOnly } = useAdminGuard();
+  const { MatchManagerOnly } = useMatchGuard();
   const [matches, setMatches] = useState<Match[]>([]);
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +62,7 @@ export default function Matches() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [showVotingModal, setShowVotingModal] = useState(false);
   const [showVotingStatusModal, setShowVotingStatusModal] = useState(false);
+  const [showMatchManagementModal, setShowMatchManagementModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [votedMatches, setVotedMatches] = useState<Set<string>>(new Set());
@@ -167,7 +173,7 @@ export default function Matches() {
   };
 
   const filteredMatches = matches.filter(match => {
-    if (activeTab === 'upcoming') return !match.completed;
+    if (activeTab === 'upcoming') return !match.completed && (match.match_status === 'scheduled' || match.match_status === 'in_progress');
     if (activeTab === 'completed') return match.completed;
     return true;
   });
@@ -184,6 +190,35 @@ export default function Matches() {
     setShowCreateModal(true);
   };
 
+  const handleStartMatch = async (matchId: string) => {
+    try {
+      const response = await fetch(`/api/matches/${matchId}/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Partita avviata:', result);
+        
+        // Aggiorna la lista delle partite
+        await refreshMatches();
+        
+        // Apri il modal di gestione tabellino
+        setSelectedMatch(result.match);
+        setShowMatchManagementModal(true);
+      } else {
+        const error = await response.json();
+        alert(`Errore nell'avvio della partita: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Errore nell\'avvio della partita:', error);
+      alert('Errore nell\'avvio della partita');
+    }
+  };
+
   const handleMatchAction = async (action: string, matchId: string) => {
     const match = matches.find(m => m.matchId === matchId);
     
@@ -196,6 +231,10 @@ export default function Matches() {
       case 'start':
         setSelectedMatch(match);
         setShowResultModal(true);
+        break;
+      case 'manage':
+        setSelectedMatch(match);
+        setShowMatchManagementModal(true);
         break;
       case 'edit':
         setSelectedMatch(match);
@@ -777,7 +816,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
               </div>
 
               {/* New Match Button */}
-              <AdminOnly>
+              <MatchManagerOnly>
                 <div className="text-center mb-8 relative z-20">
                   <button
                     onClick={handleNewMatch}
@@ -787,7 +826,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                     Nuova Partita
                   </button>
                 </div>
-              </AdminOnly>
+              </MatchManagerOnly>
             </div>
           </section>
 
@@ -835,8 +874,12 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                               {match.location}
                             </span>
                           </div>
-                          <div className="inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold bg-blue-900/50 text-blue-400 border border-blue-400/30">
-                            Programmata
+                          <div className={`inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold ${
+                            match.match_status === 'in_progress' 
+                              ? 'bg-orange-900/50 text-orange-400 border border-orange-400/30'
+                              : 'bg-blue-900/50 text-blue-400 border border-blue-400/30'
+                          }`}>
+                            {match.match_status === 'in_progress' ? 'In Corso' : 'Programmata'}
                           </div>
                         </div>
 
@@ -884,7 +927,26 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                         </div>
 
                         <div className="flex justify-center">
-                          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
+                          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl">
+                            <MatchManagerOnly>
+                              {match.match_status === 'scheduled' ? (
+                                <button
+                                  onClick={() => handleStartMatch(match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  <Activity className="w-5 h-5" />
+                                  Inizia Partita
+                                </button>
+                              ) : match.match_status === 'in_progress' ? (
+                                <button
+                                  onClick={() => handleMatchAction('manage', match.matchId)}
+                                  className="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  <Activity className="w-5 h-5" />
+                                  Gestisci Tabellino
+                                </button>
+                              ) : null}
+                            </MatchManagerOnly>
                             <AdminOnly>
                               <button
                                 onClick={() => handleMatchAction('start', match.matchId)}
@@ -980,6 +1042,13 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
           matchId={selectedMatch?.matchId || ''}
           votingData={votingStatusData}
           allPlayers={allPlayers.map(p => ({ nome: p.nome, email: p.email }))}
+        />
+
+        <MatchManagementModal
+          isOpen={showMatchManagementModal}
+          onClose={() => setShowMatchManagementModal(false)}
+          onSuccess={refreshMatches}
+          match={selectedMatch}
         />
       </div>
     </ProtectedRoute>

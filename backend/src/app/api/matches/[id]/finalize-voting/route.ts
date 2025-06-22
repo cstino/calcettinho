@@ -115,18 +115,18 @@ export async function POST(
     let votingStatus;
     if (!isForced) {
       votingStatus = await checkVotingClosed(matchId);
-      
-      if (!votingStatus.closed) {
-        return NextResponse.json({
-          success: false,
-          error: 'Votazioni ancora aperte',
-          reason: votingStatus.reason,
-          phase: 2,
-          status: 'waiting'
-        }, { status: 400 });
-      }
+    
+    if (!votingStatus.closed) {
+      return NextResponse.json({
+        success: false,
+        error: 'Votazioni ancora aperte',
+        reason: votingStatus.reason,
+        phase: 2,
+        status: 'waiting'
+      }, { status: 400 });
+    }
 
-      console.log(`✅ Votazioni chiuse: ${votingStatus.reason}`);
+    console.log(`✅ Votazioni chiuse: ${votingStatus.reason}`);
     } else {
       console.log(`🔧 Finalizzazione FORZATA - Saltando controllo votazioni`);
       votingStatus = { closed: true, reason: 'Finalizzazione forzata dall\'admin' };

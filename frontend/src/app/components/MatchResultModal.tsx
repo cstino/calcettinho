@@ -18,7 +18,7 @@ interface Match {
   teamBScorer?: string;
   assistA?: string;
   assistB?: string;
-  status: 'scheduled' | 'completed';
+  status: 'scheduled' | 'completed' | 'in_progress';
   playerStats?: { [email: string]: PlayerMatchStats };
 }
 

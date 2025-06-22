@@ -54,12 +54,13 @@ export async function GET() {
       assistA: record.get('AssistA') || '',
       assistB: record.get('AssistB') || '',
       completed: record.get('completed') === true || record.get('completed') === 'true',
-      location: record.get('location') || 'Campo Centrale',
+      referee: record.get('referee') || '',
+      match_status: record.get('match_status') || 'scheduled',
       playerStats: playerStats, // Aggiungi le statistiche dei giocatori
-      // Determina lo stato basandosi su completed e presenza di scores
-      status: record.get('completed') === true || record.get('completed') === 'true' 
+      // Determina lo stato basandosi su match_status se disponibile, altrimenti su completed
+      status: record.get('match_status') || (record.get('completed') === true || record.get('completed') === 'true' 
         ? 'completed' 
-        : 'scheduled'
+        : 'scheduled')
     };
     });
     
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('Body ricevuto:', body);
     
-    const { date, teamA, teamB, location } = body;
+    const { date, teamA, teamB, referee } = body;
 
     // Validazione dati
     if (!date || !teamA || !teamB) {
@@ -130,7 +131,9 @@ export async function POST(request: NextRequest) {
       date: date,
       teamA: JSON.stringify(teamA),
       teamB: JSON.stringify(teamB),
-      completed: false
+      completed: false,
+      match_status: 'scheduled',
+      referee: referee || ''
     });
     console.log('Record creato con successo in Airtable:', (record as any).id);
 
@@ -141,8 +144,8 @@ export async function POST(request: NextRequest) {
       teamA: teamA,
       teamB: teamB,
       completed: false,
-      status: 'scheduled' as const,
-      location: location || 'Campo Centrale'
+      match_status: 'scheduled' as const,
+      referee: referee || ''
     };
 
     console.log('Partita creata:', newMatch);
@@ -175,7 +178,9 @@ export async function PUT(request: NextRequest) {
       assistA, 
       assistB, 
       playerStats,
-      completed 
+      completed,
+      match_status,
+      referee
     } = body;
 
     if (!matchId) {
@@ -213,6 +218,8 @@ export async function PUT(request: NextRequest) {
     if (assistB !== undefined) updateData.AssistB = assistB;
     if (playerStats !== undefined) updateData.playerStats = JSON.stringify(playerStats);
     if (completed !== undefined) updateData.completed = completed;
+    if (match_status !== undefined) updateData.match_status = match_status;
+    if (referee !== undefined) updateData.referee = referee;
 
     console.log('Dati da aggiornare:', updateData);
 
@@ -254,7 +261,9 @@ export async function PUT(request: NextRequest) {
       playerStats: parsedPlayerStats,
       completed: updatedRecord.get('completed') === true,
       location: updatedRecord.get('location') || 'Campo Centrale',
-      status: updatedRecord.get('completed') === true ? 'completed' : 'scheduled'
+      referee: updatedRecord.get('referee') || '',
+      match_status: updatedRecord.get('match_status') || 'scheduled',
+      status: updatedRecord.get('match_status') || (updatedRecord.get('completed') === true ? 'completed' : 'scheduled')
     };
 
     return NextResponse.json({

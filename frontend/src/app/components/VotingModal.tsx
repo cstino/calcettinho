@@ -23,6 +23,9 @@ interface Match {
   matchId: string;
   teamA: string[];
   teamB: string[];
+  status?: 'scheduled' | 'completed' | 'in_progress';
+  match_status?: 'scheduled' | 'completed' | 'in_progress';
+  referee?: string;
 }
 
 // ✅ NUOVO: Aggiornato tipo per includere NEUTRAL e MOTM
