@@ -79,7 +79,7 @@ async function checkVotingClosed(matchId: string): Promise<{ closed: boolean, re
       filterByFormula: `{matchId} = "${matchId}"`
     }).all();
 
-    const uniqueVoters = new Set(voteRecords.map(vote => vote.get('fromPlayerEmail') as string));
+    const uniqueVoters = new Set(voteRecords.map(vote => vote.get('fromPlayerId') as string));
     const playersVoted = allPlayers.filter(email => uniqueVoters.has(email));
 
     console.log(`🗳️ Controllo votazioni - Giocatori partita: ${allPlayers.length}, Hanno votato: ${playersVoted.length}`);
