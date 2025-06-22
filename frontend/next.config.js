@@ -52,21 +52,30 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true, // Disabilita ESLint durante il build per evitare errori di deploy
+  output: 'export',
+  trailingSlash: true,
+  images: {
+    unoptimized: true
   },
-  typescript: {
-    ignoreBuildErrors: true, // Disabilita TypeScript checking durante il build
-  },
+  // Configurazione per Netlify
+  distDir: 'out',
+  
+  // Configurazione per gestire le API routes
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: process.env.NODE_ENV === 'production' 
-          ? `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://calcettinho-backend.vercel.app'}/api/:path*`
-          : 'http://localhost:3001/api/:path*', // In sviluppo usa il backend locale
-      },
+        destination: '/.netlify/functions/:path*'
+      }
     ]
+  },
+
+  // Evita errori durante il build statico
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   },
 }
 
