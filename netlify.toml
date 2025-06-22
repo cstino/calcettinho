@@ -1,5 +1,5 @@
 [build]
-  publish = "frontend"
+  publish = "frontend/out"
   command = "cd frontend && npm install && npm run build && cd ../netlify/functions && npm install"
   functions = "netlify/functions"
 
@@ -7,11 +7,7 @@
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Plugin Next.js per Netlify (installazione automatica versione recente)
-[[plugins]]
-package = "@netlify/plugin-nextjs"
-
-# Configurazione delle redirects per le API specifiche
+# Configurazione delle redirects per le API specifiche (senza plugin Next.js)
 [[redirects]]
   from = "/api/player-stats/*"
   to = "/.netlify/functions/player-stats"
