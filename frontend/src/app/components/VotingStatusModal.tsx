@@ -27,6 +27,7 @@ export default function VotingStatusModal({
 }: VotingStatusModalProps) {
   
   const getPlayerName = (email: string): string => {
+    if (!email) return 'Giocatore Sconosciuto';
     const player = allPlayers.find(p => p.email === email);
     return player ? player.nome : email.split('@')[0];
   };

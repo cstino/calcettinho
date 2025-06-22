@@ -20,69 +20,89 @@ export async function GET(req: NextRequest) {
   try {
     console.log('🔍 DEBUG: Ricerca partite bloccate con votazioni aperte...');
     
-    // 1. Trova tutte le partite con votazioni aperte
-    const openVotingMatches = await base('matches').select({
-      filterByFormula: `{voting_status} = 'open'`
+    // 1. Trova tutte le partite completate (potrebbero avere votazioni aperte)
+    const completedMatches = await base('matches').select({
+      filterByFormula: `{completed} = TRUE()`
     }).all();
 
-    console.log(`🔍 Trovate ${openVotingMatches.length} partite con votazioni aperte`);
+    console.log(`🔍 Trovate ${completedMatches.length} partite completate`);
 
     const results = [];
     
-    for (const match of openVotingMatches) {
+    for (const match of completedMatches) {
       const matchId = match.get('IDmatch') as string;
-      const votingStartedAt = match.get('voting_started_at') as string;
-      const createdAt = match.get('created_at') as string;
+      const matchDate = match.get('date') as string;
       const teamA = JSON.parse(match.get('teamA') as string || '[]');
       const teamB = JSON.parse(match.get('teamB') as string || '[]');
       const allPlayers = [...teamA, ...teamB];
       
-      // Calcola tempo trascorso
+      // Calcola tempo trascorso dalla data della partita
       let hoursElapsed = 0;
       let isTimeout = false;
       
-      if (votingStartedAt) {
-        const startTime = new Date(votingStartedAt).getTime();
+      if (matchDate) {
+        const matchTime = new Date(matchDate).getTime();
         const now = new Date().getTime();
-        const timeElapsed = now - startTime;
+        const timeElapsed = now - matchTime;
         hoursElapsed = timeElapsed / (60 * 60 * 1000);
-        isTimeout = hoursElapsed > 24;
+        isTimeout = hoursElapsed > 24; // Timeout dopo 24 ore
       }
       
-      // Controlla i voti
+      // Controlla i voti per questa partita
       const voteRecords = await base('votes').select({
         filterByFormula: `{matchId} = "${matchId}"`
       }).all();
       
-      const uniqueVoters = new Set(voteRecords.map(vote => vote.get('fromPlayerId') as string));
+      // Usa fromPlayerId (campo corretto nella tabella votes)
+      const uniqueVoters = new Set(
+        voteRecords
+          .map(vote => vote.get('fromPlayerId') as string)
+          .filter(email => email != null && email !== '') // Filtra valori nulli/vuoti
+      );
       const votersFromMatch = allPlayers.filter(email => uniqueVoters.has(email));
       
-      results.push({
-        matchId,
-        createdAt,
-        votingStartedAt,
-        hoursElapsed: Math.round(hoursElapsed * 10) / 10,
-        isTimeout,
-        totalPlayers: allPlayers.length,
-        playersVoted: votersFromMatch.length,
-        playersWhoVoted: Array.from(uniqueVoters),
-        playersWhoHaventVoted: allPlayers.filter(email => !uniqueVoters.has(email)),
-        teamA,
-        teamB,
-        status: isTimeout ? 'TIMEOUT_STUCK' : 'WAITING_VOTES'
-      });
+      // Una partita è "bloccata" se:
+      // 1. È passato più di 1 ora dalla partita E
+      // 2. Non tutti i giocatori hanno votato
+      const isStuck = hoursElapsed > 1 && votersFromMatch.length < allPlayers.length;
+      
+      // Aggiungi solo partite che potrebbero essere bloccate o in attesa
+      if (isStuck || votersFromMatch.length < allPlayers.length) {
+        results.push({
+          matchId,
+          matchDate,
+          hoursElapsed: Math.round(hoursElapsed * 10) / 10,
+          isTimeout,
+          isStuck,
+          totalPlayers: allPlayers.length,
+          playersVoted: votersFromMatch.length,
+          playersWhoVoted: Array.from(uniqueVoters),
+          playersWhoHaventVoted: allPlayers.filter(email => !uniqueVoters.has(email)),
+          teamA,
+          teamB,
+          scoreA: match.get('scoreA'),
+          scoreB: match.get('scoreB'),
+          status: isTimeout ? 'TIMEOUT_STUCK' : (isStuck ? 'STUCK' : 'WAITING_VOTES'),
+          voteRecordsFound: voteRecords.length
+        });
+      }
     }
     
     // Ordina per ore trascorse (i più bloccati prima)
     results.sort((a, b) => b.hoursElapsed - a.hoursElapsed);
     
-    console.log(`🔍 DEBUG completato - ${results.length} partite analizzate`);
+    const stuckCount = results.filter(r => r.isStuck).length;
+    const timeoutCount = results.filter(r => r.isTimeout).length;
+    
+    console.log(`🔍 DEBUG completato - ${results.length} partite con problemi di votazione`);
+    console.log(`📊 Bloccate: ${stuckCount}, Timeout: ${timeoutCount}`);
     
     return NextResponse.json({
       success: true,
-      message: `Trovate ${results.length} partite con votazioni aperte`,
-      stuckMatches: results.filter(r => r.isTimeout).length,
-      waitingMatches: results.filter(r => !r.isTimeout).length,
+      message: `Trovate ${results.length} partite con votazioni incomplete`,
+      stuckMatches: stuckCount,
+      timeoutMatches: timeoutCount,
+      waitingMatches: results.filter(r => !r.isStuck && !r.isTimeout).length,
       results,
       timestamp: new Date().toISOString()
     });
@@ -115,7 +135,8 @@ export async function POST(req: NextRequest) {
       console.log('🔧 Forzando finalizzazione per partita:', matchId);
       
       try {
-        const finalizeResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/matches/${matchId}/finalize-voting`, {
+        // Usa localhost:3001 invece di NEXTAUTH_URL
+        const finalizeResponse = await fetch(`http://localhost:3001/api/matches/${matchId}/finalize-voting`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

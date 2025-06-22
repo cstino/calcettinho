@@ -305,7 +305,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
     try {
       setLoadingVotingStatus(true);
       
-      const response = await fetch('/api/admin/debug-stuck-matches');
+      const response = await fetch('http://localhost:3001/api/admin/debug-stuck-matches');
       if (!response.ok) {
         throw new Error('Errore nel recupero stato votazioni');
       }
@@ -344,7 +344,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
       
       setForcingFinalize(true);
       
-      const response = await fetch('/api/admin/force-finalize-match', {
+      const response = await fetch('http://localhost:3001/api/admin/force-finalize-match', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

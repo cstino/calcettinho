@@ -14,13 +14,16 @@ export async function POST(req: NextRequest) {
     console.log('🔧 FORCE FINALIZE: Finalizzazione forzata per partita:', matchId);
     
     // Chiama direttamente l'endpoint di finalizzazione
-    const finalizeUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/matches/${matchId}/finalize-voting`;
+    const finalizeUrl = `http://localhost:3001/api/matches/${matchId}/finalize-voting`;
     
     const finalizeResponse = await fetch(finalizeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
+      body: JSON.stringify({
+        force: true
+      })
     });
 
     const finalizeData = await finalizeResponse.json();
