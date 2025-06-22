@@ -79,7 +79,7 @@ async function checkVotingClosed(matchId: string): Promise<{ closed: boolean, re
       filterByFormula: `{matchId} = "${matchId}"`
     }).all();
 
-    const uniqueVoters = new Set(voteRecords.map(vote => vote.get('fromPlayerEmail') as string));
+    const uniqueVoters = new Set(voteRecords.map(vote => vote.get('fromPlayerId') as string));
     const playersVoted = allPlayers.filter(email => uniqueVoters.has(email));
 
     console.log(`🗳️ Controllo votazioni - Giocatori partita: ${allPlayers.length}, Hanno votato: ${playersVoted.length}`);
@@ -105,22 +105,32 @@ export async function POST(
   try {
     const { id: matchId } = await params;
     
-    console.log('🗳️ FASE 2: Finalizzando votazioni per partita:', matchId);
-
-    // 1. Controlla se le votazioni sono chiuse
-    const votingStatus = await checkVotingClosed(matchId);
+    // Leggi il body per vedere se è una finalizzazione forzata
+    const body = await req.json().catch(() => ({}));
+    const isForced = body.force === true;
     
-    if (!votingStatus.closed) {
-      return NextResponse.json({
-        success: false,
-        error: 'Votazioni ancora aperte',
-        reason: votingStatus.reason,
-        phase: 2,
-        status: 'waiting'
-      }, { status: 400 });
-    }
+    console.log('🗳️ FASE 2: Finalizzando votazioni per partita:', matchId, isForced ? '(FORZATA)' : '');
 
-    console.log(`✅ Votazioni chiuse: ${votingStatus.reason}`);
+    // 1. Controlla se le votazioni sono chiuse (salta se forzata)
+    let votingStatus;
+    if (!isForced) {
+      votingStatus = await checkVotingClosed(matchId);
+      
+      if (!votingStatus.closed) {
+        return NextResponse.json({
+          success: false,
+          error: 'Votazioni ancora aperte',
+          reason: votingStatus.reason,
+          phase: 2,
+          status: 'waiting'
+        }, { status: 400 });
+      }
+
+      console.log(`✅ Votazioni chiuse: ${votingStatus.reason}`);
+    } else {
+      console.log(`🔧 Finalizzazione FORZATA - Saltando controllo votazioni`);
+      votingStatus = { closed: true, reason: 'Finalizzazione forzata dall\'admin' };
+    }
 
     // 2. Recupera i dettagli della partita
     const matchRecords = await base('matches').select({

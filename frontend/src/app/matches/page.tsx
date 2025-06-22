@@ -8,7 +8,8 @@ import CreateMatchModal from "../components/CreateMatchModal";
 import MatchResultModal from "../components/MatchResultModal";
 import VotingModal from "../components/VotingModal";
 import EditMatchModal from "../components/EditMatchModal";
-import { Calendar, Users, Star, Plus, Trophy, Clock, Vote, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import VotingStatusModal from "../components/VotingStatusModal";
+import { Calendar, Users, Star, Plus, Trophy, Clock, Vote, ChevronDown, ChevronUp, Check, Activity, AlertTriangle } from 'lucide-react';
 import { useAuth } from "../contexts/AuthContext";
 import { useAdminGuard } from "../hooks/useAdminGuard";
 import { motion } from 'framer-motion';
@@ -55,9 +56,13 @@ export default function Matches() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [showVotingModal, setShowVotingModal] = useState(false);
+  const [showVotingStatusModal, setShowVotingStatusModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [votedMatches, setVotedMatches] = useState<Set<string>>(new Set());
+  const [votingStatusData, setVotingStatusData] = useState<any>(null);
+  const [loadingVotingStatus, setLoadingVotingStatus] = useState(false);
+  const [forcingFinalize, setForcingFinalize] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -295,6 +300,83 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
     });
   };
 
+  // 🔍 Funzione per controllare lo stato delle votazioni
+  const checkVotingStatus = async (matchId: string) => {
+    try {
+      setLoadingVotingStatus(true);
+      
+      const response = await fetch('http://localhost:3001/api/admin/debug-stuck-matches');
+      if (!response.ok) {
+        throw new Error('Errore nel recupero stato votazioni');
+      }
+      
+      const data = await response.json();
+      const matchData = data.results.find((r: any) => r.matchId === matchId);
+      
+      if (matchData) {
+        setVotingStatusData(matchData);
+        setSelectedMatch(matches.find(m => m.matchId === matchId) || null);
+        setShowVotingStatusModal(true);
+      } else {
+        alert('❌ Dati di votazione non trovati per questa partita');
+      }
+    } catch (error) {
+      console.error('Errore nel controllo stato votazioni:', error);
+      alert('❌ Errore nel controllo stato votazioni');
+    } finally {
+      setLoadingVotingStatus(false);
+    }
+  };
+
+  // 🔧 Funzione per forzare la finalizzazione delle votazioni
+  const forceFinalize = async (matchId: string) => {
+    try {
+      const confirmed = confirm(
+        '⚠️ Sei sicuro di voler forzare la chiusura delle votazioni?\n\n' +
+        'Questa azione:\n' +
+        '• Chiuderà definitivamente le votazioni\n' +
+        '• Assegnerà il premio MOTM\n' +
+        '• Aggiornerà le statistiche dei giocatori\n' +
+        '• Non potrà essere annullata'
+      );
+      
+      if (!confirmed) return;
+      
+      setForcingFinalize(true);
+      
+      const response = await fetch('http://localhost:3001/api/admin/force-finalize-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ matchId })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(
+          '✅ Votazioni finalizzate con successo!\n\n' +
+          `• MOTM assegnati: ${data.motmAwarded}\n` +
+          `• Abilità aggiornate: ${data.abilitiesUpdated} giocatori`
+        );
+        
+        // Ricarica i dati delle partite
+        await refreshMatches();
+        
+        // Chiudi il modal se aperto
+        setShowVotingStatusModal(false);
+      } else {
+        alert(`❌ Errore nella finalizzazione: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Errore nella finalizzazione forzata:', error);
+      alert('❌ Errore nella finalizzazione forzata');
+    } finally {
+      setForcingFinalize(false);
+    }
+  };
+
   const CompactMatchCard = ({ match }: { match: Match }) => {
     const isExpanded = expandedMatches.has(match.matchId);
     const allPlayers = [...match.teamA, ...match.teamB];
@@ -384,8 +466,15 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                     {match.location}
                   </span>
                 </div>
-                <div className="inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold bg-green-900/50 text-green-400 border border-green-400/30">
-                  Completata
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold bg-green-900/50 text-green-400 border border-green-400/30">
+                    Completata
+                  </div>
+                  <AdminOnly>
+                    <div className="inline-flex px-3 py-1 rounded-full text-xs font-runtime font-semibold bg-purple-900/50 text-purple-400 border border-purple-400/30">
+                      🗳️ Votazioni
+                    </div>
+                  </AdminOnly>
                 </div>
               </div>
 
@@ -514,46 +603,97 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
               </div>
 
               <div className="flex justify-center">
-                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg">
-                  {userEmail && [...match.teamA, ...match.teamB].includes(userEmail) && (
-                    // ✅ Controllo se l'utente ha già votato per questa partita
-                    (() => {
-                      const hasVoted = votedMatches.has(match.matchId);
-                      
-                      return hasVoted ? (
-                        <button
-                          disabled
-                          className="flex-1 bg-gray-600 text-gray-300 px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg cursor-not-allowed"
-                        >
-                          <Check className="w-5 h-5" />
-                          Voti Inviati
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleMatchAction('vote', match.matchId)}
-                          className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-                        >
-                          <Vote className="w-5 h-5" />
-                          Vota Ora
-                        </button>
-                      );
-                    })()
-                  )}
+                <div className="flex flex-col gap-4 w-full max-w-4xl">
+                  {/* Player Voting Section */}
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {userEmail && [...match.teamA, ...match.teamB].includes(userEmail) && (
+                      // ✅ Controllo se l'utente ha già votato per questa partita
+                      (() => {
+                        const hasVoted = votedMatches.has(match.matchId);
+                        
+                        return hasVoted ? (
+                          <button
+                            disabled
+                            className="flex-1 bg-gray-600 text-gray-300 px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg cursor-not-allowed"
+                          >
+                            <Check className="w-5 h-5" />
+                            Voti Inviati
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleMatchAction('vote', match.matchId)}
+                            className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                          >
+                            <Vote className="w-5 h-5" />
+                            Vota Ora
+                          </button>
+                        );
+                      })()
+                    )}
+                  </div>
+
+                  {/* Admin Voting Controls */}
                   <AdminOnly>
-                    <button
-                      onClick={() => handleMatchAction('edit', match.matchId)}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                    >
-                      Modifica
-                    </button>
+                    <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-4">
+                      <h4 className="text-purple-400 font-runtime font-semibold mb-3 text-center">
+                        🔧 Controlli Admin Votazioni
+                      </h4>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          onClick={() => checkVotingStatus(match.matchId)}
+                          disabled={loadingVotingStatus}
+                          className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-4 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loadingVotingStatus ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Caricamento...
+                            </>
+                          ) : (
+                            <>
+                              <Activity className="w-4 h-4" />
+                              Stato Voti
+                            </>
+                          )}
+                        </button>
+                        
+                        <button
+                          onClick={() => forceFinalize(match.matchId)}
+                          disabled={forcingFinalize}
+                          className="flex-1 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white px-4 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {forcingFinalize ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Finalizzando...
+                            </>
+                          ) : (
+                            <>
+                              <AlertTriangle className="w-4 h-4" />
+                              Forza Chiusura
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </AdminOnly>
+
+                  {/* Standard Admin Controls */}
                   <AdminOnly>
-                    <button
-                      onClick={() => handleMatchAction('delete', match.matchId)}
-                      className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                    >
-                      Elimina
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => handleMatchAction('edit', match.matchId)}
+                        className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        Modifica
+                      </button>
+                      <button
+                        onClick={() => handleMatchAction('delete', match.matchId)}
+                        className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        Elimina
+                      </button>
+                    </div>
                   </AdminOnly>
                 </div>
               </div>
@@ -832,6 +972,14 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
           match={selectedMatch}
           allPlayers={allPlayers.map(p => ({ nome: p.nome, email: p.email }))}
           onSuccess={refreshMatches}
+        />
+
+        <VotingStatusModal
+          isOpen={showVotingStatusModal}
+          onClose={() => setShowVotingStatusModal(false)}
+          matchId={selectedMatch?.matchId || ''}
+          votingData={votingStatusData}
+          allPlayers={allPlayers.map(p => ({ nome: p.nome, email: p.email }))}
         />
       </div>
     </ProtectedRoute>
