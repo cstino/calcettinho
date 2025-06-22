@@ -52,25 +52,23 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  trailingSlash: true,
   images: {
     unoptimized: true
   },
-  // Configurazione per Netlify
-  distDir: 'out',
   
   // Configurazione per gestire le API routes
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: '/.netlify/functions/:path*'
+        destination: process.env.NODE_ENV === 'production' 
+          ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/:path*`
+          : 'http://localhost:3001/api/:path*'
       }
     ]
   },
 
-  // Evita errori durante il build statico
+  // Evita errori durante il build
   eslint: {
     ignoreDuringBuilds: true,
   },
