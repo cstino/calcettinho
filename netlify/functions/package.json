@@ -1,0 +1,11 @@
+{
+  "name": "calcettinho-netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for Calcettinho backend",
+  "main": "index.js",
+  "dependencies": {
+    "airtable": "^0.12.2",
+    "dotenv": "^16.5.0",
+    "googleapis": "^149.0.0"
+  }
+} 

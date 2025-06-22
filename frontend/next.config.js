@@ -56,18 +56,6 @@ const nextConfig = {
     unoptimized: true
   },
   
-  // Configurazione per gestire le API routes
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: process.env.NODE_ENV === 'production' 
-          ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/:path*`
-          : 'http://localhost:3001/api/:path*'
-      }
-    ]
-  },
-
   // Evita errori durante il build
   eslint: {
     ignoreDuringBuilds: true,
