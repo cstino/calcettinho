@@ -1,10 +1,81 @@
 [build]
   publish = "frontend/.next"
-  command = "cd frontend && npm install && npm run build"
+  command = "cd frontend && npm install && npm run build && cd ../netlify/functions && npm install"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
+  NEXT_TELEMETRY_DISABLED = "1"
 
 # Plugin Essential Next.js per Netlify
 [[plugins]]
-  package = "@netlify/plugin-nextjs" 
+  package = "@netlify/plugin-nextjs"
+
+# Configurazione delle redirects per le API specifiche
+[[redirects]]
+  from = "/api/player-stats/*"
+  to = "/.netlify/functions/player-stats"
+  status = 200
+
+[[redirects]]
+  from = "/api/player-awards/*"
+  to = "/.netlify/functions/player-awards"
+  status = 200
+
+[[redirects]]
+  from = "/api/votes/check/*/*"
+  to = "/.netlify/functions/votes-check"
+  status = 200
+
+[[redirects]]
+  from = "/api/votes/history/*"
+  to = "/.netlify/functions/votes-history"
+  status = 200
+
+[[redirects]]
+  from = "/api/votes/submit"
+  to = "/.netlify/functions/votes-submit"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/check"
+  to = "/.netlify/functions/auth-check"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/role/*"
+  to = "/.netlify/functions/auth-role"
+  status = 200
+
+[[redirects]]
+  from = "/api/compare-players"
+  to = "/.netlify/functions/compare-players"
+  status = 200
+
+[[redirects]]
+  from = "/api/card/*"
+  to = "/.netlify/functions/card"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Headers per sicurezza e performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable" 
