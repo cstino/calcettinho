@@ -6,8 +6,13 @@
 [build.environment]
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
-# Configurazione delle redirects per le API specifiche (senza plugin Next.js)
+# Plugin Next.js configurato per saltare con export statico
+[[plugins]]
+package = "@netlify/plugin-nextjs"
+
+# Configurazione delle redirects per le API specifiche
 [[redirects]]
   from = "/api/player-stats/*"
   to = "/.netlify/functions/player-stats"
