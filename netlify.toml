@@ -7,9 +7,9 @@
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Plugin Essential Next.js per Netlify
+# Plugin Essential Next.js per Netlify (versione aggiornata)
 [[plugins]]
-  package = "@netlify/plugin-nextjs"
+  package = "@netlify/plugin-nextjs@5.11.3"
 
 # Configurazione delle redirects per le API specifiche
 [[redirects]]
