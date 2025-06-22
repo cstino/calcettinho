@@ -118,3 +118,131 @@ Dopo aver riparato una partita, verifica:
 ❌ Errore durante finalize-voting automatico
 ```
 **Soluzione**: Configurare `NEXTAUTH_URL` correttamente 
+
+# Troubleshooting Guide - Calcettinho
+
+## Problema: Votazioni Bloccate
+
+### Sintomi
+- Partita completata da oltre 24 ore ma votazioni ancora aperte
+- Giocatori non ricevono aggiornamenti statistiche  
+- Sistema di voti non si chiude automaticamente
+
+### Cause Principali
+1. **Bug nel conteggio voti**: Campo `fromPlayerEmail` vs `fromPlayerId` 
+2. **Cron job Vercel non affidabile**: Dipendenza da servizi esterni
+3. **Variabili ambiente mancanti**: `NEXTAUTH_URL`, `CRON_SECRET`
+
+### Soluzione: Interfaccia Admin
+
+#### Nuovi Controlli Admin (Pagina Matches)
+Per ogni partita completata sono disponibili due pulsanti:
+
+**🗳️ "Stato Voti"**
+- Mostra progresso votazioni (es. "6/10 players voted")
+- Lista chi ha votato ✅ vs chi non ha votato ⏰
+- Indica ore trascorse e timeout status
+- Progress bar visuale
+
+**⚡ "Forza Chiusura"** 
+- Chiude manualmente le votazioni bloccate
+- Assegna MOTM basato sui voti ricevuti
+- Aggiorna abilità giocatori con Fair Algorithm v1.3
+- Conferma richiesta per sicurezza
+
+#### API Endpoints Admin
+- `GET /api/admin/debug-stuck-matches` - Analizza partite bloccate
+- `POST /api/admin/force-finalize-match` - Forza chiusura votazioni
+
+### Bug Risolti
+1. **Finalize Voting**: Corretto `fromPlayerEmail` → `fromPlayerId` (linea 78)
+2. **CORS Backend**: Aggiunto supporto cross-origin per frontend
+3. **Environment Variables**: Documentate variabili mancanti
+
+### File Modificati
+- `backend/src/app/api/matches/[id]/finalize-voting/route.ts`
+- `frontend/src/app/components/VotingStatusModal.tsx` (nuovo)
+- `frontend/src/app/matches/page.tsx` (controlli admin)
+- `backend/src/app/api/admin/debug-stuck-matches/route.ts` (nuovo)
+- `backend/src/app/api/admin/force-finalize-match/route.ts` (nuovo)
+- `backend/next.config.js` (CORS)
+
+---
+
+## Modifiche Card Speciali Milestone
+
+### Cambiamenti Richiesti
+Trasformare alcune card da **post-match** a **milestone** basate su statistiche cumulative:
+
+#### Card Gol (Milestone Progressive)
+- **goleador**: 10 gol totali in carriera (era: più gol in singola partita)
+- **matador**: 25 gol totali in carriera (era: post-match)  
+- **goldenboot**: 50 gol totali in carriera (era: post-match)
+
+#### Card Assist (Milestone Progressive)
+- **assistman**: 10 assist totali in carriera (era: più assist in singola partita)
+- **regista**: 25 assist totali in carriera (era: post-match)
+- **elfutbol**: 50 assist totali in carriera (era: post-match)
+
+### Modifiche Necessarie in Airtable
+
+#### Tabella `special_cards` - Aggiornamenti:
+
+**1. goleador**
+```
+condition_type: player_stats
+condition_field: Gol  
+condition_value: 10
+ranking_behavior: threshold_met
+```
+
+**2. matador**
+```
+condition_type: player_stats
+condition_field: Gol
+condition_value: 25  
+ranking_behavior: threshold_met
+```
+
+**3. goldenboot**
+```
+condition_type: player_stats
+condition_field: Gol
+condition_value: 50
+ranking_behavior: threshold_met
+```
+
+**4. assistman**
+```
+condition_type: player_stats
+condition_field: assistenze
+condition_value: 10
+ranking_behavior: threshold_met
+```
+
+**5. regista**
+```
+condition_type: player_stats  
+condition_field: assistenze
+condition_value: 25
+ranking_behavior: threshold_met
+```
+
+**6. elfutbol**
+```
+condition_type: player_stats
+condition_field: assistenze  
+condition_value: 50
+ranking_behavior: threshold_met
+```
+
+### Vantaggi del Nuovo Sistema
+- **Progressione più sensata**: Card sbloccate con milestone realistiche
+- **Motivazione a lungo termine**: Obiettivi cumulativi vs singola partita
+- **Sistema più equo**: Non dipende dalla prestazione di una sola partita
+- **Collezione progressiva**: Catene logiche goleador → matador → goldenboot
+
+### Note Implementazione
+- Il sistema controlla automaticamente le milestone dopo ogni partita
+- Le card vengono assegnate una sola volta quando si raggiunge la soglia
+- Non sostituisce le card esistenti già sbloccate dai giocatori 

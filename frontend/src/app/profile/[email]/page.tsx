@@ -719,14 +719,14 @@ export default function PlayerProfile() {
   const getAwardDescription = (awardType: string) => {
     const descriptions: Record<string, string> = {
       '1presenza': 'Prima partita giocata',
-      // ⚽ Catena Goleador Progressive
-      'goleador': 'Più gol segnati in partita',
-      'matador': 'Goleador esperto (richiede Goleador)',
-      'goldenboot': 'Leggenda del gol (richiede Matador)',
-      // 🅰️ Catena Assistman Progressive
-      'assistman': 'Più assist forniti in partita',
-      'regista': 'Maestro degli assist (richiede Assistman)',
-      'elfutbol': 'Genio del passaggio (richiede Regista)',
+      // ⚽ Catena Goleador Progressive (MILESTONE)
+      'goleador': '10 gol segnati in carriera',
+      'matador': '25 gol segnati in carriera',
+      'goldenboot': '50 gol segnati in carriera',
+      // 🅰️ Catena Assistman Progressive (MILESTONE)
+      'assistman': '10 assist forniti in carriera',
+      'regista': '25 assist forniti in carriera',
+      'elfutbol': '50 assist forniti in carriera',
       // 🏆 Altri premi
       'motm': 'Più voti MOTM ricevuti in partita',
       'win3': '3 vittorie consecutive',
@@ -743,15 +743,15 @@ export default function PlayerProfile() {
     // 🔹 Card Base/Introduzione
     { id: '1presenza', name: 'Prima Presenza', description: 'Prima partita giocata', color: 'from-blue-600 to-blue-800' },
     
-    // ⚽ Catena Goleador (Progressive)
-    { id: 'goleador', name: 'Goleador', description: 'Più gol segnati in partita', color: 'from-red-600 to-red-800' },
-    { id: 'matador', name: 'Matador', description: 'Goleador esperto (richiede Goleador)', color: 'from-red-800 to-red-900' },
-    { id: 'goldenboot', name: 'Golden Boot', description: 'Leggenda del gol (richiede Matador)', color: 'from-yellow-600 to-yellow-800' },
+    // ⚽ Catena Goleador (Progressive MILESTONE)
+    { id: 'goleador', name: 'Goleador', description: '10 gol segnati in carriera', color: 'from-red-600 to-red-800' },
+    { id: 'matador', name: 'Matador', description: '25 gol segnati in carriera', color: 'from-red-800 to-red-900' },
+    { id: 'goldenboot', name: 'Golden Boot', description: '50 gol segnati in carriera', color: 'from-yellow-600 to-yellow-800' },
     
-    // 🅰️ Catena Assistman (Progressive)
-    { id: 'assistman', name: 'Assist Man', description: 'Più assist forniti in partita', color: 'from-green-600 to-green-800' },
-    { id: 'regista', name: 'Regista', description: 'Maestro degli assist (richiede Assistman)', color: 'from-green-700 to-green-900' },
-    { id: 'elfutbol', name: 'El fútbol', description: 'Genio del passaggio (richiede Regista)', color: 'from-purple-600 to-purple-800' },
+    // 🅰️ Catena Assistman (Progressive MILESTONE)
+    { id: 'assistman', name: 'Assist Man', description: '10 assist forniti in carriera', color: 'from-green-600 to-green-800' },
+    { id: 'regista', name: 'Regista', description: '25 assist forniti in carriera', color: 'from-green-700 to-green-900' },
+    { id: 'elfutbol', name: 'El fútbol', description: '50 assist forniti in carriera', color: 'from-purple-600 to-purple-800' },
     
     // 🏆 Altri Premi
     { id: 'motm', name: 'Man of the Match', description: 'Più voti MOTM ricevuti in partita', color: 'from-yellow-600 to-yellow-800' },
