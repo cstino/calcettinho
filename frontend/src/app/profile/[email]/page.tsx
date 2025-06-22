@@ -1272,17 +1272,18 @@ export default function PlayerProfile() {
               </div>
             )}
 
-            {/* ✅ MODAL PROGRESSO CARD BLOCCATE */}
+            {/* ✅ MODAL PROGRESSO CARD BLOCCATE - OTTIMIZZATO MOBILE */}
             {progressModal && (
               <div 
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setProgressModal(null);
                   }
                 }}
               >
-                <div className="bg-gray-900 rounded-2xl w-full max-w-sm border border-gray-700">
+                <div className="bg-gray-900 rounded-t-3xl sm:rounded-2xl w-full sm:w-full sm:max-w-md border-t border-gray-700 sm:border border-gray-700 max-h-[85vh] sm:max-h-[90vh] overflow-hidden"
+                     style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                   {(() => {
                     const card = allSpecialCards.find(c => c.id === progressModal);
                     const progress = getCardProgress(progressModal);
@@ -1290,63 +1291,63 @@ export default function PlayerProfile() {
                     
                     return (
                       <>
-                        {/* Header */}
-                        <div className="border-b border-gray-700 p-4">
+                        {/* Header - Mobile Optimized */}
+                        <div className="border-b border-gray-700 p-4 sm:p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
-                              <h3 className="text-lg font-bold text-white font-runtime flex items-center">
-                                <svg className="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <h3 className="text-xl sm:text-lg font-bold text-white font-runtime flex items-center">
+                                <svg className="w-6 h-6 sm:w-5 sm:h-5 text-gray-500 mr-3 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
                                 {card?.name}
                               </h3>
-                              <p className="text-gray-400 font-runtime text-sm mt-1">
+                              <p className="text-gray-400 font-runtime text-base sm:text-sm mt-1">
                                 Card bloccata
                               </p>
                             </div>
                             <button
                               onClick={() => setProgressModal(null)}
-                              className="ml-4 text-gray-400 hover:text-white transition-colors"
+                              className="ml-4 text-gray-400 hover:text-white transition-colors p-2 sm:p-1"
                             >
-                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-7 h-7 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
                             </button>
                           </div>
                         </div>
                         
-                        {/* Contenuto */}
-                        <div className="p-6">
-                          {/* Preview card bloccata */}
-                          <div className="mb-6 flex justify-center">
-                            <div className="w-32 h-40 relative">
+                        {/* Contenuto - Mobile Optimized */}
+                        <div className="p-6 sm:p-6 overflow-y-auto flex-1">
+                          {/* Preview card bloccata - Più grande su mobile */}
+                          <div className="mb-8 sm:mb-6 flex justify-center">
+                            <div className="w-40 h-48 sm:w-32 sm:h-40 relative">
                               <div className={`absolute inset-0 rounded-lg bg-gradient-to-br ${card?.color} opacity-30`}></div>
                               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-16 h-16 sm:w-12 sm:h-12 text-gray-400 mb-3 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
-                                <p className="text-gray-400 text-xs font-runtime font-bold text-center px-2">{card?.name}</p>
+                                <p className="text-gray-400 text-sm sm:text-xs font-runtime font-bold text-center px-2">{card?.name}</p>
                               </div>
                             </div>
                           </div>
                           
-                          {/* Requisiti e progresso */}
-                          <div className="space-y-4">
+                          {/* Requisiti e progresso - Mobile Optimized */}
+                          <div className="space-y-6 sm:space-y-4">
                             <div>
-                              <h4 className="text-white font-runtime font-bold mb-2">🎯 Come sbloccare:</h4>
-                              <p className="text-gray-300 font-runtime text-sm">{progress.description}</p>
+                              <h4 className="text-white font-runtime font-bold mb-3 sm:mb-2 text-lg sm:text-base">🎯 Come sbloccare:</h4>
+                              <p className="text-gray-300 font-runtime text-base sm:text-sm leading-relaxed">{progress.description}</p>
                             </div>
                             
                             <div>
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-gray-400 font-runtime text-sm">Progresso</span>
-                                <span className="text-white font-runtime font-bold">
+                              <div className="flex justify-between items-center mb-3 sm:mb-2">
+                                <span className="text-gray-400 font-runtime text-base sm:text-sm">Progresso</span>
+                                <span className="text-white font-runtime font-bold text-lg sm:text-base">
                                   {progress.current}/{progress.required}
                                 </span>
                               </div>
                               
-                              {/* Progress bar */}
-                              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                              {/* Progress bar - Più grande su mobile */}
+                              <div className="w-full bg-gray-700 rounded-full h-4 sm:h-3 overflow-hidden">
                                 <div 
                                   className={`h-full bg-gradient-to-r transition-all duration-1000 ease-out ${
                                     percentage >= 100 
@@ -1361,18 +1362,18 @@ export default function PlayerProfile() {
                                 ></div>
                               </div>
                               
-                              <div className="flex justify-between items-center mt-1">
-                                <span className="text-gray-500 font-runtime text-xs">0</span>
-                                <span className="text-gray-300 font-runtime text-sm font-bold">
+                              <div className="flex justify-between items-center mt-2 sm:mt-1">
+                                <span className="text-gray-500 font-runtime text-sm sm:text-xs">0</span>
+                                <span className="text-gray-300 font-runtime text-base sm:text-sm font-bold">
                                   {percentage.toFixed(0)}%
                                 </span>
-                                <span className="text-gray-500 font-runtime text-xs">{progress.required}</span>
+                                <span className="text-gray-500 font-runtime text-sm sm:text-xs">{progress.required}</span>
                               </div>
                             </div>
                             
-                            {/* Messaggio motivazionale */}
-                            <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-3">
-                              <p className="text-blue-300 font-runtime text-xs text-center">
+                            {/* Messaggio motivazionale - Più grande su mobile */}
+                            <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-4 sm:p-3">
+                              <p className="text-blue-300 font-runtime text-sm sm:text-xs text-center leading-relaxed">
                                 {percentage >= 100 
                                   ? "🎉 Requisiti completati! La card verrà sbloccata dopo la prossima partita."
                                   : percentage >= 75
@@ -1388,11 +1389,11 @@ export default function PlayerProfile() {
                           </div>
                         </div>
                         
-                        {/* Footer */}
-                        <div className="border-t border-gray-700 p-4">
+                        {/* Footer - Mobile Optimized */}
+                        <div className="border-t border-gray-700 p-4 sm:p-4">
                           <button
                             onClick={() => setProgressModal(null)}
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-runtime font-semibold transition-all"
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 sm:py-3 px-4 rounded-xl font-runtime font-semibold text-lg sm:text-base transition-all"
                           >
                             👍 Capito!
                           </button>
