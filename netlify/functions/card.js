@@ -149,10 +149,16 @@ exports.handler = async (event, context) => {
 
     console.log('Card data preparata:', cardData);
 
+    // TEMPORANEO: Redirect alle card template statiche invece di generare immagini
+    const templateUrl = `https://calcettinho.netlify.app/cards/${template}.png`;
+    
     return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(cardData)
+      statusCode: 302,
+      headers: {
+        'Location': templateUrl,
+        'Cache-Control': 'public, max-age=300'
+      },
+      body: ''
     };
 
   } catch (error) {

@@ -185,37 +185,16 @@ exports.handler = async (event, context) => {
 
     console.log(`Overall: ${overall}, Template special: ${template}`);
 
-    // NOTA: Invece di generare un'immagine con Canvas (problematico su Netlify),
-    // restituiamo i dati necessari per generare la card lato client
-    const cardData = {
-      player: {
-        nome: playerData.nome,
-        email: playerData.email,
-        photoUrl: playerData.photoUrl,
-        overall: overall,
-        stats: {
-          ATT: playerData.ATT,
-          DEF: playerData.DEF,
-          VEL: playerData.VEL,
-          FOR: playerData.FOR,
-          PAS: playerData.PAS,
-          POR: playerData.POR
-        }
-      },
-      special: {
-        template: template,
-        name: specialCardData.name,
-        description: specialCardData.description,
-        color: specialCardData.color,
-        templateUrl: specialCardData.templateUrl
-      },
-      message: 'Card special data retrieved successfully. Image generation not available on Netlify due to Canvas limitations.'
-    };
-
+    // TEMPORANEO: Redirect alle card special statiche invece di generare immagini
+    const specialTemplateUrl = `https://calcettinho.netlify.app/cards/special/${template}.png`;
+    
     return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(cardData)
+      statusCode: 302,
+      headers: {
+        'Location': specialTemplateUrl,
+        'Cache-Control': 'public, max-age=300'
+      },
+      body: ''
     };
 
   } catch (error) {
