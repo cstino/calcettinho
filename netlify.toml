@@ -63,6 +63,16 @@ package = "@netlify/plugin-nextjs"
   status = 200
 
 [[redirects]]
+  from = "/api/players/*"
+  to = "/.netlify/functions/player-photo"
+  status = 200
+
+[[redirects]]
+  from = "/api/players"
+  to = "/.netlify/functions/players"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
