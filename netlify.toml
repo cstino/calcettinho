@@ -1,4 +1,5 @@
 [build]
+  publish = "frontend/.next"
   command = "cd frontend && npm install && npm run build"
 
 [build.environment]
