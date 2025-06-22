@@ -762,6 +762,9 @@ export default function PlayerProfile() {
 
   // ✅ NUOVO: Stato per modal di selezione card
   const [selectedCardModal, setSelectedCardModal] = useState<string | null>(null);
+  
+  // ✅ NUOVO: Stato per modal progresso card bloccate
+  const [progressModal, setProgressModal] = useState<string | null>(null);
 
   // ✅ NUOVO: Funzione per controllare se una card è sbloccata
   const isCardUnlocked = (cardId: string) => {
@@ -776,6 +779,34 @@ export default function PlayerProfile() {
   // ✅ NUOVO: Funzione per controllare se una card è selezionata
   const isCardSelected = (cardId: string) => {
     return playerAwards?.selectedCard?.awardType === cardId || false;
+  };
+
+  // ✅ NUOVO: Funzione per calcolare il progresso verso le milestone
+  const getCardProgress = (cardId: string) => {
+    if (!playerStats) return { current: 0, required: 0, description: '' };
+    
+    const progressMap: Record<string, { field: keyof PlayerStats, required: number, description: string }> = {
+      'goleador': { field: 'gol', required: 10, description: 'Segna 10 gol in carriera' },
+      'matador': { field: 'gol', required: 25, description: 'Segna 25 gol in carriera' },
+      'goldenboot': { field: 'gol', required: 50, description: 'Segna 50 gol in carriera' },
+      'assistman': { field: 'assistenze', required: 10, description: 'Fornisci 10 assist in carriera' },
+      'regista': { field: 'assistenze', required: 25, description: 'Fornisci 25 assist in carriera' },
+      'elfutbol': { field: 'assistenze', required: 50, description: 'Fornisci 50 assist in carriera' },
+      'win10': { field: 'partiteVinte', required: 10, description: 'Vinci 10 partite' },
+      'win25': { field: 'partiteVinte', required: 25, description: 'Vinci 25 partite' },
+      'win50': { field: 'partiteVinte', required: 50, description: 'Vinci 50 partite' },
+      '1presenza': { field: 'partiteDisputate', required: 1, description: 'Gioca la tua prima partita' }
+    };
+    
+    const progress = progressMap[cardId];
+    if (!progress) return { current: 0, required: 0, description: 'Card speciale' };
+    
+    const current = playerStats[progress.field] || 0;
+    return {
+      current,
+      required: progress.required,
+      description: progress.description
+    };
   };
 
   // Componente per immagine STATICO - NO RELOAD
@@ -1098,9 +1129,15 @@ export default function PlayerProfile() {
                                   ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
                                   : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
                                 }`
-                              : 'border-gray-700 bg-gray-900/50 cursor-not-allowed'
+                              : 'border-gray-700 bg-gray-900/50 cursor-pointer hover:border-gray-600'
                           }`}
-                          onClick={() => isUnlocked && isOwner && setSelectedCardModal(card.id)}
+                          onClick={() => {
+                            if (isUnlocked && isOwner) {
+                              setSelectedCardModal(card.id);
+                            } else if (!isUnlocked) {
+                              setProgressModal(card.id);
+                            }
+                          }}
                         >
                           {isUnlocked ? (
                             <>
@@ -1231,6 +1268,138 @@ export default function PlayerProfile() {
                       </button>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ✅ MODAL PROGRESSO CARD BLOCCATE */}
+            {progressModal && (
+              <div 
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setProgressModal(null);
+                  }
+                }}
+              >
+                <div className="bg-gray-900 rounded-2xl w-full max-w-sm border border-gray-700">
+                  {(() => {
+                    const card = allSpecialCards.find(c => c.id === progressModal);
+                    const progress = getCardProgress(progressModal);
+                    const percentage = Math.min((progress.current / progress.required) * 100, 100);
+                    
+                    return (
+                      <>
+                        {/* Header */}
+                        <div className="border-b border-gray-700 p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-bold text-white font-runtime flex items-center">
+                                <svg className="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                {card?.name}
+                              </h3>
+                              <p className="text-gray-400 font-runtime text-sm mt-1">
+                                Card bloccata
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setProgressModal(null)}
+                              className="ml-4 text-gray-400 hover:text-white transition-colors"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Contenuto */}
+                        <div className="p-6">
+                          {/* Preview card bloccata */}
+                          <div className="mb-6 flex justify-center">
+                            <div className="w-32 h-40 relative">
+                              <div className={`absolute inset-0 rounded-lg bg-gradient-to-br ${card?.color} opacity-30`}></div>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                <p className="text-gray-400 text-xs font-runtime font-bold text-center px-2">{card?.name}</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Requisiti e progresso */}
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-white font-runtime font-bold mb-2">🎯 Come sbloccare:</h4>
+                              <p className="text-gray-300 font-runtime text-sm">{progress.description}</p>
+                            </div>
+                            
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-gray-400 font-runtime text-sm">Progresso</span>
+                                <span className="text-white font-runtime font-bold">
+                                  {progress.current}/{progress.required}
+                                </span>
+                              </div>
+                              
+                              {/* Progress bar */}
+                              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                                <div 
+                                  className={`h-full bg-gradient-to-r transition-all duration-1000 ease-out ${
+                                    percentage >= 100 
+                                      ? 'from-green-500 to-green-400' 
+                                      : percentage >= 75
+                                      ? 'from-yellow-500 to-yellow-400'
+                                      : percentage >= 50
+                                      ? 'from-blue-500 to-blue-400'
+                                      : 'from-gray-500 to-gray-400'
+                                  }`}
+                                  style={{ width: `${percentage}%` }}
+                                ></div>
+                              </div>
+                              
+                              <div className="flex justify-between items-center mt-1">
+                                <span className="text-gray-500 font-runtime text-xs">0</span>
+                                <span className="text-gray-300 font-runtime text-sm font-bold">
+                                  {percentage.toFixed(0)}%
+                                </span>
+                                <span className="text-gray-500 font-runtime text-xs">{progress.required}</span>
+                              </div>
+                            </div>
+                            
+                            {/* Messaggio motivazionale */}
+                            <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-3">
+                              <p className="text-blue-300 font-runtime text-xs text-center">
+                                {percentage >= 100 
+                                  ? "🎉 Requisiti completati! La card verrà sbloccata dopo la prossima partita."
+                                  : percentage >= 75
+                                  ? "🔥 Ci sei quasi! Continua così!"
+                                  : percentage >= 50
+                                  ? "💪 Ottimo progresso, a metà strada!"
+                                  : percentage >= 25
+                                  ? "📈 Buon inizio, continua a giocare!"
+                                  : "🚀 Inizia il tuo percorso verso questa card!"
+                                }
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="border-t border-gray-700 p-4">
+                          <button
+                            onClick={() => setProgressModal(null)}
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-runtime font-semibold transition-all"
+                          >
+                            👍 Capito!
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
