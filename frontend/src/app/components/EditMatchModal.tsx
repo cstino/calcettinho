@@ -22,6 +22,9 @@ interface Match {
   scoreA?: number;
   scoreB?: number;
   playerStats?: { [email: string]: PlayerMatchStats };
+  status?: 'scheduled' | 'completed' | 'in_progress';
+  match_status?: 'scheduled' | 'completed' | 'in_progress';
+  referee?: string;
 }
 
 interface Player {

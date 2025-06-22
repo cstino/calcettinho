@@ -16,55 +16,8 @@ Airtable.configure({
 
 const base = Airtable.base(baseId);
 
-// ✅ NUOVO: Funzione per controllare i prerequisiti delle card progressive
-const checkProgressiveCard = async (playerEmail: string, baseAwardType: string): Promise<string> => {
-  try {
-    // Recupera tutti i premi vinti dal giocatore
-    const playerAwards = await base('player_awards').select({
-      filterByFormula: `{player_email} = "${playerEmail}"`
-    }).all();
-    
-    const ownedAwards = new Set(playerAwards.map(award => award.get('award_type') as string));
-    
-    console.log(`🎯 Checking progressive cards for ${playerEmail}, baseType: ${baseAwardType}`);
-    console.log(`🏆 Player owns: ${Array.from(ownedAwards).join(', ')}`);
-    
-    // ⚽ Catena Goleador: goleador → matador → goldenboot
-    if (baseAwardType === 'goleador') {
-      if (ownedAwards.has('matador')) {
-        console.log(`✨ ${playerEmail} può ottenere Golden Boot!`);
-        return 'goldenboot';
-      } else if (ownedAwards.has('goleador')) {
-        console.log(`✨ ${playerEmail} può ottenere Matador!`);
-        return 'matador';
-      } else {
-        console.log(`✨ ${playerEmail} ottiene il primo Goleador!`);
-        return 'goleador';
-      }
-    }
-    
-    // 🅰️ Catena Assistman: assistman → regista → elfutbol  
-    if (baseAwardType === 'assistman') {
-      if (ownedAwards.has('regista')) {
-        console.log(`✨ ${playerEmail} può ottenere El fútbol!`);
-        return 'elfutbol';
-      } else if (ownedAwards.has('assistman')) {
-        console.log(`✨ ${playerEmail} può ottenere Regista!`);
-        return 'regista';
-      } else {
-        console.log(`✨ ${playerEmail} ottiene il primo Assistman!`);
-        return 'assistman';
-      }
-    }
-    
-    // Per altri tipi, ritorna il tipo base
-    return baseAwardType;
-    
-  } catch (error) {
-    console.error(`❌ Errore nel controllo card progressive per ${playerEmail}:`, error);
-    return baseAwardType; // Fallback al tipo base
-  }
-};
+// Funzione rimossa: checkProgressiveCard non più necessaria
+// Le card goleador/assistman/matador/regista/goldenboot/elfutbol sono ora milestone basate su statistiche cumulative
 
 export async function POST(
   req: NextRequest,
@@ -213,57 +166,10 @@ export async function POST(
       matchId: string;
     }>;
 
-    console.log('⚽ Calcolando premi immediate (Goleador, Assistman, Milestone)...');
+    console.log('⚽ Calcolando premi immediate (solo Milestone ora - goleador/assistman sono diventati milestone)...');
 
-    // ✅ GOLEADOR con sistema progressivo (IMMEDIATE)
-    const goalScorers = Object.entries(playerStats)
-      .map(([email, stats]: [string, any]) => ({ email, goals: stats.gol || 0 }))
-      .filter(player => player.goals > 0)
-      .sort((a, b) => b.goals - a.goals);
-
-    if (goalScorers.length > 0 && goalScorers[0].goals > 0) {
-      const topScorer = goalScorers[0];
-      const tiedScorers = goalScorers.filter(p => p.goals === topScorer.goals);
-      
-      console.log(`⚽ Top Goleador: ${topScorer.email} con ${topScorer.goals} gol`);
-      console.log(`🤝 Marcatori in pareggio: ${tiedScorers.length}`);
-      
-      // Assegna la card progressiva appropriata a ogni vincitore
-      for (const scorer of tiedScorers) {
-        const progressiveAward = await checkProgressiveCard(scorer.email, 'goleador');
-        awards.push({
-          playerEmail: scorer.email,
-          awardType: progressiveAward,
-          matchId
-        });
-        console.log(`✅ ${progressiveAward.toUpperCase()} assegnato a: ${scorer.email}`);
-      }
-    }
-
-    // ✅ ASSISTMAN con sistema progressivo (IMMEDIATE)
-    const assistProviders = Object.entries(playerStats)
-      .map(([email, stats]: [string, any]) => ({ email, assists: stats.assist || 0 }))
-      .filter(player => player.assists > 0)
-      .sort((a, b) => b.assists - a.assists);
-
-    if (assistProviders.length > 0 && assistProviders[0].assists > 0) {
-      const topAssist = assistProviders[0];
-      const tiedAssists = assistProviders.filter(p => p.assists === topAssist.assists);
-      
-      console.log(`🅰️ Top Assistman: ${topAssist.email} con ${topAssist.assists} assist`);
-      console.log(`🤝 Assistman in pareggio: ${tiedAssists.length}`);
-      
-      // Assegna la card progressiva appropriata a ogni vincitore
-      for (const provider of tiedAssists) {
-        const progressiveAward = await checkProgressiveCard(provider.email, 'assistman');
-        awards.push({
-          playerEmail: provider.email,
-          awardType: progressiveAward,
-          matchId
-        });
-        console.log(`✅ ${progressiveAward.toUpperCase()} assegnato a: ${provider.email}`);
-      }
-    }
+    // ✅ NOTA: Goleador e Assistman sono ora MILESTONE basate su statistiche cumulative
+    // Non vengono più assegnate come premi post-partita
 
     // ✅ MILESTONE ACHIEVEMENTS (IMMEDIATE - basate su statistiche raggiunte)
     console.log('🎯 Controllo milestone achievements...');

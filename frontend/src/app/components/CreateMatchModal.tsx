@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, Users, MapPin, Minus, Search } from 'lucide-react';
+import { X, Calendar, Users, Minus, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Player {
@@ -22,9 +22,9 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     date: '',
-    location: 'Campo Centrale',
     teamA: [] as string[],
-    teamB: [] as string[]
+    teamB: [] as string[],
+    referee: ''
   });
 
   useEffect(() => {
@@ -146,9 +146,9 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
         // Reset form
         setFormData({
           date: '',
-          location: 'Campo Centrale',
           teamA: [],
-          teamB: []
+          teamB: [],
+          referee: ''
         });
         setSearchQuery('');
       } else {
@@ -188,7 +188,7 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Data e Luogo */}
+            {/* Data e Arbitro */}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-white font-runtime mb-2">
@@ -205,16 +205,21 @@ export default function CreateMatchModal({ isOpen, onClose, onSuccess }: CreateM
               </div>
               <div>
                 <label className="block text-white font-runtime mb-2">
-                  <MapPin className="w-4 h-4 inline mr-2" />
-                  Luogo
+                  <Users className="w-4 h-4 inline mr-2" />
+                  Arbitro (Opzionale)
                 </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                <select
+                  value={formData.referee}
+                  onChange={(e) => setFormData(prev => ({ ...prev, referee: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-green-500 focus:outline-none"
-                  placeholder="Campo Centrale"
-                />
+                >
+                  <option value="">Seleziona arbitro...</option>
+                  {players.map(player => (
+                    <option key={player.email} value={player.email}>
+                      {player.nome}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

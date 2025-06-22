@@ -6,6 +6,8 @@ interface User {
   email: string;
   role: string;
   isAdmin: boolean;
+  isReferee: boolean;
+  hasMatchManagementPrivileges: boolean;
 }
 
 interface AuthContextType {
@@ -15,6 +17,8 @@ interface AuthContextType {
   login: (email: string) => Promise<boolean>;
   logout: () => void;
   checkAdminAccess: () => boolean;
+  checkRefereeAccess: () => boolean;
+  checkMatchManagementAccess: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,7 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return {
           email: data.email,
           role: data.role,
-          isAdmin: data.isAdmin
+          isAdmin: data.isAdmin,
+          isReferee: data.isReferee,
+          hasMatchManagementPrivileges: data.hasMatchManagementPrivileges
         };
       }
       return null;
@@ -70,6 +76,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user?.isAdmin || false;
   };
 
+  // Controlla se l'utente è arbitro
+  const checkRefereeAccess = (): boolean => {
+    return user?.isReferee || false;
+  };
+
+  // Controlla se l'utente può gestire partite (admin o arbitro)
+  const checkMatchManagementAccess = (): boolean => {
+    return user?.hasMatchManagementPrivileges || false;
+  };
+
   // Carica utente dal localStorage all'avvio
   useEffect(() => {
     const initAuth = async () => {
@@ -95,7 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       logout,
-      checkAdminAccess
+      checkAdminAccess,
+      checkRefereeAccess,
+      checkMatchManagementAccess
     }}>
       {children}
     </AuthContext.Provider>

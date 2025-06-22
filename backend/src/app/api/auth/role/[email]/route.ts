@@ -33,7 +33,9 @@ export async function GET(req: NextRequest, { params }: { params: { email: strin
         success: false, 
         error: 'Utente non autorizzato',
         role: null,
-        isAdmin: false
+        isAdmin: false,
+        isReferee: false,
+        hasMatchManagementPrivileges: false
       }, { status: 403 });
     }
 
@@ -41,14 +43,18 @@ export async function GET(req: NextRequest, { params }: { params: { email: strin
     const roleField = userRecord.fields.Role;
     const role = typeof roleField === 'string' ? roleField : 'user'; // Default a 'user' se non specificato
     const isAdmin = role.toLowerCase() === 'admin';
+    const isReferee = role.toLowerCase() === 'arbitro';
+    const hasMatchManagementPrivileges = isAdmin || isReferee; // Admin e arbitro hanno privilegi di gestione partite
 
-    console.log('✅ Ruolo trovato:', { email, role, isAdmin });
+    console.log('✅ Ruolo trovato:', { email, role, isAdmin, isReferee, hasMatchManagementPrivileges });
 
     return NextResponse.json({
       success: true,
       email,
       role,
       isAdmin,
+      isReferee,
+      hasMatchManagementPrivileges,
       message: `Utente ${email} ha ruolo: ${role}`
     });
 
@@ -59,7 +65,9 @@ export async function GET(req: NextRequest, { params }: { params: { email: strin
       error: 'Errore interno del server',
       details: error instanceof Error ? error.message : 'Errore sconosciuto',
       role: null,
-      isAdmin: false
+      isAdmin: false,
+      isReferee: false,
+      hasMatchManagementPrivileges: false
     }, { status: 500 });
   }
 } 
