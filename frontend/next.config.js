@@ -52,6 +52,7 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  trailingSlash: true,
   images: {
     unoptimized: true
   },
@@ -62,7 +63,7 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-  },
+  }
 }
 
 module.exports = withPWA(nextConfig); 

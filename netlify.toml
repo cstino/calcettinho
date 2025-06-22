@@ -1,11 +1,15 @@
 [build]
-  publish = "frontend/.next"
   command = "cd frontend && npm install && npm run build && cd ../netlify/functions && npm install"
   functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
+
+# Plugin Next.js configurato per saltare con export statico
+[[plugins]]
+package = "@netlify/plugin-nextjs"
 
 # Configurazione delle redirects per le API specifiche
 [[redirects]]
