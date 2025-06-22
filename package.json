@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
+    "build:netlify": "npm run install:all && cd frontend && npm run build",
     "start": "cd frontend && npm start",
     "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && npm run dev\"",
     "install:frontend": "cd frontend && npm install",
     "install:backend": "cd backend && npm install",
-    "install:all": "npm run install:frontend && npm run install:backend"
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "postbuild": "npm run copy-functions",
+    "copy-functions": "mkdir -p netlify/functions && cp -r backend/src/app/api/* netlify/functions/ || echo 'Functions copied'"
   },
   "devDependencies": {
     "concurrently": "^7.6.0"

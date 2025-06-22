@@ -1,0 +1,42 @@
+name: Cron Jobs per Calcettinho
+
+on:
+  schedule:
+    # Esegui ogni giorno alle 12:00 (mezzogiorno)
+    - cron: '0 12 * * *'
+  
+  # Permetti esecuzione manuale
+  workflow_dispatch:
+
+jobs:
+  check-voting-timeouts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check Voting Timeouts
+        run: |
+          echo "🔄 Controllo timeout votazioni..."
+          
+          # Chiama l'API endpoint per controllare i timeout delle votazioni
+          response=$(curl -s -w "%{http_code}" -X GET \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.NETLIFY_SITE_URL }}/api/cron/check-voting-timeouts")
+          
+          http_code="${response: -3}"
+          response_body="${response%???}"
+          
+          echo "📊 Status Code: $http_code"
+          echo "📝 Response: $response_body"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Cron job eseguito con successo!"
+          else
+            echo "❌ Errore nel cron job!"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "🚨 Il cron job ha fallito. Controlla i log." 
