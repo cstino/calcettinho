@@ -1086,93 +1086,337 @@ export default function PlayerProfile() {
                 <div>
                   <h3 className="text-lg font-semibold text-green-400 font-runtime mb-4">✅ Collezione Evoluzioni</h3>
                   
-                  {/* Griglia di tutte le card speciali */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
-                    {/* Card Base - sempre presente */}
-                    <div 
-                      className={`relative aspect-square rounded-lg border-2 transition-all duration-300 cursor-pointer transform hover:scale-105 ${
-                        !playerAwards.selectedCard 
-                          ? 'border-blue-400 bg-blue-900/30 shadow-lg shadow-blue-400/20' 
-                          : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
-                      }`}
-                      onClick={() => isOwner && setSelectedCardModal('base')}
-                    >
-                      <div className="absolute inset-2 rounded-lg overflow-hidden">
-                        <CardImage 
-                          src={getCardUrl(player?.email || '')}
-                          alt="Card Base"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                        <p className="text-white text-xs font-runtime font-bold text-center">Card Base</p>
-                      </div>
-                      {!playerAwards.selectedCard && (
-                        <div className="absolute top-1 right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
-                          ATTIVA
+                  {/* Layout riorganizzato in 3 colonne con righe tematiche */}
+                  <div className="space-y-4 mb-6">
+                    {/* RIGA 1: Card Base, Prima Presenza, MOTM */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {/* Card Base */}
+                      <div 
+                        className={`relative aspect-square rounded-lg border-2 transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                          !playerAwards.selectedCard 
+                            ? 'border-blue-400 bg-blue-900/30 shadow-lg shadow-blue-400/20' 
+                            : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                        }`}
+                        onClick={() => isOwner && setSelectedCardModal('base')}
+                      >
+                        <div className="absolute inset-2 rounded-lg overflow-hidden">
+                          <CardImage 
+                            src={getCardUrl(player?.email || '')}
+                            alt="Card Base"
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                      )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                          <p className="text-white text-xs font-runtime font-bold text-center">Card Base</p>
+                        </div>
+                        {!playerAwards.selectedCard && (
+                          <div className="absolute top-1 right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                            ATTIVA
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Prima Presenza */}
+                      {(() => {
+                        const card = allSpecialCards.find(c => c.id === '1presenza');
+                        if (!card) return null;
+                        const isUnlocked = isCardUnlocked(card.id);
+                        const isSelected = isCardSelected(card.id);
+                        
+                        return (
+                          <div 
+                            key={card.id}
+                            className={`relative aspect-square rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
+                              isUnlocked 
+                                ? `cursor-pointer ${isSelected 
+                                    ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
+                                    : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                                  }`
+                                : 'border-gray-700 bg-gray-900/50 cursor-pointer hover:border-gray-600'
+                            }`}
+                            onClick={() => {
+                              if (isUnlocked && isOwner) {
+                                setSelectedCardModal(card.id);
+                              } else if (!isUnlocked) {
+                                setProgressModal(card.id);
+                              }
+                            }}
+                          >
+                            {isUnlocked ? (
+                              <>
+                                <div className="absolute inset-2 rounded-lg overflow-hidden">
+                                  <CardImage 
+                                    src={getSpecialCardUrl(player?.email || '', card.id)}
+                                    alt={`Card ${card.name}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                                  <p className="text-white text-xs font-runtime font-bold text-center">{card.name}</p>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                                    ATTIVA
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className={`absolute inset-2 rounded-lg bg-gradient-to-br ${card.color} opacity-20`}></div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <svg className="w-6 h-6 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                  <p className="text-gray-500 text-xs font-runtime font-bold text-center px-1">{card.name}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* MOTM */}
+                      {(() => {
+                        const card = allSpecialCards.find(c => c.id === 'motm');
+                        if (!card) return null;
+                        const isUnlocked = isCardUnlocked(card.id);
+                        const isSelected = isCardSelected(card.id);
+                        
+                        return (
+                          <div 
+                            key={card.id}
+                            className={`relative aspect-square rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
+                              isUnlocked 
+                                ? `cursor-pointer ${isSelected 
+                                    ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
+                                    : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                                  }`
+                                : 'border-gray-700 bg-gray-900/50 cursor-pointer hover:border-gray-600'
+                            }`}
+                            onClick={() => {
+                              if (isUnlocked && isOwner) {
+                                setSelectedCardModal(card.id);
+                              } else if (!isUnlocked) {
+                                setProgressModal(card.id);
+                              }
+                            }}
+                          >
+                            {isUnlocked ? (
+                              <>
+                                <div className="absolute inset-2 rounded-lg overflow-hidden">
+                                  <CardImage 
+                                    src={getSpecialCardUrl(player?.email || '', card.id)}
+                                    alt={`Card ${card.name}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                                  <p className="text-white text-xs font-runtime font-bold text-center">{card.name}</p>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                                    ATTIVA
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className={`absolute inset-2 rounded-lg bg-gradient-to-br ${card.color} opacity-20`}></div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <svg className="w-6 h-6 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                  <p className="text-gray-500 text-xs font-runtime font-bold text-center px-1">{card.name}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    {/* Card Speciali */}
-                    {allSpecialCards.map((card) => {
-                      const isUnlocked = isCardUnlocked(card.id);
-                      const isSelected = isCardSelected(card.id);
-                      const award = getCardAward(card.id);
-                      
-                      return (
-                        <div 
-                          key={card.id}
-                          className={`relative aspect-square rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
-                            isUnlocked 
-                              ? `cursor-pointer ${isSelected 
-                                  ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
-                                  : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
-                                }`
-                              : 'border-gray-700 bg-gray-900/50 cursor-pointer hover:border-gray-600'
-                          }`}
-                          onClick={() => {
-                            if (isUnlocked && isOwner) {
-                              setSelectedCardModal(card.id);
-                            } else if (!isUnlocked) {
-                              setProgressModal(card.id);
-                            }
-                          }}
-                        >
-                          {isUnlocked ? (
-                            <>
-                              {/* Card sbloccata - mostra preview */}
-                              <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                <CardImage 
-                                  src={getSpecialCardUrl(player?.email || '', card.id)}
-                                  alt={`Card ${card.name}`}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                <p className="text-white text-xs font-runtime font-bold text-center">{card.name}</p>
-                              </div>
-                              {isSelected && (
-                                <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
-                                  ATTIVA
+                    {/* RIGA 2: Card dei Gol (Goleador, Matador, Golden Boot) */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {['goleador', 'matador', 'goldenboot'].map((cardId) => {
+                        const card = allSpecialCards.find(c => c.id === cardId);
+                        if (!card) return null;
+                        const isUnlocked = isCardUnlocked(card.id);
+                        const isSelected = isCardSelected(card.id);
+                        
+                        return (
+                          <div 
+                            key={card.id}
+                            className={`relative aspect-square rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
+                              isUnlocked 
+                                ? `cursor-pointer ${isSelected 
+                                    ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
+                                    : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                                  }`
+                                : 'border-gray-700 bg-gray-900/50 cursor-pointer hover:border-gray-600'
+                            }`}
+                            onClick={() => {
+                              if (isUnlocked && isOwner) {
+                                setSelectedCardModal(card.id);
+                              } else if (!isUnlocked) {
+                                setProgressModal(card.id);
+                              }
+                            }}
+                          >
+                            {isUnlocked ? (
+                              <>
+                                <div className="absolute inset-2 rounded-lg overflow-hidden">
+                                  <CardImage 
+                                    src={getSpecialCardUrl(player?.email || '', card.id)}
+                                    alt={`Card ${card.name}`}
+                                    className="w-full h-full object-cover"
+                                  />
                                 </div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {/* Card bloccata - mostra lucchetto */}
-                              <div className={`absolute inset-2 rounded-lg bg-gradient-to-br ${card.color} opacity-20`}></div>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <svg className="w-8 h-8 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                                <p className="text-gray-500 text-xs font-runtime font-bold text-center px-1">{card.name}</p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                                  <p className="text-white text-xs font-runtime font-bold text-center">{card.name}</p>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                                    ATTIVA
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className={`absolute inset-2 rounded-lg bg-gradient-to-br ${card.color} opacity-20`}></div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <svg className="w-6 h-6 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                  <p className="text-gray-500 text-xs font-runtime font-bold text-center px-1">{card.name}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* RIGA 3: Card degli Assist (Assistman, Regista, El fútbol) */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {['assistman', 'regista', 'elfutbol'].map((cardId) => {
+                        const card = allSpecialCards.find(c => c.id === cardId);
+                        if (!card) return null;
+                        const isUnlocked = isCardUnlocked(card.id);
+                        const isSelected = isCardSelected(card.id);
+                        
+                        return (
+                          <div 
+                            key={card.id}
+                            className={`relative aspect-square rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
+                              isUnlocked 
+                                ? `cursor-pointer ${isSelected 
+                                    ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
+                                    : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                                  }`
+                                : 'border-gray-700 bg-gray-900/50 cursor-pointer hover:border-gray-600'
+                            }`}
+                            onClick={() => {
+                              if (isUnlocked && isOwner) {
+                                setSelectedCardModal(card.id);
+                              } else if (!isUnlocked) {
+                                setProgressModal(card.id);
+                              }
+                            }}
+                          >
+                            {isUnlocked ? (
+                              <>
+                                <div className="absolute inset-2 rounded-lg overflow-hidden">
+                                  <CardImage 
+                                    src={getSpecialCardUrl(player?.email || '', card.id)}
+                                    alt={`Card ${card.name}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                                  <p className="text-white text-xs font-runtime font-bold text-center">{card.name}</p>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                                    ATTIVA
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className={`absolute inset-2 rounded-lg bg-gradient-to-br ${card.color} opacity-20`}></div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <svg className="w-6 h-6 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                  <p className="text-gray-500 text-xs font-runtime font-bold text-center px-1">{card.name}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* RIGA 4: Card delle Vittorie (Win 10, Win 25, Win 50) */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {['win10', 'win25', 'win50'].map((cardId) => {
+                        const card = allSpecialCards.find(c => c.id === cardId);
+                        if (!card) return null;
+                        const isUnlocked = isCardUnlocked(card.id);
+                        const isSelected = isCardSelected(card.id);
+                        
+                        return (
+                          <div 
+                            key={card.id}
+                            className={`relative aspect-square rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
+                              isUnlocked 
+                                ? `cursor-pointer ${isSelected 
+                                    ? 'border-green-400 bg-green-900/30 shadow-lg shadow-green-400/20' 
+                                    : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+                                  }`
+                                : 'border-gray-700 bg-gray-900/50 cursor-pointer hover:border-gray-600'
+                            }`}
+                            onClick={() => {
+                              if (isUnlocked && isOwner) {
+                                setSelectedCardModal(card.id);
+                              } else if (!isUnlocked) {
+                                setProgressModal(card.id);
+                              }
+                            }}
+                          >
+                            {isUnlocked ? (
+                              <>
+                                <div className="absolute inset-2 rounded-lg overflow-hidden">
+                                  <CardImage 
+                                    src={getSpecialCardUrl(player?.email || '', card.id)}
+                                    alt={`Card ${card.name}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                                  <p className="text-white text-xs font-runtime font-bold text-center">{card.name}</p>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded font-runtime font-bold">
+                                    ATTIVA
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className={`absolute inset-2 rounded-lg bg-gradient-to-br ${card.color} opacity-20`}></div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <svg className="w-6 h-6 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                  <p className="text-gray-500 text-xs font-runtime font-bold text-center px-1">{card.name}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -1370,33 +1614,7 @@ export default function PlayerProfile() {
                                 <span className="text-gray-500 font-runtime text-xs">{progress.required}</span>
                               </div>
                             </div>
-                            
-                            {/* Messaggio motivazionale */}
-                            <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-3">
-                              <p className="text-blue-300 font-runtime text-xs text-center">
-                                {percentage >= 100 
-                                  ? "🎉 Requisiti completati! La card verrà sbloccata dopo la prossima partita."
-                                  : percentage >= 75
-                                  ? "🔥 Ci sei quasi! Continua così!"
-                                  : percentage >= 50
-                                  ? "💪 Ottimo progresso, a metà strada!"
-                                  : percentage >= 25
-                                  ? "📈 Buon inizio, continua a giocare!"
-                                  : "🚀 Inizia il tuo percorso verso questa card!"
-                                }
-                              </p>
-                            </div>
                           </div>
-                        </div>
-                        
-                        {/* Footer - Compatto */}
-                        <div className="border-t border-gray-700 p-4">
-                          <button
-                            onClick={() => setProgressModal(null)}
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-runtime font-semibold transition-all"
-                          >
-                            👍 Capito!
-                          </button>
                         </div>
                       </>
                     );
