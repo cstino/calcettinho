@@ -9,7 +9,7 @@
 
 # Plugin Essential Next.js per Netlify (versione aggiornata)
 [[plugins]]
-  package = "@netlify/plugin-nextjs@5.11.3"
+package = "@netlify/plugin-nextjs"
 
 # Configurazione delle redirects per le API specifiche
 [[redirects]]
@@ -50,6 +50,11 @@
 [[redirects]]
   from = "/api/compare-players"
   to = "/.netlify/functions/compare-players"
+  status = 200
+
+[[redirects]]
+  from = "/api/card-special/*"
+  to = "/.netlify/functions/card-special"
   status = 200
 
 [[redirects]]
