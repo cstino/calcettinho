@@ -176,7 +176,7 @@ export default function Players() {
           <Navigation />
           
           {/* Header Section */}
-          <section className="pt-20 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8" style={{ paddingTop: 'max(80px, env(safe-area-inset-top, 0px) + 60px)' }}>
+          <section className="pt-20 lg:pt-24 pb-8 px-4 sm:px-6 lg:px-8" style={{ paddingTop: 'max(80px, env(safe-area-inset-top, 0px) + 50px)' }}>
             <div className="max-w-6xl mx-auto text-center">
               <Logo
                 type="simbolo"
