@@ -7,6 +7,10 @@
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
 
+# Plugin Next.js per Netlify (installazione automatica versione recente)
+[[plugins]]
+package = "@netlify/plugin-nextjs"
+
 # Configurazione delle redirects per le API specifiche
 [[redirects]]
   from = "/api/player-stats/*"
