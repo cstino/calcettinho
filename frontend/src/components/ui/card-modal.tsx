@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, Loader2 } from 'lucide-react';
+import DynamicCard from '../DynamicCard';
 
 interface CardModalProps {
   isOpen: boolean;
@@ -13,8 +14,10 @@ interface CardModalProps {
 
 export default function CardModal({ isOpen, onClose, playerEmail, playerName }: CardModalProps) {
   const [cardImageUrl, setCardImageUrl] = useState<string | null>(null);
+  const [cardData, setCardData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isJsonResponse, setIsJsonResponse] = useState(false);
 
   // Fetch della card quando il modal si apre
   useEffect(() => {
@@ -26,6 +29,9 @@ export default function CardModal({ isOpen, onClose, playerEmail, playerName }: 
   const fetchCard = async () => {
     setLoading(true);
     setError(null);
+    setCardData(null);
+    setCardImageUrl(null);
+    setIsJsonResponse(false);
     
     try {
       // Chiamata all'API del backend per generare/recuperare la card
@@ -35,10 +41,21 @@ export default function CardModal({ isOpen, onClose, playerEmail, playerName }: 
         throw new Error('Errore nel caricamento della card');
       }
 
-      // L'API restituisce direttamente l'immagine PNG
-      const blob = await response.blob();
-      const imageUrl = URL.createObjectURL(blob);
-      setCardImageUrl(imageUrl);
+      // Controlla il tipo di contenuto della risposta
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType?.includes('application/json')) {
+        // Risposta JSON da Netlify functions
+        const data = await response.json();
+        setCardData(data);
+        setIsJsonResponse(true);
+      } else {
+        // Risposta immagine PNG da backend Next.js
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
+        setCardImageUrl(imageUrl);
+        setIsJsonResponse(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore sconosciuto');
     } finally {
@@ -55,6 +72,10 @@ export default function CardModal({ isOpen, onClose, playerEmail, playerName }: 
       link.click();
       document.body.removeChild(link);
     }
+  };
+
+  const handleDynamicCardImageReady = (imageUrl: string) => {
+    setCardImageUrl(imageUrl);
   };
 
   const handleClose = () => {
@@ -125,7 +146,8 @@ export default function CardModal({ isOpen, onClose, playerEmail, playerName }: 
                 </div>
               )}
 
-              {cardImageUrl && !loading && !error && (
+              {/* Card Immagine PNG (da backend Next.js) */}
+              {cardImageUrl && !isJsonResponse && !loading && !error && (
                 <div className="text-center">
                   <div className="relative mb-6">
                     <img
@@ -142,6 +164,30 @@ export default function CardModal({ isOpen, onClose, playerEmail, playerName }: 
                     <Download className="w-5 h-5" />
                     Scarica Card
                   </button>
+                </div>
+              )}
+
+              {/* Card Dinamica (da dati JSON Netlify) */}
+              {isJsonResponse && cardData && !loading && !error && (
+                <div className="text-center">
+                  <div className="relative mb-6">
+                    <DynamicCard 
+                      cardData={cardData}
+                      className="w-full max-w-sm mx-auto"
+                      onImageReady={handleDynamicCardImageReady}
+                    />
+                  </div>
+                  
+                  {/* Download Button (appare dopo che l'immagine è pronta) */}
+                  {cardImageUrl && (
+                    <button
+                      onClick={handleDownload}
+                      className="inline-flex items-center gap-2 bg-green-600/80 hover:bg-green-700/80 text-white px-6 py-3 rounded-lg transition-colors font-runtime font-semibold"
+                    >
+                      <Download className="w-5 h-5" />
+                      Scarica Card
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -32,8 +32,8 @@ async function getPlayerByEmail(email) {
     
     const record = records[0];
     
-    // Gestisce il campo foto come attachment di Airtable
-    const photoAttachments = record.get('foto');
+    // Gestisce il campo photoUrl come attachment di Airtable (stesso della funzione card normale)
+    const photoAttachments = record.get('photoUrl');
     let photoUrl = '';
     
     if (photoAttachments && Array.isArray(photoAttachments) && photoAttachments.length > 0) {
@@ -41,14 +41,14 @@ async function getPlayerByEmail(email) {
     }
     
     const playerData = {
-      nome: record.get('nome') || 'Giocatore',
+      nome: record.get('name') || 'Giocatore Sconosciuto',
       email: record.get('email') || email,
-      ATT: Math.round(record.get('ATT') || 50),
-      DEF: Math.round(record.get('DEF') || 50),
-      VEL: Math.round(record.get('VEL') || 50),
-      FOR: Math.round(record.get('FOR') || 50),
-      PAS: Math.round(record.get('PAS') || 50),
-      POR: Math.round(record.get('POR') || 50),
+      ATT: Math.round(record.get('Attacco') || 50),
+      DEF: Math.round(record.get('Difesa') || 50),
+      VEL: Math.round(record.get('Velocità') || 50),
+      FOR: Math.round(record.get('Forza') || 50),
+      PAS: Math.round(record.get('Passaggio') || 50),
+      POR: Math.round(record.get('Portiere') || 50),
       photoUrl: photoUrl,
     };
     
@@ -185,16 +185,34 @@ exports.handler = async (event, context) => {
 
     console.log(`Overall: ${overall}, Template special: ${template}`);
 
-    // TEMPORANEO: Redirect alle card special statiche invece di generare immagini
-    const specialTemplateUrl = `https://calcettinho.netlify.app/cards/special/${template}.png`;
-    
-    return {
-      statusCode: 302,
-      headers: {
-        'Location': specialTemplateUrl,
-        'Cache-Control': 'public, max-age=300'
+    // Prepara i dati della card special per il frontend
+    const specialCardResponseData = {
+      player: playerData,
+      stats: {
+        ATT: playerData.ATT,
+        VEL: playerData.VEL,
+        PAS: playerData.PAS,
+        FOR: playerData.FOR,
+        DIF: playerData.DEF,
+        POR: playerData.POR
       },
-      body: ''
+      overall: overall,
+      template: template,
+      specialCard: specialCardData,
+      hasPhoto: !!(playerData.photoUrl && playerData.photoUrl.trim() !== ''),
+      hasTemplate: !!(specialCardData.templateUrl && specialCardData.templateUrl.trim() !== ''),
+      // URLs per il frontend
+      specialCardTemplateUrl: specialCardData.templateUrl || `/cards/special/${template}.png`,
+      photoUrl: playerData.photoUrl || null
+    };
+
+    console.log('Special card data preparata:', specialCardResponseData);
+    
+    // Restituisce i dati JSON invece di fare redirect al template vuoto
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(specialCardResponseData)
     };
 
   } catch (error) {
