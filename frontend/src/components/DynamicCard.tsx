@@ -52,6 +52,13 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
       canvas.height = CARD_HEIGHT;
 
       try {
+        console.log('🎯 DynamicCard Debug:', {
+          template: cardData.template,
+          hasPhoto: cardData.hasPhoto,
+          photoUrl: cardData.photoUrl,
+          cardTemplateUrl: cardData.cardTemplateUrl
+        });
+        
         if (cardData.hasPhoto && cardData.photoUrl && cardData.cardTemplateUrl) {
           // **CARD COMPLETA CON TEMPLATE E FOTO**
           const [templateImg, playerImg] = await Promise.all([
@@ -120,7 +127,8 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
         }
 
       } catch (error) {
-        console.error('Errore nella generazione della card:', error);
+        console.error('🚨 Errore nella generazione della card:', error);
+        console.error('📊 Card data quando è fallito:', cardData);
         // Fallback alla card semplificata
         drawSimpleCard(ctx, cardData);
       }
@@ -194,7 +202,8 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
     // Background in base al template
     const bgColor = cardData.template === 'ultimate' ? '#4A1D96' : 
                    cardData.template === 'oro' ? '#B45309' :
-                   cardData.template === 'argento' ? '#6B7280' : '#374151';
+                   cardData.template === 'argento' ? '#6B7280' : 
+                   cardData.template === 'bronzo' ? '#92400E' : '#374151';
     
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);

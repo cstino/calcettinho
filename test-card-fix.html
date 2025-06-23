@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Card API Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #00ff00;
+        }
+        .email-input {
+            width: 300px;
+            padding: 10px;
+            margin: 10px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .success {
+            color: #51cf66;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Fix Card Template Vuote</h1>
+    <p>Questo test verifica che le funzioni Netlify restituiscano dati JSON da Airtable invece di redirect ai template vuoti.</p>
+
+    <div class="test-section">
+        <h2>🎯 Test API Card Normale</h2>
+        <input type="text" id="emailCard" class="email-input" placeholder="Email giocatore" value="alessandro.dibo97@gmail.com">
+        <button class="test-button" onclick="testCardAPI()">Test Card API</button>
+        <div id="cardResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🌟 Test API Card Speciale</h2>
+        <input type="text" id="emailSpecial" class="email-input" placeholder="Email giocatore" value="alessandro.dibo97@gmail.com">
+        <select id="templateSpecial" class="email-input" style="width: 150px;">
+            <option value="1presenza">1 Presenza</option>
+            <option value="goleador">Goleador</option>
+            <option value="assistman">Assist Man</option>
+            <option value="motm">MOTM</option>
+            <option value="win3">Win 3</option>
+            <option value="win5">Win 5</option>
+            <option value="win10">Win 10</option>
+        </select>
+        <button class="test-button" onclick="testSpecialCardAPI()">Test Special Card API</button>
+        <div id="specialResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Test Confronto Risposte</h2>
+        <p>Test automatico con email di esempio per verificare il formato delle risposte:</p>
+        <button class="test-button" onclick="testAllAPIs()">Test Tutte le API</button>
+        <div id="comparisonResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testCardAPI() {
+            const email = document.getElementById('emailCard').value;
+            const resultDiv = document.getElementById('cardResult');
+            
+            if (!email) {
+                resultDiv.innerHTML = '<span class="error">❌ Inserisci un\'email</span>';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 Caricamento...';
+            
+            try {
+                const response = await fetch(`/api/card/${encodeURIComponent(email)}`);
+                const contentType = response.headers.get('content-type');
+                
+                resultDiv.innerHTML = `
+<span class="success">✅ Status: ${response.status}</span>
+<span class="success">📋 Content-Type: ${contentType}</span>
+
+`;
+
+                if (contentType?.includes('application/json')) {
+                    const data = await response.json();
+                    resultDiv.innerHTML += `<span class="success">🎉 SUCCESSO! Risposta JSON (Fixed!):</span>
+${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML += `<span class="error">⚠️ Risposta non JSON (potrebbe essere immagine o redirect)</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Errore: ${error.message}</span>`;
+            }
+        }
+
+        async function testSpecialCardAPI() {
+            const email = document.getElementById('emailSpecial').value;
+            const template = document.getElementById('templateSpecial').value;
+            const resultDiv = document.getElementById('specialResult');
+            
+            if (!email) {
+                resultDiv.innerHTML = '<span class="error">❌ Inserisci un\'email</span>';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 Caricamento...';
+            
+            try {
+                const response = await fetch(`/api/card-special/${encodeURIComponent(email)}?template=${template}`);
+                const contentType = response.headers.get('content-type');
+                
+                resultDiv.innerHTML = `
+<span class="success">✅ Status: ${response.status}</span>
+<span class="success">📋 Content-Type: ${contentType}</span>
+
+`;
+
+                if (contentType?.includes('application/json')) {
+                    const data = await response.json();
+                    resultDiv.innerHTML += `<span class="success">🎉 SUCCESSO! Risposta JSON (Fixed!):</span>
+${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML += `<span class="error">⚠️ Risposta non JSON (potrebbe essere immagine o redirect)</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Errore: ${error.message}</span>`;
+            }
+        }
+
+        async function testAllAPIs() {
+            const resultDiv = document.getElementById('comparisonResult');
+            const testEmail = 'alessandro.dibo97@gmail.com';
+            
+            resultDiv.innerHTML = '🔄 Testing tutti gli endpoint...';
+            
+            try {
+                // Test Card normale
+                const cardResponse = await fetch(`/api/card/${encodeURIComponent(testEmail)}`);
+                const cardContentType = cardResponse.headers.get('content-type');
+                
+                // Test Card speciale
+                const specialResponse = await fetch(`/api/card-special/${encodeURIComponent(testEmail)}?template=1presenza`);
+                const specialContentType = specialResponse.headers.get('content-type');
+                
+                let result = `
+🎯 CARD NORMALE:
+- Status: ${cardResponse.status}
+- Content-Type: ${cardContentType}
+- È JSON: ${cardContentType?.includes('application/json') ? '✅ SÌ' : '❌ NO'}
+
+🌟 CARD SPECIALE:
+- Status: ${specialResponse.status}  
+- Content-Type: ${specialContentType}
+- È JSON: ${specialContentType?.includes('application/json') ? '✅ SÌ' : '❌ NO'}
+
+`;
+
+                if (cardContentType?.includes('application/json')) {
+                    const cardData = await cardResponse.json();
+                    result += `
+📄 DATI CARD NORMALE:
+${JSON.stringify(cardData, null, 2)}
+
+`;
+                }
+
+                if (specialContentType?.includes('application/json')) {
+                    const specialData = await specialResponse.json();
+                    result += `
+📄 DATI CARD SPECIALE:
+${JSON.stringify(specialData, null, 2)}
+
+`;
+                }
+
+                // Verifica fix
+                const bothFixed = cardContentType?.includes('application/json') && specialContentType?.includes('application/json');
+                result += `
+🔧 STATO FIX:
+${bothFixed ? '🎉 ENTRAMBE LE API RESTITUISCONO JSON! Fix completato!' : '⚠️ Una o entrambe le API non restituiscono JSON'}`;
+
+                resultDiv.innerHTML = result;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Errore durante il test: ${error.message}</span>`;
+            }
+        }
+
+        // Test automatico al caricamento pagina
+        window.onload = function() {
+            console.log('🔧 Pagina di test caricata. Esegui i test per verificare il fix!');
+        };
+    </script>
+</body>
+</html> 
