@@ -2,6 +2,7 @@
 
 import React from 'react';
 import TiltCard from './TiltCard';
+import SmartCardImage from '../../components/SmartCardImage';
 import './TiltCard.css';
 
 interface ProfileTiltCardProps {
@@ -27,16 +28,20 @@ export default function ProfileTiltCard({
       intensity={intensity}
       className={className}
     >
-      <img
-        src={src}
-        alt={alt}
-        className="w-full h-auto cursor-pointer transition-all duration-300 hover:brightness-110"
+      <div
+        className="cursor-pointer transition-all duration-300 hover:brightness-110"
         onClick={onClick}
         style={{
           borderRadius: '12px',
           boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
         }}
-      />
+      >
+        <SmartCardImage
+          src={src}
+          alt={alt}
+          className="w-full h-auto rounded-xl"
+        />
+      </div>
     </TiltCard>
   );
 } 

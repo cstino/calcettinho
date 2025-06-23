@@ -70,7 +70,11 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
       try {
         console.log('🎯 DynamicCard Debug - Generating:', {
           template: cardData.template,
-          playerName: cardData.player.nome
+          playerName: cardData.player.nome,
+          hasPhoto: cardData.hasPhoto,
+          photoUrl: cardData.photoUrl,
+          cardTemplateUrl: cardData.cardTemplateUrl,
+          canUseFullCard: !!(cardData.hasPhoto && cardData.photoUrl && cardData.cardTemplateUrl)
         });
         
         if (cardData.hasPhoto && cardData.photoUrl && cardData.cardTemplateUrl) {

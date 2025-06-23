@@ -63,15 +63,15 @@ export default function PlayerCard({ player }: PlayerCardProps) {
     if (!url) return;
     
     try {
-      console.log(`🎯 Loading card: ${url} (isBack: ${isBack})`);
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+              console.log(`🎯 Loading card: ${url} (isBack: ${isBack})`);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
 
-      const contentType = response.headers.get('content-type');
-      console.log(`📋 Content-Type: ${contentType}`);
+        const contentType = response.headers.get('content-type');
+        console.log(`📋 Content-Type: ${contentType} (isBack: ${isBack})`);
 
       if (contentType?.includes('application/json')) {
         // Risposta JSON da Netlify functions
@@ -120,12 +120,15 @@ export default function PlayerCard({ player }: PlayerCardProps) {
         const response = await fetch(`/api/player-awards/${encodeURIComponent(player.email)}`);
         if (response.ok) {
           const data = await response.json();
+          console.log(`🎭 Player awards data for ${player.name}:`, data);
           if (data.selectedCard) {
             setSelectedCard(data.selectedCard);
             // Usa la card speciale selezionata come retro
             const specialCardUrl = getSpecialCardUrl(player.email, data.selectedCard.awardType);
+            console.log(`🎯 Loading special card: ${specialCardUrl}`);
             await loadCard(specialCardUrl, true);
           } else {
+            console.log(`🎯 No special card selected for ${player.name}, using base card as back`);
             // Nessuna card selezionata, usa la card base anche come retro
             await loadCard(baseCardUrl, true);
           }
