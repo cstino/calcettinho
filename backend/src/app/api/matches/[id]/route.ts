@@ -9,6 +9,93 @@ const airtable = new Airtable({
 const base = airtable.base(process.env.AIRTABLE_BASE_ID!);
 const matchesTable = base('matches');
 
+// Funzione helper per aggiornare le statistiche dei giocatori
+async function updatePlayerStats(matchRecord: any, playerStats: any, scoreA: number, scoreB: number) {
+  const playersTable = base('players');
+  
+  // Ottieni i team dalla partita
+  const teamA = Array.isArray(matchRecord.get('teamA')) 
+    ? matchRecord.get('teamA')
+    : JSON.parse(matchRecord.get('teamA') || '[]');
+  const teamB = Array.isArray(matchRecord.get('teamB')) 
+    ? matchRecord.get('teamB')
+    : JSON.parse(matchRecord.get('teamB') || '[]');
+  
+  // Determina chi ha vinto
+  const teamAWon = scoreA > scoreB;
+  const teamBWon = scoreB > scoreA;
+  const isDraw = scoreA === scoreB;
+  
+  console.log(`Risultato: Team A ${scoreA} - ${scoreB} Team B`);
+  console.log(`Vincitore: ${teamAWon ? 'Team A' : teamBWon ? 'Team B' : 'Pareggio'}`);
+  
+  // Aggiorna statistiche per tutti i giocatori
+  const allPlayers = [...teamA, ...teamB];
+  
+  for (const playerEmail of allPlayers) {
+    try {
+      console.log(`Aggiornamento statistiche per: ${playerEmail}`);
+      
+      // Trova il giocatore
+      const playerRecords = await playersTable.select({
+        filterByFormula: `{email} = '${playerEmail}'`
+      }).all();
+      
+      if (playerRecords.length === 0) {
+        console.log(`Giocatore non trovato: ${playerEmail}`);
+        continue;
+      }
+      
+      const playerRecord = playerRecords[0];
+      const currentStats = playerRecord.fields;
+      
+      // Statistiche attuali (con default 0)
+      const partiteGiocate = (currentStats.partiteGiocate || 0) + 1;
+      let partiteVinte = currentStats.partiteVinte || 0;
+      let partitePerse = currentStats.partitePerse || 0;
+      let partitePareggiate = currentStats.partitePareggiate || 0;
+      
+      // Aggiorna vittorie/sconfitte/pareggi
+      const isInTeamA = teamA.includes(playerEmail);
+      if (isDraw) {
+        partitePareggiate += 1;
+      } else if ((isInTeamA && teamAWon) || (!isInTeamA && teamBWon)) {
+        partiteVinte += 1;
+      } else {
+        partitePerse += 1;
+      }
+      
+      // Statistiche di gioco dalla partita
+      const playerMatchStats = playerStats[playerEmail] || {};
+      const golFatti = (currentStats.golFatti || 0) + (playerMatchStats.gol || 0);
+      const assistFatti = (currentStats.assistFatti || 0) + (playerMatchStats.assist || 0);
+      const cartelliGialli = (currentStats.cartelliGialli || 0) + (playerMatchStats.gialli || 0);
+      const cartelliRossi = (currentStats.cartelliRossi || 0) + (playerMatchStats.rossi || 0);
+      
+      // Aggiorna il record del giocatore
+      const updateData = {
+        partiteGiocate,
+        partiteVinte,
+        partitePerse,
+        partitePareggiate,
+        golFatti,
+        assistFatti,
+        cartelliGialli,
+        cartelliRossi
+      };
+      
+      console.log(`Aggiornamento dati per ${playerEmail}:`, updateData);
+      
+      await playersTable.update(playerRecord.id, updateData);
+      console.log(`Statistiche aggiornate per: ${playerEmail}`);
+      
+    } catch (playerError) {
+      console.error(`Errore aggiornamento ${playerEmail}:`, playerError);
+      // Continua con gli altri giocatori
+    }
+  }
+}
+
 // GET - Ottieni una singola partita
 export async function GET(
   request: NextRequest,
@@ -125,6 +212,18 @@ export async function PUT(
     // Aggiorna il record in Airtable
     const updatedRecord = await matchesTable.update(record.id, updateData);
     console.log('Record aggiornato con successo');
+
+    // Se la partita è stata completata, aggiorna le statistiche dei giocatori
+    if (body.completed && body.playerStats && body.scoreA !== undefined && body.scoreB !== undefined) {
+      console.log('=== AGGIORNAMENTO STATISTICHE GIOCATORI ===');
+      try {
+        await updatePlayerStats(updatedRecord, body.playerStats, body.scoreA, body.scoreB);
+        console.log('Statistiche giocatori aggiornate con successo');
+      } catch (statsError) {
+        console.error('Errore nell\'aggiornamento statistiche:', statsError);
+        // Non blocchiamo la risposta per errori nelle statistiche
+      }
+    }
 
     // Parse delle statistiche dei giocatori per la risposta
     let parsedPlayerStats = {};
