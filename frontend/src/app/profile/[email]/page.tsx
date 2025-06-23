@@ -1103,10 +1103,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1162,10 +1161,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1223,10 +1221,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1284,10 +1281,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1345,10 +1341,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1439,7 +1434,7 @@ export default function PlayerProfile() {
                     {/* Preview card - Dimensioni ottimizzate per desktop */}
                     <div className="mb-6 flex justify-center">
                       <div className="w-48 max-w-full">
-                        <CardImage 
+                        <SmartCardImage 
                           src={selectedCardModal === 'base' 
                             ? getCardUrl(player?.email || '') 
                             : getSpecialCardUrl(player?.email || '', selectedCardModal)
