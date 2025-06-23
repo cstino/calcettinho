@@ -1,5 +1,96 @@
 const Airtable = require('airtable');
 
+// Funzione helper per aggiornare le statistiche dei giocatori
+async function updatePlayerStats(base, matchRecord, playerStats, scoreA, scoreB) {
+  const playerStatsTable = base('player_stats');
+  
+  // Ottieni i team dalla partita
+  const teamA = Array.isArray(matchRecord.get('teamA')) 
+    ? matchRecord.get('teamA')
+    : JSON.parse(matchRecord.get('teamA') || '[]');
+  const teamB = Array.isArray(matchRecord.get('teamB')) 
+    ? matchRecord.get('teamB')
+    : JSON.parse(matchRecord.get('teamB') || '[]');
+  
+  // Determina chi ha vinto
+  const teamAWon = scoreA > scoreB;
+  const teamBWon = scoreB > scoreA;
+  const isDraw = scoreA === scoreB;
+  
+  console.log(`Risultato: Team A ${scoreA} - ${scoreB} Team B`);
+  console.log(`Vincitore: ${teamAWon ? 'Team A' : teamBWon ? 'Team B' : 'Pareggio'}`);
+  
+  // Aggiorna statistiche per tutti i giocatori
+  const allPlayers = [...teamA, ...teamB];
+  
+  for (const playerEmail of allPlayers) {
+    try {
+      console.log(`Aggiornamento statistiche per: ${playerEmail}`);
+      
+      // Trova il giocatore nella tabella player_stats
+      const playerRecords = await playerStatsTable.select({
+        filterByFormula: `{playerEmail} = '${playerEmail}'`
+      }).all();
+      
+      const playerMatchStats = playerStats[playerEmail] || {};
+      const isInTeamA = teamA.includes(playerEmail);
+      
+      // Determina risultato per questo giocatore
+      let isWin = false;
+      let isLoss = false;
+      if (!isDraw) {
+        if ((isInTeamA && teamAWon) || (!isInTeamA && teamBWon)) {
+          isWin = true;
+        } else {
+          isLoss = true;
+        }
+      }
+      
+      if (playerRecords.length === 0) {
+        // Crea nuovo record se non esiste
+        const newStats = {
+          playerEmail: playerEmail,
+          Gol: playerMatchStats.gol || 0,
+          partiteDisputate: 1,
+          partiteVinte: isWin ? 1 : 0,
+          partitePareggiate: isDraw ? 1 : 0,
+          partitePerse: isLoss ? 1 : 0,
+          assistenze: playerMatchStats.assist || 0,
+          cartelliniGialli: playerMatchStats.gialli || 0,
+          cartelliniRossi: playerMatchStats.rossi || 0
+        };
+        
+        console.log(`Creazione nuovo record per ${playerEmail}:`, newStats);
+        await playerStatsTable.create(newStats);
+        
+      } else {
+        // Aggiorna record esistente
+        const playerRecord = playerRecords[0];
+        const currentStats = playerRecord.fields;
+        
+        const updateData = {
+          Gol: (Number(currentStats.Gol) || 0) + (playerMatchStats.gol || 0),
+          partiteDisputate: (Number(currentStats.partiteDisputate) || 0) + 1,
+          partiteVinte: (Number(currentStats.partiteVinte) || 0) + (isWin ? 1 : 0),
+          partitePareggiate: (Number(currentStats.partitePareggiate) || 0) + (isDraw ? 1 : 0),
+          partitePerse: (Number(currentStats.partitePerse) || 0) + (isLoss ? 1 : 0),
+          assistenze: (Number(currentStats.assistenze) || 0) + (playerMatchStats.assist || 0),
+          cartelliniGialli: (Number(currentStats.cartelliniGialli) || 0) + (playerMatchStats.gialli || 0),
+          cartelliniRossi: (Number(currentStats.cartelliniRossi) || 0) + (playerMatchStats.rossi || 0)
+        };
+        
+        console.log(`Aggiornamento dati per ${playerEmail}:`, updateData);
+        await playerStatsTable.update(playerRecord.id, updateData);
+      }
+      console.log(`Statistiche aggiornate per: ${playerEmail}`);
+      
+    } catch (playerError) {
+      console.error(`Errore aggiornamento ${playerEmail}:`, playerError);
+      // Continua con gli altri giocatori
+    }
+  }
+}
+
 exports.handler = async (event, context) => {
   // Gestione CORS
   const headers = {
@@ -27,9 +118,79 @@ exports.handler = async (event, context) => {
     const base = airtable.base(process.env.AIRTABLE_BASE_ID);
     const matchesTable = base('matches');
 
-    // GET - Recupera tutte le partite
+    // GET - Recupera tutte le partite o una specifica
     if (event.httpMethod === 'GET') {
-      console.log('=== RECUPERO PARTITE ===');
+      // Controlla se c'è un matchId nell'URL
+      const pathSegments = event.path.split('/');
+      const matchId = pathSegments[pathSegments.length - 1];
+      
+      // Se c'è un matchId specifico, recupera solo quella partita
+      if (matchId && matchId !== 'matches') {
+        console.log('=== RECUPERO PARTITA SINGOLA ===', matchId);
+        
+        const records = await matchesTable.select({
+          filterByFormula: `{IDmatch} = '${matchId}'`
+        }).all();
+        
+        if (records.length === 0) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Partita non trovata' })
+          };
+        }
+        
+        const record = records[0];
+        
+        // Parse player stats se disponibili
+        let playerStats = {};
+        try {
+          if (record.get('playerStats')) {
+            playerStats = JSON.parse(record.get('playerStats'));
+          }
+        } catch (e) {
+          console.log('Errore nel parsing playerStats:', e);
+          playerStats = {};
+        }
+        
+        const match = {
+          id: record.id,
+          matchId: record.get('IDmatch') || record.id,
+          date: record.get('date') || '',
+          teamA: Array.isArray(record.get('teamA')) 
+            ? record.get('teamA')
+            : (typeof record.get('teamA') === 'string' && record.get('teamA') 
+              ? JSON.parse(record.get('teamA')) 
+              : []),
+          teamB: Array.isArray(record.get('teamB')) 
+            ? record.get('teamB')
+            : (typeof record.get('teamB') === 'string' && record.get('teamB') 
+              ? JSON.parse(record.get('teamB')) 
+              : []),
+          scoreA: record.get('scoreA') ? Number(record.get('scoreA')) : undefined,
+          scoreB: record.get('scoreB') ? Number(record.get('scoreB')) : undefined,
+          teamAScorer: record.get('teamAscorer') || record.get('teamAScorer') || '',
+          teamBScorer: record.get('teamBscorer') || record.get('teamBScorer') || '',
+          assistA: record.get('AssistA') || '',
+          assistB: record.get('AssistB') || '',
+          completed: record.get('completed') === true || record.get('completed') === 'true',
+          referee: record.get('referee') || '',
+          match_status: record.get('match_status') || 'scheduled',
+          playerStats: playerStats,
+          status: record.get('match_status') || (record.get('completed') === true || record.get('completed') === 'true' 
+            ? 'completed' 
+            : 'scheduled')
+        };
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(match)
+        };
+      }
+      
+      // Altrimenti recupera tutte le partite
+      console.log('=== RECUPERO TUTTE LE PARTITE ===');
       
       const records = await matchesTable.select({
         sort: [{ field: 'date', direction: 'desc' }]
@@ -225,6 +386,18 @@ exports.handler = async (event, context) => {
         const updatedRecord = await matchesTable.update(record.id, updateData);
         console.log('Record aggiornato con successo:', updatedRecord.id);
 
+        // Se la partita è stata completata, aggiorna le statistiche dei giocatori
+        if (completed && playerStats) {
+          console.log('=== AGGIORNAMENTO STATISTICHE GIOCATORI ===');
+          try {
+            await updatePlayerStats(base, updatedRecord, playerStats, scoreA, scoreB);
+            console.log('Statistiche giocatori aggiornate con successo');
+          } catch (statsError) {
+            console.error('Errore nell\'aggiornamento statistiche:', statsError);
+            // Non blocchiamo la risposta per errori nelle statistiche
+          }
+        }
+
         // Prepara la risposta con i dati aggiornati
         const updatedMatch = {
           id: updatedRecord.id,
@@ -263,6 +436,69 @@ exports.handler = async (event, context) => {
           headers,
           body: JSON.stringify({ 
             error: `Errore nell'aggiornamento della partita: ${updateError.message}` 
+          })
+        };
+      }
+    }
+
+    // DELETE - Elimina partita
+    if (event.httpMethod === 'DELETE') {
+      console.log('=== ELIMINAZIONE PARTITA ===');
+      
+      // Estrai matchId dall'URL
+      const pathSegments = event.path.split('/');
+      const matchId = pathSegments[pathSegments.length - 1];
+      
+      console.log('MatchId da eliminare:', matchId);
+
+      if (!matchId) {
+        console.log('Validazione fallita: matchId mancante');
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'matchId è obbligatorio' })
+        };
+      }
+
+      try {
+        // Trova la partita da eliminare
+        console.log('Ricerca partita con matchId:', matchId);
+        const records = await matchesTable.select({
+          filterByFormula: `{IDmatch} = '${matchId}'`
+        }).all();
+
+        if (records.length === 0) {
+          console.log('Partita non trovata');
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Partita non trovata' })
+          };
+        }
+
+        const record = records[0];
+        console.log('Record da eliminare:', record.id);
+
+        // Elimina il record
+        await matchesTable.destroy(record.id);
+        console.log('Record eliminato con successo');
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: 'Partita eliminata con successo'
+          })
+        };
+
+      } catch (deleteError) {
+        console.error('Errore nell\'eliminazione:', deleteError);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ 
+            error: `Errore nell'eliminazione della partita: ${deleteError.message}` 
           })
         };
       }
