@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getCardUrl, getSpecialCardUrl } from '../../utils/api';
+import DynamicCard from '../../components/DynamicCard';
 
 interface PlayerCardProps {
   player: {
@@ -35,6 +36,14 @@ export default function PlayerCard({ player }: PlayerCardProps) {
   const [cardBackImage, setCardBackImage] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Nuovo stato per gestire dati JSON
+  const [cardData, setCardData] = useState<any>(null);
+  const [backCardData, setBackCardData] = useState<any>(null);
+  const [isJsonResponse, setIsJsonResponse] = useState(false);
+  const [isBackJsonResponse, setIsBackJsonResponse] = useState(false);
+  const [frontCardImageUrl, setFrontCardImageUrl] = useState<string>('');
+  
   const router = useRouter();
 
   // ✅ Detect mobile device
@@ -49,34 +58,85 @@ export default function PlayerCard({ player }: PlayerCardProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Carica la card selezionata del giocatore
+  // Funzione per caricare card con gestione PNG/JSON
+  const loadCard = async (url: string, isBack = false) => {
+    if (!url) return;
+    
+    try {
+      console.log(`🎯 Loading card: ${url} (isBack: ${isBack})`);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      console.log(`📋 Content-Type: ${contentType}`);
+
+      if (contentType?.includes('application/json')) {
+        // Risposta JSON da Netlify functions
+        const data = await response.json();
+        console.log(`🎉 JSON data received:`, data);
+        
+        if (isBack) {
+          setBackCardData(data);
+          setIsBackJsonResponse(true);
+        } else {
+          setCardData(data);
+          setIsJsonResponse(true);
+        }
+      } else {
+        // Risposta immagine PNG da backend Next.js
+        if (isBack) {
+          setCardBackImage(url);
+          setIsBackJsonResponse(false);
+        } else {
+          setFrontCardImageUrl(url);
+          setIsJsonResponse(false);
+        }
+      }
+      
+      setImageLoading(false);
+      setImageError(false);
+      
+    } catch (error) {
+      console.error(`❌ Error loading card: ${error}`);
+      setImageLoading(false);
+      setImageError(true);
+    }
+  };
+
+  // Carica la card fronte e retro del giocatore
   useEffect(() => {
-    const fetchSelectedCard = async () => {
+    const fetchCards = async () => {
       if (!player.email || player.email === 'email@non-disponibile.com') return;
       
+      // Carica sempre la card base come fronte
+      const baseCardUrl = getCardUrl(player.email);
+      await loadCard(baseCardUrl, false);
+      
       try {
+        // Controlla se ha una card speciale selezionata
         const response = await fetch(`/api/player-awards/${encodeURIComponent(player.email)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.selectedCard) {
             setSelectedCard(data.selectedCard);
-            // Usa la card speciale selezionata
+            // Usa la card speciale selezionata come retro
             const specialCardUrl = getSpecialCardUrl(player.email, data.selectedCard.awardType);
-            setCardBackImage(specialCardUrl);
+            await loadCard(specialCardUrl, true);
           } else {
-            // Nessuna card selezionata, usa la card base normale come retro
-            const baseCardUrl = getCardUrl(player.email);
-            setCardBackImage(baseCardUrl);
+            // Nessuna card selezionata, usa la card base anche come retro
+            await loadCard(baseCardUrl, true);
           }
         }
       } catch (error) {
-        // Fallback alla card base
-        const baseCardUrl = getCardUrl(player.email);
-        setCardBackImage(baseCardUrl);
+        // Fallback alla card base come retro
+        await loadCard(baseCardUrl, true);
       }
     };
 
-    fetchSelectedCard();
+    fetchCards();
   }, [player.email]);
 
   // ✅ Gestione stato drag per evitare conflitti con click
@@ -85,6 +145,15 @@ export default function PlayerCard({ player }: PlayerCardProps) {
     if (!isDragging && player.email && player.email !== 'email@non-disponibile.com') {
       router.push(`/profile/${encodeURIComponent(player.email)}`);
     }
+  };
+
+  // Callback per quando DynamicCard genera l'immagine
+  const handleFrontCardImageReady = (imageUrl: string) => {
+    setFrontCardImageUrl(imageUrl);
+  };
+
+  const handleBackCardImageReady = (imageUrl: string) => {
+    setCardBackImage(imageUrl);
   };
 
   const getCardType = (overall: number) => {
@@ -205,22 +274,27 @@ export default function PlayerCard({ player }: PlayerCardProps) {
             </div>
           )}
 
-          {/* Actual Card */}
-          {player.email && player.email !== 'email@non-disponibile.com' && (
-            <img
-              src={getCardUrl(player.email)}
-              alt={`Card di ${player.name}`}
-              className={`w-full h-auto transition-all duration-300 ${
-                imageLoading ? 'opacity-0 absolute' : 'opacity-100'
-              }`}
-              onLoad={() => {
-                setImageLoading(false);
-              }}
-              onError={() => {
-                setImageLoading(false);
-                setImageError(true);
-              }}
-            />
+          {/* Card Fronte - PNG o JSON dinamica */}
+          {player.email && player.email !== 'email@non-disponibile.com' && !imageLoading && !imageError && (
+            <>
+              {/* Card PNG (da backend Next.js) */}
+              {!isJsonResponse && frontCardImageUrl && (
+                <img
+                  src={frontCardImageUrl}
+                  alt={`Card di ${player.name}`}
+                  className="w-full h-auto"
+                />
+              )}
+
+              {/* Card Dinamica (da dati JSON Netlify) */}
+              {isJsonResponse && cardData && (
+                <DynamicCard 
+                  cardData={cardData}
+                  className="w-full"
+                  onImageReady={handleFrontCardImageReady}
+                />
+              )}
+            </>
           )}
         </div>
 
@@ -232,12 +306,26 @@ export default function PlayerCard({ player }: PlayerCardProps) {
             transform: 'rotateY(180deg)'
           }}
         >
-          {player.email && player.email !== 'email@non-disponibile.com' && cardBackImage && (
-            <img
-              src={cardBackImage}
-              alt={selectedCard ? `Card ${selectedCard.awardType} di ${player.name}` : `Card di ${player.name}`}
-              className="w-full h-auto"
-            />
+          {player.email && player.email !== 'email@non-disponibile.com' && !imageLoading && !imageError && (
+            <>
+              {/* Card PNG (da backend Next.js) */}
+              {!isBackJsonResponse && cardBackImage && (
+                <img
+                  src={cardBackImage}
+                  alt={selectedCard ? `Card ${selectedCard.awardType} di ${player.name}` : `Card di ${player.name}`}
+                  className="w-full h-auto"
+                />
+              )}
+
+              {/* Card Dinamica (da dati JSON Netlify) */}
+              {isBackJsonResponse && backCardData && (
+                <DynamicCard 
+                  cardData={backCardData}
+                  className="w-full"
+                  onImageReady={handleBackCardImageReady}
+                />
+              )}
+            </>
           )}
         </div>
 
