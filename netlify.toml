@@ -26,8 +26,23 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Configurazione semplificata delle redirects per le API
-# Un singolo redirect generico per evitare conflitti
+# Configurazione delle API redirects - specifiche per evitare conflitti
+[[redirects]]
+  from = "/api/players"
+  to = "/.netlify/functions/players"
+  status = 200
+
+[[redirects]]
+  from = "/api/matches"
+  to = "/.netlify/functions/matches"
+  status = 200
+
+[[redirects]]
+  from = "/api/stats"
+  to = "/.netlify/functions/stats"
+  status = 200
+
+# Redirect generico per tutte le altre API
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
