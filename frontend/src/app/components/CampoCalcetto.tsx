@@ -141,8 +141,7 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
                 />
                 {/* Nome giocatore */}
                 <div className="mt-1 px-1 py-0.5 sm:px-2 sm:py-1 bg-black/70 text-white text-xs sm:text-xs rounded font-runtime text-center min-w-max">
-                  <span className="hidden sm:inline">{playerName}</span>
-                  <span className="sm:hidden">{playerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
+                  <span className="text-xs sm:text-sm">{playerName}</span>
                 </div>
               </div>
             </div>
@@ -166,8 +165,7 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
               <div className="relative flex flex-col items-center">
                 {/* Nome giocatore */}
                 <div className="mb-1 px-1 py-0.5 sm:px-2 sm:py-1 bg-black/70 text-white text-xs sm:text-xs rounded font-runtime text-center min-w-max">
-                  <span className="hidden sm:inline">{playerName}</span>
-                  <span className="sm:hidden">{playerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
+                  <span className="text-xs sm:text-sm">{playerName}</span>
                 </div>
                 <PlayerImage 
                   player={player} 

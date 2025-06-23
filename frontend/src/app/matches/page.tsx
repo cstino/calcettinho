@@ -581,32 +581,21 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                           {getPlayerName(email)}
                         </span>
                         {match.completed && match.playerStats && match.playerStats[email] && (
-                          <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                          <div className="mt-1 text-xs text-red-300 text-center flex items-center justify-center gap-1 flex-wrap">
                             {match.playerStats[email].gol > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">⚽</div>
-                                <div className="text-center">{match.playerStats[email].gol}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">⚽{match.playerStats[email].gol}</span>
                             )}
                             {match.playerStats[email].assist > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">
-                                  <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
-                                </div>
-                                <div className="text-center">{match.playerStats[email].assist}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">
+                                <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                {match.playerStats[email].assist}
+                              </span>
                             )}
                             {match.playerStats[email].gialli > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟨</div>
-                                <div className="text-center">{match.playerStats[email].gialli}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟨{match.playerStats[email].gialli}</span>
                             )}
                             {match.playerStats[email].rossi > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟥</div>
-                                <div className="text-center">{match.playerStats[email].rossi}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟥{match.playerStats[email].rossi}</span>
                             )}
                           </div>
                         )}
@@ -658,32 +647,21 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                           {getPlayerName(email)}
                         </span>
                         {match.completed && match.playerStats && match.playerStats[email] && (
-                          <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                          <div className="mt-1 text-xs text-blue-300 text-center flex items-center justify-center gap-1 flex-wrap">
                             {match.playerStats[email].gol > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">⚽</div>
-                                <div className="text-center">{match.playerStats[email].gol}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">⚽{match.playerStats[email].gol}</span>
                             )}
                             {match.playerStats[email].assist > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">
-                                  <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
-                                </div>
-                                <div className="text-center">{match.playerStats[email].assist}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">
+                                <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                {match.playerStats[email].assist}
+                              </span>
                             )}
                             {match.playerStats[email].gialli > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟨</div>
-                                <div className="text-center">{match.playerStats[email].gialli}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟨{match.playerStats[email].gialli}</span>
                             )}
                             {match.playerStats[email].rossi > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟥</div>
-                                <div className="text-center">{match.playerStats[email].rossi}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟥{match.playerStats[email].rossi}</span>
                             )}
                           </div>
                         )}
