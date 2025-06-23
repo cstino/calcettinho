@@ -72,12 +72,6 @@
   to = "/.netlify/functions/:splat"
   status = 200
 
-# Redirect per SPA routing - IMPORTANTE per pagine dinamiche
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
 # Headers per sicurezza e performance
 [[headers]]
   for = "/*"
