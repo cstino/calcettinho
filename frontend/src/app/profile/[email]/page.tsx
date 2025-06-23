@@ -258,31 +258,7 @@ const AnimatedPercentage = ({
 };
 
 // Funzione per generare parametri statici - necessaria per export statico
-export async function generateStaticParams() {
-  // Lista degli email dei giocatori - puoi aggiornare questa lista
-  const playerEmails = [
-    'alessandro.dibo97@gmail.com',
-    'aloisi.riccardo.97@gmail.com',
-    'andreadiloreto@hotmail.it',
-    'apostol097@libero.it',
-    'barigellil@gmail.com',
-    'cr.96bc@gmail.com',
-    'davide97ferretti@gmail.com',
-    'jacoporeggi@gmail.com',
-    'lory.dim@hotmail.it',
-    'marsili.alex@icloud.com',
-    'massimilianoflorii97.mf@gmail.com',
-    'mathias.fossataro@gmail.com',
-    'matteo.ricci1609@gmail.com',
-    'mattia.matichecchia18@gmail.com',
-    'riccardoscataglini91@gmail.com',
-    'zzeta7747@gmail.com'
-  ];
 
-  return playerEmails.map((email) => ({
-    email: email,
-  }));
-}
 
 export default function PlayerProfile() {
   const params = useParams();
