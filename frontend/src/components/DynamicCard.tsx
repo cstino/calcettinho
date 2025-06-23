@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 
 interface CardData {
   player: {
@@ -40,11 +40,27 @@ const CARD_HEIGHT = 864;
 
 const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onImageReady }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastGeneratedData, setLastGeneratedData] = useState<string | null>(null);
+
+  // Serialize cardData per confronto stabile
+  const cardDataKey = cardData ? JSON.stringify({
+    template: cardData.template,
+    overall: cardData.overall,
+    playerName: cardData.player.nome,
+    hasPhoto: cardData.hasPhoto,
+    photoUrl: cardData.photoUrl,
+    cardTemplateUrl: cardData.cardTemplateUrl,
+    stats: cardData.stats
+  }) : null;
 
   useEffect(() => {
-    if (!cardData || !canvasRef.current) return;
+    if (!cardData || !canvasRef.current || isGenerating || cardDataKey === lastGeneratedData) return;
 
     const generateCard = async () => {
+      if (isGenerating) return;
+      
+      setIsGenerating(true);
       const canvas = canvasRef.current!;
       const ctx = canvas.getContext('2d')!;
       
@@ -52,11 +68,9 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
       canvas.height = CARD_HEIGHT;
 
       try {
-        console.log('🎯 DynamicCard Debug:', {
+        console.log('🎯 DynamicCard Debug - Generating:', {
           template: cardData.template,
-          hasPhoto: cardData.hasPhoto,
-          photoUrl: cardData.photoUrl,
-          cardTemplateUrl: cardData.cardTemplateUrl
+          playerName: cardData.player.nome
         });
         
         if (cardData.hasPhoto && cardData.photoUrl && cardData.cardTemplateUrl) {
@@ -126,16 +140,31 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
           }, 'image/png');
         }
 
+        // Segna come completata
+        setLastGeneratedData(cardDataKey);
+
       } catch (error) {
         console.error('🚨 Errore nella generazione della card:', error);
-        console.error('📊 Card data quando è fallito:', cardData);
         // Fallback alla card semplificata
         drawSimpleCard(ctx, cardData);
+        
+        if (onImageReady) {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const imageUrl = URL.createObjectURL(blob);
+              onImageReady(imageUrl);
+            }
+          }, 'image/png');
+        }
+        
+        setLastGeneratedData(cardDataKey);
+      } finally {
+        setIsGenerating(false);
       }
     };
 
     generateCard();
-  }, [cardData, onImageReady]);
+  }, [cardDataKey, isGenerating, lastGeneratedData]);
 
   // Funzione helper per caricare immagini
   const loadImage = (src: string): Promise<HTMLImageElement> => {

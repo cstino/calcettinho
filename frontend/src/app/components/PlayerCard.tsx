@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getCardUrl, getSpecialCardUrl } from '../../utils/api';
@@ -147,14 +147,14 @@ export default function PlayerCard({ player }: PlayerCardProps) {
     }
   };
 
-  // Callback per quando DynamicCard genera l'immagine
-  const handleFrontCardImageReady = (imageUrl: string) => {
+  // Callback memoizzati per quando DynamicCard genera l'immagine
+  const handleFrontCardImageReady = useCallback((imageUrl: string) => {
     setFrontCardImageUrl(imageUrl);
-  };
+  }, []);
 
-  const handleBackCardImageReady = (imageUrl: string) => {
+  const handleBackCardImageReady = useCallback((imageUrl: string) => {
     setCardBackImage(imageUrl);
-  };
+  }, []);
 
   const getCardType = (overall: number) => {
     if (overall >= 90) return 'Ultimate';
