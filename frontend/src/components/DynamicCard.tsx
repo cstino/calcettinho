@@ -25,7 +25,11 @@ interface CardData {
   overall: number;
   template: string;
   hasPhoto: boolean;
-  cardTemplateUrl: string;
+  // Card base (dal backend Next.js)
+  cardTemplateUrl?: string;
+  // Special cards (da Netlify functions)
+  specialCardTemplateUrl?: string;
+  hasTemplate?: boolean;
   photoUrl: string | null;
 }
 
@@ -68,19 +72,27 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
       canvas.height = CARD_HEIGHT;
 
       try {
+        // Determina quale template URL usare (card base o special)
+        const templateUrl = cardData.specialCardTemplateUrl || cardData.cardTemplateUrl;
+        
         console.log('🎯 DynamicCard Debug - Generating:', {
           template: cardData.template,
           playerName: cardData.player.nome,
           hasPhoto: cardData.hasPhoto,
           photoUrl: cardData.photoUrl,
           cardTemplateUrl: cardData.cardTemplateUrl,
-          canUseFullCard: !!(cardData.hasPhoto && cardData.photoUrl && cardData.cardTemplateUrl)
+          specialCardTemplateUrl: cardData.specialCardTemplateUrl,
+          templateUrl: templateUrl,
+          canUseFullCard: !!(cardData.hasPhoto && cardData.photoUrl && templateUrl)
         });
         
-        if (cardData.hasPhoto && cardData.photoUrl && cardData.cardTemplateUrl) {
+        if (cardData.hasPhoto && cardData.photoUrl && templateUrl) {
           // **CARD COMPLETA CON TEMPLATE E FOTO**
+          console.log(`🎨 Loading template from: ${templateUrl}`);
+          console.log(`📸 Loading photo from: ${cardData.photoUrl}`);
+          
           const [templateImg, playerImg] = await Promise.all([
-            loadImage(cardData.cardTemplateUrl),
+            loadImage(templateUrl),
             loadImage(cardData.photoUrl)
           ]);
 
@@ -175,8 +187,15 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
+      img.onload = () => {
+        console.log(`✅ Image loaded successfully: ${src.split('/').pop()}`);
+        resolve(img);
+      };
+      img.onerror = (error) => {
+        console.error(`❌ Failed to load image: ${src}`);
+        console.error('Error details:', error);
+        reject(new Error(`Failed to load image: ${src}`));
+      };
       img.src = src;
     });
   };
