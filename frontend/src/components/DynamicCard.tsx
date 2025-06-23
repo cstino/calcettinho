@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 
 interface CardData {
   player: {
@@ -25,7 +25,11 @@ interface CardData {
   overall: number;
   template: string;
   hasPhoto: boolean;
-  cardTemplateUrl: string;
+  // Card base (dal backend Next.js)
+  cardTemplateUrl?: string;
+  // Special cards (da Netlify functions)
+  specialCardTemplateUrl?: string;
+  hasTemplate?: boolean;
   photoUrl: string | null;
 }
 
@@ -40,11 +44,27 @@ const CARD_HEIGHT = 864;
 
 const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onImageReady }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastGeneratedData, setLastGeneratedData] = useState<string | null>(null);
+
+  // Serialize cardData per confronto stabile
+  const cardDataKey = cardData ? JSON.stringify({
+    template: cardData.template,
+    overall: cardData.overall,
+    playerName: cardData.player.nome,
+    hasPhoto: cardData.hasPhoto,
+    photoUrl: cardData.photoUrl,
+    cardTemplateUrl: cardData.cardTemplateUrl,
+    stats: cardData.stats
+  }) : null;
 
   useEffect(() => {
-    if (!cardData || !canvasRef.current) return;
+    if (!cardData || !canvasRef.current || isGenerating || cardDataKey === lastGeneratedData) return;
 
     const generateCard = async () => {
+      if (isGenerating) return;
+      
+      setIsGenerating(true);
       const canvas = canvasRef.current!;
       const ctx = canvas.getContext('2d')!;
       
@@ -52,10 +72,27 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
       canvas.height = CARD_HEIGHT;
 
       try {
-        if (cardData.hasPhoto && cardData.photoUrl && cardData.cardTemplateUrl) {
+        // Determina quale template URL usare (card base o special)
+        const templateUrl = cardData.specialCardTemplateUrl || cardData.cardTemplateUrl;
+        
+        console.log('🎯 DynamicCard Debug - Generating:', {
+          template: cardData.template,
+          playerName: cardData.player.nome,
+          hasPhoto: cardData.hasPhoto,
+          photoUrl: cardData.photoUrl,
+          cardTemplateUrl: cardData.cardTemplateUrl,
+          specialCardTemplateUrl: cardData.specialCardTemplateUrl,
+          templateUrl: templateUrl,
+          canUseFullCard: !!(cardData.hasPhoto && cardData.photoUrl && templateUrl)
+        });
+        
+        if (cardData.hasPhoto && cardData.photoUrl && templateUrl) {
           // **CARD COMPLETA CON TEMPLATE E FOTO**
+          console.log(`🎨 Loading template from: ${templateUrl}`);
+          console.log(`📸 Loading photo from: ${cardData.photoUrl}`);
+          
           const [templateImg, playerImg] = await Promise.all([
-            loadImage(cardData.cardTemplateUrl),
+            loadImage(templateUrl),
             loadImage(cardData.photoUrl)
           ]);
 
@@ -119,23 +156,46 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
           }, 'image/png');
         }
 
+        // Segna come completata
+        setLastGeneratedData(cardDataKey);
+
       } catch (error) {
-        console.error('Errore nella generazione della card:', error);
+        console.error('🚨 Errore nella generazione della card:', error);
         // Fallback alla card semplificata
         drawSimpleCard(ctx, cardData);
+        
+        if (onImageReady) {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const imageUrl = URL.createObjectURL(blob);
+              onImageReady(imageUrl);
+            }
+          }, 'image/png');
+        }
+        
+        setLastGeneratedData(cardDataKey);
+      } finally {
+        setIsGenerating(false);
       }
     };
 
     generateCard();
-  }, [cardData, onImageReady]);
+  }, [cardDataKey, isGenerating, lastGeneratedData]);
 
   // Funzione helper per caricare immagini
   const loadImage = (src: string): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
+      img.onload = () => {
+        console.log(`✅ Image loaded successfully: ${src.split('/').pop()}`);
+        resolve(img);
+      };
+      img.onerror = (error) => {
+        console.error(`❌ Failed to load image: ${src}`);
+        console.error('Error details:', error);
+        reject(new Error(`Failed to load image: ${src}`));
+      };
       img.src = src;
     });
   };
@@ -194,7 +254,8 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
     // Background in base al template
     const bgColor = cardData.template === 'ultimate' ? '#4A1D96' : 
                    cardData.template === 'oro' ? '#B45309' :
-                   cardData.template === 'argento' ? '#6B7280' : '#374151';
+                   cardData.template === 'argento' ? '#6B7280' : 
+                   cardData.template === 'bronzo' ? '#92400E' : '#374151';
     
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);

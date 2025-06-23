@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { getCardUrl, getSpecialCardUrl } from '../../../utils/api';
 import ProfileTiltCard from '../../components/ProfileTiltCard';
+import SmartCardImage from '../../../components/SmartCardImage';
 
 interface Player {
   id: string;
@@ -812,53 +813,7 @@ export default function PlayerProfile() {
     };
   };
 
-  // Componente per immagine STATICO - NO RELOAD
-  const CardImage = memo(({ src, alt }: { src: string; alt: string }) => {
-    // ✅ Stato iniziale fisso basato sulla cache globale
-    const [isLoaded] = useState(() => globalImageLoadedCache.has(src));
-    
-    // ✅ NO useEffect - No subscription - No ricaricamenti
-    
-    // ✅ Handler per quando l'immagine si carica (solo prima volta)
-    const handleImageLoad = useCallback(() => {
-      if (!globalImageLoadedCache.has(src)) {
-        globalImageLoadedCache.add(src);
-        globalImageCache.add(src);
-        console.log('✅ Immagine caricata (statica):', src.split('/').pop());
-      }
-    }, [src]);
-    
-    // Se l'immagine è già in cache, mostra direttamente
-    if (globalImageLoadedCache.has(src)) {
-      return (
-        <div className="relative w-full mb-2">
-          <img 
-            src={src}
-            alt={alt}
-            className="w-full h-auto rounded opacity-100"
-            loading="lazy"
-          />
-        </div>
-      );
-    }
-    
-    // Se non è in cache, mostra skeleton e carica
-    return (
-      <div className="relative w-full mb-2">
-        <div className="w-full aspect-[3/4] bg-gray-700 rounded animate-pulse"></div>
-        <img 
-          src={src}
-          alt={alt}
-          className="w-full h-auto rounded opacity-0 absolute inset-0"
-          onLoad={handleImageLoad}
-          loading="lazy"
-        />
-      </div>
-    );
-  }, (prevProps, nextProps) => {
-    // ✅ Memo: ri-renderizza SOLO se l'src cambia
-    return prevProps.src === nextProps.src;
-  });
+  // Nota: CardImage sostituito con SmartCardImage per gestire JSON/PNG automaticamente
 
   // Dati per il grafico radar
   const radarData = player ? [
@@ -1103,10 +1058,10 @@ export default function PlayerProfile() {
                         onClick={() => isOwner && setSelectedCardModal('base')}
                       >
                         <div className="absolute inset-2 rounded-lg overflow-hidden">
-                          <CardImage 
+                          <SmartCardImage 
                             src={getCardUrl(player?.email || '')}
                             alt="Card Base"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover rounded"
                           />
                         </div>
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1148,10 +1103,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1207,10 +1161,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1268,10 +1221,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1329,10 +1281,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1390,10 +1341,9 @@ export default function PlayerProfile() {
                             {isUnlocked ? (
                               <>
                                 <div className="absolute inset-2 rounded-lg overflow-hidden">
-                                  <CardImage 
+                                  <SmartCardImage 
                                     src={getSpecialCardUrl(player?.email || '', card.id)}
                                     alt={`Card ${card.name}`}
-                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -1484,7 +1434,7 @@ export default function PlayerProfile() {
                     {/* Preview card - Dimensioni ottimizzate per desktop */}
                     <div className="mb-6 flex justify-center">
                       <div className="w-48 max-w-full">
-                        <CardImage 
+                        <SmartCardImage 
                           src={selectedCardModal === 'base' 
                             ? getCardUrl(player?.email || '') 
                             : getSpecialCardUrl(player?.email || '', selectedCardModal)

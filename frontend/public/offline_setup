@@ -1,0 +1,113 @@
+# Calcettinho – Guida “offline‑ready”
+
+Questa guida spiega come trasformare l’app Next.js in una Progressive Web App che:
+
+* carica istantaneamente dopo il primo uso (niente fetch lenti)
+* funziona anche senza connessione
+* rimane 100 % gratuita su Netlify
+
+> **Tempo stimato:** 10‑15 minuti.
+
+---
+
+## 1 · Render statico con rigenerazione automatica
+
+1. Apri il file della pagina che elenca tutte le card (es. `app/cards/page.tsx` o `pages/cards.tsx`).
+2. Aggiungi in cima la costante:
+
+```ts
+export const revalidate = 3600 // rigenera la pagina ogni 1 h (3600 s)
+```
+
+*Se usi il Pages Router (`pages/…`), metti invece →*
+
+```ts
+export async function getStaticProps() {
+  const players = await fetchPlayersFromAirtable()
+  return { props: { players }, revalidate: 3600 }
+}
+```
+
+La pagina verrà pre‑renderizzata sul server e salvata sul CDN; dal browser arriverà già pronta, senza attese.
+
+---
+
+## 2 · Installa `next-pwa` (service‑worker & cache offline)
+
+```bash
+npm install next-pwa
+```
+
+Crea/edita `next.config.js`:
+
+```js
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+})
+
+module.exports = withPWA({
+  reactStrictMode: true,
+})
+```
+
+---
+
+## 3 · Manifest e icone
+
+1. Crea `public/manifest.json`:
+
+   ```json
+   {
+     "name": "Calcettinho",
+     "short_name": "Calcettinho",
+     "start_url": "/",
+     "display": "standalone",
+     "background_color": "#000000",
+     "theme_color": "#000000",
+     "icons": [
+       { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+       { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+     ]
+   }
+   ```
+2. Metti due icone PNG in `public/icons/` (192×192 e 512×512).
+3. In `_app.tsx`, `_document.tsx` oppure `app/layout.tsx` aggiungi nel `<head>`:
+
+   ```tsx
+   <link rel="manifest" href="/manifest.json" />
+   <link rel="icon" href="/icons/icon-192.png" />
+   <meta name="theme-color" content="#000000" />
+   ```
+
+---
+
+## 4 · Splash / schermata di caricamento (facoltativa)
+
+Esempio in App Router (`app/loading.tsx`):
+
+```tsx
+export default function Loading() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-black text-white">
+      <h1>Caricamento in corso…</h1>
+    </div>
+  )
+}
+```
+
+Oppure in Pages Router modifica `_app.tsx` con un semplice stato `loading` (vedi guida originale).
+
+---
+
+## 5 · Deploy
+
+* Committa le modifiche → push su GitHub.
+* Netlify ricostruirà il sito: nei log vedrai la generazione del **service worker**.
+* Dal secondo accesso la pagina delle card sarà istantanea; su mobile comparirà l’invito “Aggiungi alla schermata Home”.
+
+---
+
+**Fatto!** Calcettinho ora è offline‑ready e senza caricamenti lenti.
