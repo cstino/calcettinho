@@ -114,9 +114,79 @@ exports.handler = async (event, context) => {
     const base = airtable.base(process.env.AIRTABLE_BASE_ID);
     const matchesTable = base('matches');
 
-    // GET - Recupera tutte le partite
+    // GET - Recupera tutte le partite o una specifica
     if (event.httpMethod === 'GET') {
-      console.log('=== RECUPERO PARTITE ===');
+      // Controlla se c'è un matchId nell'URL
+      const pathSegments = event.path.split('/');
+      const matchId = pathSegments[pathSegments.length - 1];
+      
+      // Se c'è un matchId specifico, recupera solo quella partita
+      if (matchId && matchId !== 'matches') {
+        console.log('=== RECUPERO PARTITA SINGOLA ===', matchId);
+        
+        const records = await matchesTable.select({
+          filterByFormula: `{IDmatch} = '${matchId}'`
+        }).all();
+        
+        if (records.length === 0) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Partita non trovata' })
+          };
+        }
+        
+        const record = records[0];
+        
+        // Parse player stats se disponibili
+        let playerStats = {};
+        try {
+          if (record.get('playerStats')) {
+            playerStats = JSON.parse(record.get('playerStats'));
+          }
+        } catch (e) {
+          console.log('Errore nel parsing playerStats:', e);
+          playerStats = {};
+        }
+        
+        const match = {
+          id: record.id,
+          matchId: record.get('IDmatch') || record.id,
+          date: record.get('date') || '',
+          teamA: Array.isArray(record.get('teamA')) 
+            ? record.get('teamA')
+            : (typeof record.get('teamA') === 'string' && record.get('teamA') 
+              ? JSON.parse(record.get('teamA')) 
+              : []),
+          teamB: Array.isArray(record.get('teamB')) 
+            ? record.get('teamB')
+            : (typeof record.get('teamB') === 'string' && record.get('teamB') 
+              ? JSON.parse(record.get('teamB')) 
+              : []),
+          scoreA: record.get('scoreA') ? Number(record.get('scoreA')) : undefined,
+          scoreB: record.get('scoreB') ? Number(record.get('scoreB')) : undefined,
+          teamAScorer: record.get('teamAscorer') || record.get('teamAScorer') || '',
+          teamBScorer: record.get('teamBscorer') || record.get('teamBScorer') || '',
+          assistA: record.get('AssistA') || '',
+          assistB: record.get('AssistB') || '',
+          completed: record.get('completed') === true || record.get('completed') === 'true',
+          referee: record.get('referee') || '',
+          match_status: record.get('match_status') || 'scheduled',
+          playerStats: playerStats,
+          status: record.get('match_status') || (record.get('completed') === true || record.get('completed') === 'true' 
+            ? 'completed' 
+            : 'scheduled')
+        };
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(match)
+        };
+      }
+      
+      // Altrimenti recupera tutte le partite
+      console.log('=== RECUPERO TUTTE LE PARTITE ===');
       
       const records = await matchesTable.select({
         sort: [{ field: 'date', direction: 'desc' }]
