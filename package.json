@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "private": true,
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
+    "build": "npm install && cd frontend && npm install && npm run build",
     "build:netlify": "npm run install:all && cd frontend && npm run build",
     "start": "cd frontend && npm start",
     "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && npm run dev\"",
@@ -12,6 +12,11 @@
     "install:all": "npm run install:frontend && npm run install:backend",
     "postbuild": "npm run copy-functions",
     "copy-functions": "mkdir -p netlify/functions && cp -r backend/src/app/api/* netlify/functions/ || echo 'Functions copied'"
+  },
+  "dependencies": {
+    "airtable": "^0.12.2",
+    "dotenv": "^16.5.0",
+    "googleapis": "^149.0.0"
   },
   "devDependencies": {
     "concurrently": "^7.6.0"
