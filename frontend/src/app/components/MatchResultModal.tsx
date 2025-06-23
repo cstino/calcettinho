@@ -152,7 +152,7 @@ export default function MatchResultModal({ isOpen, onClose, onSuccess, match }: 
         // 2. Processa automaticamente premi e statistiche
         console.log('🎯 Avvio processamento premi e statistiche...');
         try {
-          const processResponse = await fetch(`/api/matches/${match.matchId}/process-awards`, {
+          const processResponse = await fetch(`/.netlify/functions/process-awards?matchId=${match.matchId}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

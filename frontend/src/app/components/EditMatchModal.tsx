@@ -166,7 +166,7 @@ export default function EditMatchModal({
         if (completed && match?.matchId) {
           console.log('🎯 Partita completata, processamento premi e statistiche...');
           try {
-            const processResponse = await fetch(`/api/matches/${match.matchId}/process-awards`, {
+            const processResponse = await fetch(`/.netlify/functions/process-awards?matchId=${match.matchId}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

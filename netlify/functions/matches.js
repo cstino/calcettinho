@@ -169,14 +169,103 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // PUT - Aggiorna partita (da implementare se necessario)
+    // PUT - Aggiorna partita (finalizzazione)
     if (event.httpMethod === 'PUT') {
-      // TODO: Implementare aggiornamento partita se necessario
-      return {
-        statusCode: 501,
-        headers,
-        body: JSON.stringify({ error: 'PUT non ancora implementato per matches' })
-      };
+      console.log('=== AGGIORNAMENTO PARTITA ===');
+      const body = JSON.parse(event.body);
+      console.log('Body ricevuto:', body);
+      
+      const { matchId, scoreA, scoreB, playerStats, completed } = body;
+
+      // Validazione dati
+      if (!matchId) {
+        console.log('Validazione fallita: matchId mancante');
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'matchId è obbligatorio' })
+        };
+      }
+
+      try {
+        // Trova la partita da aggiornare
+        console.log('Ricerca partita con matchId:', matchId);
+        const records = await matchesTable.select({
+          filterByFormula: `{IDmatch} = '${matchId}'`
+        }).all();
+
+        if (records.length === 0) {
+          console.log('Partita non trovata');
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Partita non trovata' })
+          };
+        }
+
+        const record = records[0];
+        console.log('Record trovato:', record.id);
+
+        // Prepara i dati da aggiornare
+        const updateData = {};
+        
+        if (scoreA !== undefined) updateData.scoreA = scoreA;
+        if (scoreB !== undefined) updateData.scoreB = scoreB;
+        if (completed !== undefined) updateData.completed = completed;
+        if (completed) updateData.match_status = 'completed';
+        
+        // Salva playerStats come stringa JSON se forniti
+        if (playerStats) {
+          updateData.playerStats = JSON.stringify(playerStats);
+        }
+
+        console.log('Dati da aggiornare:', updateData);
+
+        // Aggiorna il record
+        const updatedRecord = await matchesTable.update(record.id, updateData);
+        console.log('Record aggiornato con successo:', updatedRecord.id);
+
+        // Prepara la risposta con i dati aggiornati
+        const updatedMatch = {
+          id: updatedRecord.id,
+          matchId: updatedRecord.get('IDmatch'),
+          date: updatedRecord.get('date'),
+          teamA: Array.isArray(updatedRecord.get('teamA')) 
+            ? updatedRecord.get('teamA')
+            : JSON.parse(updatedRecord.get('teamA') || '[]'),
+          teamB: Array.isArray(updatedRecord.get('teamB')) 
+            ? updatedRecord.get('teamB')
+            : JSON.parse(updatedRecord.get('teamB') || '[]'),
+          scoreA: updatedRecord.get('scoreA'),
+          scoreB: updatedRecord.get('scoreB'),
+          completed: updatedRecord.get('completed'),
+          match_status: updatedRecord.get('match_status'),
+          referee: updatedRecord.get('referee'),
+          playerStats: updatedRecord.get('playerStats') 
+            ? JSON.parse(updatedRecord.get('playerStats'))
+            : {}
+        };
+
+        console.log('Partita aggiornata:', updatedMatch);
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            match: updatedMatch
+          })
+        };
+
+      } catch (updateError) {
+        console.error('Errore nell\'aggiornamento:', updateError);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ 
+            error: `Errore nell'aggiornamento della partita: ${updateError.message}` 
+          })
+        };
+      }
     }
 
     // Metodo non supportato
