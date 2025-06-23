@@ -117,6 +117,43 @@ export default function Matches() {
     fetchData();
   }, [userEmail]);
 
+  // 🎯 Gestione apertura diretta votazione da URL parameter
+  useEffect(() => {
+    const checkOpenVoteParam = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const openVoteMatchId = urlParams.get('openVote');
+      
+      if (openVoteMatchId && matches.length > 0 && userEmail) {
+        const targetMatch = matches.find(m => m.matchId === openVoteMatchId);
+        
+        if (targetMatch && targetMatch.completed) {
+          // Controlla se l'utente può votare (ha partecipato alla partita)
+          const allPlayers = [...targetMatch.teamA, ...targetMatch.teamB];
+          
+          if (allPlayers.includes(userEmail)) {
+            setSelectedMatch(targetMatch);
+            setShowVotingModal(true);
+            setActiveTab('completed'); // Passa alla tab delle partite completate
+            
+            // Rimuovi il parametro dall'URL
+            window.history.replaceState({}, '', '/matches');
+          } else {
+            alert('Non puoi votare per partite a cui non hai partecipato!');
+          }
+        } else if (targetMatch) {
+          alert('Non puoi votare per partite non ancora completate!');
+        } else {
+          alert('Partita non trovata!');
+        }
+      }
+    };
+
+    // Controlla solo quando matches e userEmail sono caricati
+    if (matches.length > 0 && userEmail) {
+      checkOpenVoteParam();
+    }
+  }, [matches, userEmail]);
+
   const checkUserVotes = async (matchesData: Match[], userEmail: string) => {
     try {
       const completedMatches = matchesData.filter(match => match.completed);

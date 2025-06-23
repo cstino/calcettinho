@@ -36,7 +36,7 @@ function PlayerImage({ player, teamColor, playerName }: PlayerImageProps) {
   const photoUrl = getPlayerPhotoUrl(player?.email || '');
 
   return (
-    <div className={`w-12 h-12 border-2 ${borderColor} rounded-full overflow-hidden shadow-lg bg-gray-200`}>
+    <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-2 ${borderColor} rounded-full overflow-hidden shadow-lg bg-gray-200`}>
       {!imageError ? (
         <img
           src={photoUrl}
@@ -51,7 +51,7 @@ function PlayerImage({ player, teamColor, playerName }: PlayerImageProps) {
         />
       ) : (
         <div className={`w-full h-full ${bgColor} flex items-center justify-center`}>
-          <span className="text-white text-sm font-bold">
+          <span className="text-white text-xs sm:text-sm font-bold">
             {getInitials(playerName)}
           </span>
         </div>
@@ -140,8 +140,9 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
                   playerName={playerName} 
                 />
                 {/* Nome giocatore */}
-                <div className="mt-1 px-2 py-1 bg-black/70 text-white text-xs rounded font-runtime text-center min-w-max">
-                  {playerName}
+                <div className="mt-1 px-1 py-0.5 sm:px-2 sm:py-1 bg-black/70 text-white text-xs sm:text-xs rounded font-runtime text-center min-w-max">
+                  <span className="hidden sm:inline">{playerName}</span>
+                  <span className="sm:hidden">{playerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
                 </div>
               </div>
             </div>
@@ -164,8 +165,9 @@ export default function CampoCalcetto({ team1, team2, team1Name = "Squadra 1", t
               {/* Pallino giocatore con foto */}
               <div className="relative flex flex-col items-center">
                 {/* Nome giocatore */}
-                <div className="mb-1 px-2 py-1 bg-black/70 text-white text-xs rounded font-runtime text-center min-w-max">
-                  {playerName}
+                <div className="mb-1 px-1 py-0.5 sm:px-2 sm:py-1 bg-black/70 text-white text-xs sm:text-xs rounded font-runtime text-center min-w-max">
+                  <span className="hidden sm:inline">{playerName}</span>
+                  <span className="sm:hidden">{playerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
                 </div>
                 <PlayerImage 
                   player={player} 

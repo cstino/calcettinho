@@ -555,7 +555,7 @@ export default function Home() {
                           <div className="w-4 h-4 bg-gradient-to-r from-orange-400 to-red-400 rounded-full animate-pulse shadow-lg neon-glow"></div>
                         </div>
                         <Link 
-                          href={`/matches`}
+                          href={`/matches?openVote=${match.matchId}`}
                           className="w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white px-6 py-3 rounded-full font-bold text-center block hover:from-orange-600 hover:via-red-600 hover:to-pink-600 transition-all duration-300 shadow-lg neon-glow hover:scale-105"
                         >
                           Vota Ora
