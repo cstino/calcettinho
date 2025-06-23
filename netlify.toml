@@ -42,6 +42,17 @@
   to = "/.netlify/functions/stats"
   status = 200
 
+# API di autenticazione
+[[redirects]]
+  from = "/api/auth/check"
+  to = "/.netlify/functions/auth-check"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/role/*"
+  to = "/.netlify/functions/auth-role"
+  status = 200
+
 # Redirect generico per tutte le altre API
 [[redirects]]
   from = "/api/*"
