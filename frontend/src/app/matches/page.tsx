@@ -162,7 +162,11 @@ export default function Matches() {
 
   const getPlayerName = (email: string): string => {
     const player = allPlayers.find(p => p.email === email);
-    return player?.nome || email.split('@')[0] || 'Giocatore';
+    // Debug log per vedere se i player data sono caricati
+    if (allPlayers.length === 0) {
+      console.log('⚠️ Players data not loaded yet, showing email fallback:', email);
+    }
+    return player?.nome || player?.name || email.split('@')[0] || 'Giocatore';
   };
 
   const convertEmailsToPlayers = (emails: string[]): CampoPlayer[] => {
