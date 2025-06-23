@@ -2,7 +2,7 @@ const Airtable = require('airtable');
 
 // Funzione helper per aggiornare le statistiche dei giocatori
 async function updatePlayerStats(base, matchRecord, playerStats, scoreA, scoreB) {
-  const playersTable = base('players');
+  const playerStatsTable = base('player_stats');
   
   // Ottieni i team dalla partita
   const teamA = Array.isArray(matchRecord.get('teamA')) 
@@ -27,57 +27,61 @@ async function updatePlayerStats(base, matchRecord, playerStats, scoreA, scoreB)
     try {
       console.log(`Aggiornamento statistiche per: ${playerEmail}`);
       
-      // Trova il giocatore
-      const playerRecords = await playersTable.select({
-        filterByFormula: `{email} = '${playerEmail}'`
+      // Trova il giocatore nella tabella player_stats
+      const playerRecords = await playerStatsTable.select({
+        filterByFormula: `{playerEmail} = '${playerEmail}'`
       }).all();
       
-      if (playerRecords.length === 0) {
-        console.log(`Giocatore non trovato: ${playerEmail}`);
-        continue;
-      }
-      
-      const playerRecord = playerRecords[0];
-      const currentStats = playerRecord.fields;
-      
-      // Statistiche attuali (con default 0)
-      const partiteGiocate = (currentStats.partiteGiocate || 0) + 1;
-      let partiteVinte = currentStats.partiteVinte || 0;
-      let partitePerse = currentStats.partitePerse || 0;
-      let partitePareggiate = currentStats.partitePareggiate || 0;
-      
-      // Aggiorna vittorie/sconfitte/pareggi
-      const isInTeamA = teamA.includes(playerEmail);
-      if (isDraw) {
-        partitePareggiate += 1;
-      } else if ((isInTeamA && teamAWon) || (!isInTeamA && teamBWon)) {
-        partiteVinte += 1;
-      } else {
-        partitePerse += 1;
-      }
-      
-      // Statistiche di gioco dalla partita
       const playerMatchStats = playerStats[playerEmail] || {};
-      const golFatti = (currentStats.golFatti || 0) + (playerMatchStats.gol || 0);
-      const assistFatti = (currentStats.assistFatti || 0) + (playerMatchStats.assist || 0);
-      const cartelliGialli = (currentStats.cartelliGialli || 0) + (playerMatchStats.gialli || 0);
-      const cartelliRossi = (currentStats.cartelliRossi || 0) + (playerMatchStats.rossi || 0);
+      const isInTeamA = teamA.includes(playerEmail);
       
-      // Aggiorna il record del giocatore
-      const updateData = {
-        partiteGiocate,
-        partiteVinte,
-        partitePerse,
-        partitePareggiate,
-        golFatti,
-        assistFatti,
-        cartelliGialli,
-        cartelliRossi
-      };
+      // Determina risultato per questo giocatore
+      let isWin = false;
+      let isLoss = false;
+      if (!isDraw) {
+        if ((isInTeamA && teamAWon) || (!isInTeamA && teamBWon)) {
+          isWin = true;
+        } else {
+          isLoss = true;
+        }
+      }
       
-      console.log(`Aggiornamento dati per ${playerEmail}:`, updateData);
-      
-      await playersTable.update(playerRecord.id, updateData);
+      if (playerRecords.length === 0) {
+        // Crea nuovo record se non esiste
+        const newStats = {
+          playerEmail: playerEmail,
+          Gol: playerMatchStats.gol || 0,
+          partiteDisputate: 1,
+          partiteVinte: isWin ? 1 : 0,
+          partitePareggiate: isDraw ? 1 : 0,
+          partitePerse: isLoss ? 1 : 0,
+          assistenze: playerMatchStats.assist || 0,
+          cartelliniGialli: playerMatchStats.gialli || 0,
+          cartelliniRossi: playerMatchStats.rossi || 0
+        };
+        
+        console.log(`Creazione nuovo record per ${playerEmail}:`, newStats);
+        await playerStatsTable.create(newStats);
+        
+      } else {
+        // Aggiorna record esistente
+        const playerRecord = playerRecords[0];
+        const currentStats = playerRecord.fields;
+        
+        const updateData = {
+          Gol: (Number(currentStats.Gol) || 0) + (playerMatchStats.gol || 0),
+          partiteDisputate: (Number(currentStats.partiteDisputate) || 0) + 1,
+          partiteVinte: (Number(currentStats.partiteVinte) || 0) + (isWin ? 1 : 0),
+          partitePareggiate: (Number(currentStats.partitePareggiate) || 0) + (isDraw ? 1 : 0),
+          partitePerse: (Number(currentStats.partitePerse) || 0) + (isLoss ? 1 : 0),
+          assistenze: (Number(currentStats.assistenze) || 0) + (playerMatchStats.assist || 0),
+          cartelliniGialli: (Number(currentStats.cartelliniGialli) || 0) + (playerMatchStats.gialli || 0),
+          cartelliniRossi: (Number(currentStats.cartelliniRossi) || 0) + (playerMatchStats.rossi || 0)
+        };
+        
+        console.log(`Aggiornamento dati per ${playerEmail}:`, updateData);
+        await playerStatsTable.update(playerRecord.id, updateData);
+      }
       console.log(`Statistiche aggiornate per: ${playerEmail}`);
       
     } catch (playerError) {
