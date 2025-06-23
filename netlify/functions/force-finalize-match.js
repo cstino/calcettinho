@@ -77,114 +77,72 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 2. Finalizza assegnando MOTM anche se non tutti hanno votato
-    console.log('🔧 Forzando assegnazione MOTM...');
+    // 2. Chiama finalize-voting con forzatura
+    console.log('🔧 Chiamando finalize-voting con forzatura...');
     
-    // Trova i voti esistenti per questa partita
-    const voteRecords = await base('votes').select({
-      filterByFormula: `{matchId} = "${matchId}"`
-    }).all();
+    try {
+      // Costruisci URL per finalize-voting
+      const finalizeUrl = `/.netlify/functions/finalize-voting?matchId=${matchId}`;
+      
+      const finalizeResponse = await fetch(finalizeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          force: true
+        })
+      });
 
-    const teamA = JSON.parse(match.get('teamA') || '[]');
-    const teamB = JSON.parse(match.get('teamB') || '[]');
-    const allPlayers = [...teamA, ...teamB];
-
-    // Conta i voti MOTM per ogni giocatore
-    const motmVotes = {};
-    voteRecords.forEach(vote => {
-      const motmPlayer = vote.get('motmPlayer');
-      if (motmPlayer && allPlayers.includes(motmPlayer)) {
-        motmVotes[motmPlayer] = (motmVotes[motmPlayer] || 0) + 1;
+      const finalizeData = await finalizeResponse.json();
+      
+      if (finalizeData.success) {
+        console.log('✅ Finalize-voting completato con successo');
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: 'Partita finalizzata forzatamente con successo',
+            matchId,
+            motmAwarded: finalizeData.motmAwards || 0,
+            abilitiesUpdated: finalizeData.playerAbilitiesUpdated || 0,
+            motmDetails: finalizeData.motmDetails || [],
+            statUpdates: finalizeData.statUpdates || [],
+            voteStats: finalizeData.voteStats || {},
+            details: finalizeData
+          })
+        };
+      } else {
+        console.log('❌ Errore in finalize-voting:', finalizeData.error);
+        
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Errore nella finalizzazione forzata',
+            details: finalizeData.error,
+            matchId
+          })
+        };
       }
-    });
-
-    let motmWinner = null;
-    let maxVotes = 0;
-
-    // Trova il giocatore con più voti MOTM
-    Object.keys(motmVotes).forEach(player => {
-      if (motmVotes[player] > maxVotes) {
-        maxVotes = motmVotes[player];
-        motmWinner = player;
-      }
-    });
-
-    console.log(`🏆 Voti MOTM trovati:`, motmVotes);
-    console.log(`🏆 Vincitore MOTM: ${motmWinner} con ${maxVotes} voti`);
-
-    let motmAwarded = 0;
-    let abilitiesUpdated = 0;
-
-    // Assegna il premio MOTM se c'è un vincitore
-    if (motmWinner && maxVotes > 0) {
-      try {
-        // Controlla se il premio MOTM esiste già
-        const existingMotmRecords = await base('player_awards').select({
-          filterByFormula: `AND({match_id} = "${matchId}", {award_type} = "motm")`
-        }).all();
-
-        if (existingMotmRecords.length === 0) {
-          // Assegna il premio MOTM
-          await base('player_awards').create({
-            playerEmail: motmWinner,
-            award_type: 'motm',
-            match_id: matchId,
-            date_awarded: new Date().toISOString().split('T')[0]
-          });
-          
-          console.log(`🏆 Premio MOTM assegnato a ${motmWinner}`);
-          motmAwarded = 1;
-
-          // Aggiorna le abilità del giocatore (esempio: +1 abilità generale)
-          try {
-            const playerRecords = await base('players').select({
-              filterByFormula: `{email} = "${motmWinner}"`
-            }).all();
-
-            if (playerRecords.length > 0) {
-              const player = playerRecords[0];
-              const currentAbility = Number(player.get('abilita_generale')) || 0;
-              
-              await base('players').update(player.id, {
-                abilita_generale: currentAbility + 1
-              });
-              
-              console.log(`🎯 Abilità aggiornata per ${motmWinner}: ${currentAbility} -> ${currentAbility + 1}`);
-              abilitiesUpdated = 1;
-            }
-          } catch (abilityError) {
-            console.error('❌ Errore nell\'aggiornamento abilità:', abilityError);
-          }
-        } else {
-          console.log(`⚠️ Premio MOTM già assegnato per la partita ${matchId}`);
-        }
-      } catch (awardError) {
-        console.error('❌ Errore nell\'assegnazione premio MOTM:', awardError);
-      }
-    } else {
-      console.log('⚠️ Nessun vincitore MOTM trovato (nessun voto valido)');
+    } catch (finalizeError) {
+      console.error('❌ Errore durante chiamata finalize-voting:', finalizeError);
+      
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: 'Errore durante finalizzazione forzata',
+          details: finalizeError.message || 'Errore sconosciuto'
+        })
+      };
     }
 
-    console.log('✅ FORCE FINALIZE: Partita finalizzata con successo');
-    
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        message: 'Partita finalizzata forzatamente con successo',
-        matchId,
-        motmAwarded,
-        abilitiesUpdated,
-        motmWinner,
-        totalVotes: Object.values(motmVotes).reduce((a, b) => a + b, 0),
-        details: {
-          motmVotes,
-          playersWhoVoted: voteRecords.length,
-          totalPlayers: allPlayers.length
-        }
-      })
-    };
+
 
   } catch (error) {
     console.error('❌ FORCE FINALIZE: Errore durante finalizzazione forzata:', error);
