@@ -87,6 +87,12 @@
   to = "/.netlify/functions/players"
   status = 200
 
+# Redirect per immagini players (percorso diretto)
+[[redirects]]
+  from = "/players/*"
+  to = "/.netlify/functions/player-photo"
+  status = 200
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

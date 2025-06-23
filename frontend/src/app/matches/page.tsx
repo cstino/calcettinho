@@ -75,29 +75,40 @@ export default function Matches() {
       try {
         setLoading(true);
         
-        // Fetch players
+        // 🚀 PRIMA carica i players (OBBLIGATORIO per i nomi)
+        console.log('🔄 Caricamento players...');
         const playersResponse = await fetch('/api/players');
+        
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
+          console.log('✅ Players caricati:', playersData.length, 'giocatori');
           setAllPlayers(playersData);
+        } else {
+          console.error('❌ Errore nel caricamento players:', playersResponse.status);
+          setAllPlayers([]); // Assicura che sia array vuoto, non undefined
         }
         
-        // Fetch matches
+        // 🚀 POI carica i matches (ora i nomi saranno disponibili)
+        console.log('🔄 Caricamento matches...');
         const matchesResponse = await fetch('/api/matches');
         
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json();
+          console.log('✅ Matches caricati:', matchesData.length, 'partite');
           setMatches(matchesData);
           
           if (userEmail) {
             await checkUserVotes(matchesData, userEmail);
           }
         } else {
+          console.error('❌ Errore nel caricamento matches:', matchesResponse.status);
           setMatches([]);
         }
         
       } catch (error) {
+        console.error('❌ Errore generale nel fetch data:', error);
         setMatches([]);
+        setAllPlayers([]);
       } finally {
         setLoading(false);
       }

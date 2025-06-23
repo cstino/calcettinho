@@ -318,13 +318,20 @@ export default function Home() {
         setLoadingData(true);
         
         // Carica i dati del giocatore corrente
+        console.log('🔄 Caricamento players per homepage...');
         const playersResponse = await fetch('/api/players');
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
+          console.log('✅ Players caricati per homepage:', playersData.length, 'giocatori');
           const player = playersData.find((p: any) => p.email === userEmail);
           if (player) {
             setCurrentPlayer(player);
+            console.log('✅ Player corrente trovato:', player.nome || player.name);
+          } else {
+            console.error('❌ Player corrente non trovato per email:', userEmail);
           }
+        } else {
+          console.error('❌ Errore nel caricamento players homepage:', playersResponse.status);
         }
 
         // Carica le statistiche del giocatore
