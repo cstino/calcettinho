@@ -1,14 +1,13 @@
 [build]
-  base = "frontend"
-  command = "npm run build && cd ../netlify/functions && npm install"
-  publish = ".next"
+  command = "cd frontend && npm install && npm run build && cd ../netlify/functions && npm install"
+  publish = "frontend/.next"
 
 [build.environment]
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
 
 [functions]
-  directory = "../netlify/functions"
+  directory = "netlify/functions"
 
 # Configurazione delle redirects per le API specifiche
 [[redirects]]
