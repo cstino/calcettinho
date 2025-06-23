@@ -117,6 +117,43 @@ export default function Matches() {
     fetchData();
   }, [userEmail]);
 
+  // 🎯 Gestione apertura diretta votazione da URL parameter
+  useEffect(() => {
+    const checkOpenVoteParam = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const openVoteMatchId = urlParams.get('openVote');
+      
+      if (openVoteMatchId && matches.length > 0 && userEmail) {
+        const targetMatch = matches.find(m => m.matchId === openVoteMatchId);
+        
+        if (targetMatch && targetMatch.completed) {
+          // Controlla se l'utente può votare (ha partecipato alla partita)
+          const allPlayers = [...targetMatch.teamA, ...targetMatch.teamB];
+          
+          if (allPlayers.includes(userEmail)) {
+            setSelectedMatch(targetMatch);
+            setShowVotingModal(true);
+            setActiveTab('completed'); // Passa alla tab delle partite completate
+            
+            // Rimuovi il parametro dall'URL
+            window.history.replaceState({}, '', '/matches');
+          } else {
+            alert('Non puoi votare per partite a cui non hai partecipato!');
+          }
+        } else if (targetMatch) {
+          alert('Non puoi votare per partite non ancora completate!');
+        } else {
+          alert('Partita non trovata!');
+        }
+      }
+    };
+
+    // Controlla solo quando matches e userEmail sono caricati
+    if (matches.length > 0 && userEmail) {
+      checkOpenVoteParam();
+    }
+  }, [matches, userEmail]);
+
   const checkUserVotes = async (matchesData: Match[], userEmail: string) => {
     try {
       const completedMatches = matchesData.filter(match => match.completed);
@@ -544,32 +581,21 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                           {getPlayerName(email)}
                         </span>
                         {match.completed && match.playerStats && match.playerStats[email] && (
-                          <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                          <div className="mt-1 text-xs text-red-300 text-center flex items-center justify-center gap-1 flex-wrap">
                             {match.playerStats[email].gol > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">⚽</div>
-                                <div className="text-center">{match.playerStats[email].gol}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">⚽{match.playerStats[email].gol}</span>
                             )}
                             {match.playerStats[email].assist > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">
-                                  <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
-                                </div>
-                                <div className="text-center">{match.playerStats[email].assist}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">
+                                <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                {match.playerStats[email].assist}
+                              </span>
                             )}
                             {match.playerStats[email].gialli > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟨</div>
-                                <div className="text-center">{match.playerStats[email].gialli}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟨{match.playerStats[email].gialli}</span>
                             )}
                             {match.playerStats[email].rossi > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟥</div>
-                                <div className="text-center">{match.playerStats[email].rossi}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟥{match.playerStats[email].rossi}</span>
                             )}
                           </div>
                         )}
@@ -621,32 +647,21 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                           {getPlayerName(email)}
                         </span>
                         {match.completed && match.playerStats && match.playerStats[email] && (
-                          <div className="mt-1 text-xs space-y-0.5 flex flex-col items-center">
+                          <div className="mt-1 text-xs text-blue-300 text-center flex items-center justify-center gap-1 flex-wrap">
                             {match.playerStats[email].gol > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">⚽</div>
-                                <div className="text-center">{match.playerStats[email].gol}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">⚽{match.playerStats[email].gol}</span>
                             )}
                             {match.playerStats[email].assist > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">
-                                  <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
-                                </div>
-                                <div className="text-center">{match.playerStats[email].assist}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">
+                                <span className="w-3 h-3 bg-green-500 text-white text-xs flex items-center justify-center rounded font-bold leading-none">A</span>
+                                {match.playerStats[email].assist}
+                              </span>
                             )}
                             {match.playerStats[email].gialli > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟨</div>
-                                <div className="text-center">{match.playerStats[email].gialli}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟨{match.playerStats[email].gialli}</span>
                             )}
                             {match.playerStats[email].rossi > 0 && (
-                              <div className="grid grid-cols-2 gap-0.5 text-red-300 items-center">
-                                <div className="text-center w-4 flex justify-center">🟥</div>
-                                <div className="text-center">{match.playerStats[email].rossi}</div>
-                              </div>
+                              <span className="flex items-center gap-0.5">🟥{match.playerStats[email].rossi}</span>
                             )}
                           </div>
                         )}
