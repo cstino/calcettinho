@@ -142,8 +142,6 @@ exports.handler = async (event, context) => {
       };
     }
 
-
-
   } catch (error) {
     console.error('❌ FORCE FINALIZE: Errore durante finalizzazione forzata:', error);
     

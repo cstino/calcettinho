@@ -192,7 +192,7 @@ exports.handler = async (event, context) => {
     voteRecords.forEach(vote => {
       const playerEmail = vote.get('toPlayerId');
       const voteType = vote.get('voteType');
-      const motmPlayer = vote.get('motmPlayer');
+      const motmVote = vote.get('motm_vote');
       
       if (!voteStats[playerEmail]) {
         voteStats[playerEmail] = { up: 0, down: 0, neutral: 0, net: 0, motm: 0 };
@@ -207,19 +207,13 @@ exports.handler = async (event, context) => {
         voteStats[playerEmail].neutral++;
       }
       
+      // Conta i voti MOTM separatamente
+      if (motmVote) {
+        voteStats[playerEmail].motm++;
+      }
+      
       // Calcola net votes (UP - DOWN, NEUTRAL non influisce)
       voteStats[playerEmail].net = voteStats[playerEmail].up - voteStats[playerEmail].down;
-    });
-
-    // Conta i voti MOTM separatamente
-    voteRecords.forEach(vote => {
-      const motmPlayer = vote.get('motmPlayer');
-      if (motmPlayer && [...teamA, ...teamB].includes(motmPlayer)) {
-        if (!voteStats[motmPlayer]) {
-          voteStats[motmPlayer] = { up: 0, down: 0, neutral: 0, net: 0, motm: 0 };
-        }
-        voteStats[motmPlayer].motm++;
-      }
     });
 
     console.log('📊 Statistiche voti finali:', voteStats);
@@ -286,15 +280,17 @@ exports.handler = async (event, context) => {
         for (const award of motmAwards) {
           // Verifica se il giocatore ha già MOTM (per evitare duplicati)
           const existingMOTM = await base('player_awards').select({
-            filterByFormula: `AND({playerEmail} = "${award.playerEmail}", {award_type} = "motm", {match_id} = "${matchId}")`
+            filterByFormula: `AND({player_email} = "${award.playerEmail}", {award_type} = "motm", {match_id} = "${matchId}")`
           }).all();
 
           if (existingMOTM.length === 0) {
             await base('player_awards').create({
-              playerEmail: award.playerEmail,
+              player_email: award.playerEmail,
               award_type: award.awardType,
               match_id: award.matchId,
-              date_awarded: new Date().toISOString().split('T')[0]
+              status: 'pending',
+              unlocked_at: '',
+              selected: false
             });
             console.log(`✅ MOTM salvato per: ${award.playerEmail}`);
           } else {
