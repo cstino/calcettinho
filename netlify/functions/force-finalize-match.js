@@ -1,5 +1,13 @@
 const Airtable = require('airtable');
 
+// Import fetch per compatibilità Node.js
+let fetch;
+try {
+  fetch = globalThis.fetch;
+} catch {
+  fetch = require('node-fetch');
+}
+
 exports.handler = async (event, context) => {
   // Gestione CORS
   const headers = {
@@ -81,8 +89,11 @@ exports.handler = async (event, context) => {
     console.log('🔧 Chiamando finalize-voting con forzatura...');
     
     try {
-      // Costruisci URL per finalize-voting
-      const finalizeUrl = `/.netlify/functions/finalize-voting?matchId=${matchId}`;
+      // Costruisci URL per finalize-voting - usa URL assoluto
+      const baseUrl = event.headers.host ? `https://${event.headers.host}` : 'https://calcettinho.netlify.app';
+      const finalizeUrl = `${baseUrl}/.netlify/functions/finalize-voting?matchId=${matchId}`;
+      
+      console.log('🔧 Chiamando URL:', finalizeUrl);
       
       const finalizeResponse = await fetch(finalizeUrl, {
         method: 'POST',
