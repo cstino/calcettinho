@@ -279,12 +279,34 @@ export async function GET(
       // Disegna template special
       ctx.drawImage(cardImg, 0, 0, CARD_WIDTH, CARD_HEIGHT);
 
-      // ANALISI AUTOMATICA DEI COLORI in base alla luminosità dello sfondo
-      const optimalColors = getOptimalColors(ctx);
-      const textColor = optimalColors.textColor;   // Per nomi stats e "OVERALL"
-      const valueColor = optimalColors.valueColor; // Per valori stats e valore overall
-
-      console.log(`🎨 Colori determinati automaticamente: text=${textColor}, value=${valueColor}`);
+      // COLORI PERSONALIZZATI - Se presenti nella tabella special_cards, altrimenti usa analisi automatica
+      let textColor, valueColor, nameColor, overallTextColor, overallValueColor;
+      
+      if (specialCardData.color_1 || specialCardData.color_2 || specialCardData.color_3 || specialCardData.color_4 || specialCardData.color_5) {
+        // USA COLORI PERSONALIZZATI
+        console.log(`🎨 Usando colori personalizzati per template: ${template}`);
+        
+        // ANALISI AUTOMATICA COME FALLBACK
+        const optimalColors = getOptimalColors(ctx);
+        
+        nameColor = specialCardData.color_1 || optimalColors.textColor;          // Colore nome giocatore
+        textColor = specialCardData.color_2 || optimalColors.textColor;          // Colore nomi abilità
+        valueColor = specialCardData.color_3 || optimalColors.valueColor;        // Colore valori abilità
+        overallTextColor = specialCardData.color_4 || optimalColors.textColor;   // Colore scritta "overall"
+        overallValueColor = specialCardData.color_5 || optimalColors.valueColor; // Colore valore overall
+        
+        console.log(`🎨 Colori applicati: name=${nameColor}, stats=${textColor}, statsValues=${valueColor}, overall=${overallTextColor}, overallValue=${overallValueColor}`);
+      } else {
+        // USA ANALISI AUTOMATICA
+        const optimalColors = getOptimalColors(ctx);
+        nameColor = optimalColors.textColor;
+        textColor = optimalColors.textColor;
+        valueColor = optimalColors.valueColor;
+        overallTextColor = optimalColors.textColor;
+        overallValueColor = optimalColors.valueColor;
+        
+        console.log(`🎨 Colori determinati automaticamente: text=${textColor}, value=${valueColor}`);
+      }
 
       // Disegna foto giocatore - posizioni specifiche per template special
       const maxFaceSize = 420;
@@ -321,17 +343,17 @@ export async function GET(
       const overallValueY = 210;
 
       ctx.font = 'bold 20px Nebulax, Arial';
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = overallTextColor;
       ctx.textAlign = 'center';
       ctx.fillText('OVERALL', overallX, overallTextY);
 
       ctx.font = 'bold 70px Nebulax, Arial';
-      ctx.fillStyle = valueColor;
+      ctx.fillStyle = overallValueColor;
       ctx.fillText(String(overall), overallX, overallValueY);
 
       // Nome giocatore - alzato di 5 pixel
       ctx.font = 'bold 56px Nebulax, Arial';
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = nameColor;
       ctx.textAlign = 'center';
       ctx.fillText(playerData.nome, CARD_WIDTH / 2, 638); // Alzato di 5 pixel (era 643)
 
@@ -359,7 +381,7 @@ export async function GET(
       const rightValueX = 480;     // Colonna 4: Valori destra
 
       // Scritte statistiche colonna sinistra (ATT, VEL, PAS)
-      ctx.font = 'bold 32px Nebulax, Arial';
+      ctx.font = 'bold 32px Arial'; // Mantiene Arial per le statistiche
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
       leftStats.forEach((stat, i) => {
@@ -368,7 +390,7 @@ export async function GET(
       });
 
       // Valori statistiche colonna sinistra (centrati nella colonna)
-      ctx.font = 'bold 32px Nebulax, Arial';
+      ctx.font = 'bold 32px Arial'; // Mantiene Arial per i valori statistiche
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
       leftStats.forEach((stat, i) => {
@@ -377,7 +399,7 @@ export async function GET(
       });
 
       // Scritte statistiche colonna destra (FOR, DIF, POR)
-      ctx.font = 'bold 32px Nebulax, Arial';
+      ctx.font = 'bold 32px Arial'; // Mantiene Arial per le statistiche
       ctx.textAlign = 'left';
       ctx.fillStyle = textColor;
       rightStats.forEach((stat, i) => {
@@ -386,7 +408,7 @@ export async function GET(
       });
 
       // Valori statistiche colonna destra (centrati nella colonna)
-      ctx.font = 'bold 32px Nebulax, Arial';
+      ctx.font = 'bold 32px Arial'; // Mantiene Arial per i valori statistiche
       ctx.textAlign = 'center';
       ctx.fillStyle = valueColor;
       rightStats.forEach((stat, i) => {

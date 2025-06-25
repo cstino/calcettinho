@@ -31,6 +31,14 @@ interface CardData {
   specialCardTemplateUrl?: string;
   hasTemplate?: boolean;
   photoUrl: string | null;
+  // Colori personalizzati per special cards
+  specialCard?: {
+    color_1?: string; // Colore nome giocatore
+    color_2?: string; // Colore nomi abilità
+    color_3?: string; // Colore valori abilità
+    color_4?: string; // Colore scritta "overall"
+    color_5?: string; // Colore valore overall
+  };
 }
 
 interface DynamicCardProps {
@@ -115,27 +123,48 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
           const faceX = CARD_WIDTH / 2 - faceWidth / 2;
           ctx.drawImage(playerImg, faceX, faceY, faceWidth, faceHeight);
 
-          // Colori in base al template
-          const textColor = cardData.template === 'ultimate' ? '#C0C0C0' : '#2B2B2B';
-          const valueColor = cardData.template === 'ultimate' ? '#FFD700' : '#404040';
+          // Colori in base al template o personalizzati per special cards
+          let textColor, valueColor, nameColor, overallTextColor, overallValueColor;
+          
+          if (cardData.specialCard && (cardData.specialCard.color_1 || cardData.specialCard.color_2 || cardData.specialCard.color_3 || cardData.specialCard.color_4 || cardData.specialCard.color_5)) {
+            // USA COLORI PERSONALIZZATI PER SPECIAL CARDS
+            const defaultTextColor = cardData.template === 'ultimate' ? '#C0C0C0' : '#2B2B2B';
+            const defaultValueColor = cardData.template === 'ultimate' ? '#FFD700' : '#404040';
+            
+            nameColor = cardData.specialCard.color_1 || defaultTextColor;
+            textColor = cardData.specialCard.color_2 || defaultTextColor;
+            valueColor = cardData.specialCard.color_3 || defaultValueColor;
+            overallTextColor = cardData.specialCard.color_4 || defaultTextColor;
+            overallValueColor = cardData.specialCard.color_5 || defaultValueColor;
+          } else {
+            // USA COLORI DEFAULT BASATI SUL TEMPLATE
+            const defaultTextColor = cardData.template === 'ultimate' ? '#C0C0C0' : '#2B2B2B';
+            const defaultValueColor = cardData.template === 'ultimate' ? '#FFD700' : '#404040';
+            
+            nameColor = defaultTextColor;
+            textColor = defaultTextColor;
+            valueColor = defaultValueColor;
+            overallTextColor = defaultTextColor;
+            overallValueColor = defaultValueColor;
+          }
 
           // Overall
           const overallX = cardData.template === 'ultimate' ? 90 : 80;
           const overallTextY = cardData.template === 'ultimate' ? 155 : 140;
           const overallValueY = cardData.template === 'ultimate' ? 225 : 210;
 
-          ctx.font = 'bold 20px Arial';
-          ctx.fillStyle = textColor;
+          ctx.font = 'bold 20px Nebulax, Arial';
+          ctx.fillStyle = overallTextColor;
           ctx.textAlign = 'center';
           ctx.fillText('OVERALL', overallX, overallTextY);
 
-          ctx.font = 'bold 70px Arial';
-          ctx.fillStyle = valueColor;
+          ctx.font = 'bold 70px Nebulax, Arial';
+          ctx.fillStyle = overallValueColor;
           ctx.fillText(String(cardData.overall), overallX, overallValueY);
 
           // Nome
-          ctx.font = 'bold 56px Arial';
-          ctx.fillStyle = textColor;
+          ctx.font = 'bold 56px Nebulax, Arial';
+          ctx.fillStyle = nameColor;
           ctx.fillText(cardData.player.nome, CARD_WIDTH / 2, 618);
 
           // Stats
@@ -279,14 +308,14 @@ const DynamicCard: React.FC<DynamicCardProps> = ({ cardData, className = '', onI
     ctx.fillText(cardData.template.toUpperCase(), CARD_WIDTH / 2, 50);
 
     // Overall
-    ctx.font = 'bold 20px Arial';
+    ctx.font = 'bold 20px Nebulax, Arial';
     ctx.fillText('OVERALL', 90, 140);
-    ctx.font = 'bold 70px Arial';
+    ctx.font = 'bold 70px Nebulax, Arial';
     ctx.fillStyle = '#FFD700';
     ctx.fillText(String(cardData.overall), 90, 210);
 
     // Nome
-    ctx.font = 'bold 48px Arial';
+    ctx.font = 'bold 48px Nebulax, Arial';
     ctx.fillStyle = '#F3F4F6';
     ctx.fillText(cardData.player.nome, CARD_WIDTH / 2, 620);
 

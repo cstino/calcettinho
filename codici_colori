@@ -1,0 +1,5 @@
+- color_1: colore utilizzato per nome giocatore
+- color_2: colore utilizzato per nomi abilità (ATT, VEL, PAS, FOR, DIF, POR).
+- color_3: colore utilizzato per valori delle abilità
+- color_4: colore utilizzato per scritta "overall"
+- color_5: colore utilizzato per valore overall.
