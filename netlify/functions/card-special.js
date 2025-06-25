@@ -92,6 +92,12 @@ async function getSpecialCardData(template) {
       description: record.get('description') || 'Descrizione non disponibile',
       color: record.get('color') || '#B45309',
       templateUrl: templateUrl,
+      // Nuovi colori personalizzati
+      color_1: record.get('color_1') || null, // Colore nome giocatore
+      color_2: record.get('color_2') || null, // Colore nomi abilità
+      color_3: record.get('color_3') || null, // Colore valori abilità
+      color_4: record.get('color_4') || null, // Colore scritta "overall"
+      color_5: record.get('color_5') || null, // Colore valore overall
     };
     
     console.log('Dati card special trovati:', cardData);
