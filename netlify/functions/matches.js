@@ -457,14 +457,21 @@ exports.handler = async (event, context) => {
     // PUT - Aggiorna partita (finalizzazione)
     if (event.httpMethod === 'PUT') {
       console.log('=== AGGIORNAMENTO PARTITA ===');
+      
+      // Estrai matchId dall'URL (come per DELETE)
+      const pathSegments = event.path.split('/');
+      const matchId = pathSegments[pathSegments.length - 1];
+      
+      console.log('MatchId dall\'URL:', matchId);
+      
       const body = JSON.parse(event.body);
       console.log('Body ricevuto:', body);
       
-      const { matchId, scoreA, scoreB, playerStats, completed } = body;
+      const { scoreA, scoreB, playerStats, completed, match_status } = body;
 
       // Validazione dati
-      if (!matchId) {
-        console.log('Validazione fallita: matchId mancante');
+      if (!matchId || matchId === 'matches') {
+        console.log('Validazione fallita: matchId mancante o non valido');
         return {
           statusCode: 400,
           headers,
@@ -497,7 +504,7 @@ exports.handler = async (event, context) => {
         if (scoreA !== undefined) updateData.scoreA = scoreA;
         if (scoreB !== undefined) updateData.scoreB = scoreB;
         if (completed !== undefined) updateData.completed = completed;
-        if (completed) updateData.match_status = 'completed';
+        if (match_status !== undefined) updateData.match_status = match_status;
         
         // Salva playerStats come stringa JSON se forniti
         if (playerStats) {
