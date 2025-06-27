@@ -118,6 +118,207 @@ exports.handler = async (event, context) => {
     const base = airtable.base(process.env.AIRTABLE_BASE_ID);
     const matchesTable = base('matches');
 
+    // POST - Gestisce endpoint specifici come /start
+    if (event.httpMethod === 'POST') {
+      const pathSegments = event.path.split('/');
+      
+      // Controlla se è una richiesta di start: /api/matches/{matchId}/start
+      if (pathSegments.includes('start')) {
+        const matchIdIndex = pathSegments.indexOf('matches') + 1;
+        const matchId = pathSegments[matchIdIndex];
+        
+        console.log('=== AVVIO PARTITA NETLIFY ===', matchId);
+        
+        if (!matchId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'ID partita mancante' })
+          };
+        }
+        
+        // Trova il record in Airtable
+        const records = await matchesTable.select({
+          filterByFormula: `{IDmatch} = '${matchId}'`
+        }).all();
+
+        if (records.length === 0) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Partita non trovata' })
+          };
+        }
+
+        const record = records[0];
+        
+        // Verifica che la partita sia in stato scheduled o undefined (per retrocompatibilità)
+        const currentStatus = record.get('match_status');
+        const isCompleted = record.get('completed');
+        
+        // Se la partita è già completata, non può essere avviata
+        if (isCompleted === true) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Impossibile avviare la partita. La partita è già completata.' })
+          };
+        }
+        
+        // Se lo status è già in_progress, non può essere riavviata
+        if (currentStatus === 'in_progress') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'La partita è già in corso.' })
+          };
+        }
+        
+        // Permetti l'avvio se lo status è 'scheduled' o undefined (retrocompatibilità)
+        if (currentStatus && currentStatus !== 'scheduled') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: `Impossibile avviare la partita. Status attuale: ${currentStatus}` })
+          };
+        }
+
+        // Aggiorna lo status a in_progress
+        const updatedRecord = await matchesTable.update(record.id, {
+          match_status: 'in_progress'
+        });
+
+        console.log('Partita avviata con successo');
+
+        // Parse player stats se disponibili
+        let playerStats = {};
+        try {
+          if (updatedRecord.get('playerStats')) {
+            playerStats = JSON.parse(updatedRecord.get('playerStats'));
+          }
+        } catch (e) {
+          console.log('Errore nel parsing playerStats:', e);
+          playerStats = {};
+        }
+
+        // Restituisci i dati aggiornati
+        const updatedMatch = {
+          id: updatedRecord.id,
+          matchId: updatedRecord.get('IDmatch'),
+          date: updatedRecord.get('date'),
+          teamA: Array.isArray(updatedRecord.get('teamA')) 
+            ? updatedRecord.get('teamA')
+            : (typeof updatedRecord.get('teamA') === 'string' && updatedRecord.get('teamA') 
+              ? JSON.parse(updatedRecord.get('teamA')) 
+              : []),
+          teamB: Array.isArray(updatedRecord.get('teamB')) 
+            ? updatedRecord.get('teamB')
+            : (typeof updatedRecord.get('teamB') === 'string' && updatedRecord.get('teamB') 
+              ? JSON.parse(updatedRecord.get('teamB')) 
+              : []),
+          scoreA: updatedRecord.get('scoreA') ? Number(updatedRecord.get('scoreA')) : 0,
+          scoreB: updatedRecord.get('scoreB') ? Number(updatedRecord.get('scoreB')) : 0,
+          teamAScorer: updatedRecord.get('teamAscorer') || '',
+          teamBScorer: updatedRecord.get('teamBscorer') || '',
+          assistA: updatedRecord.get('AssistA') || '',
+          assistB: updatedRecord.get('AssistB') || '',
+          playerStats: playerStats,
+          completed: updatedRecord.get('completed') === true,
+          location: updatedRecord.get('location') || 'Campo Centrale',
+          referee: updatedRecord.get('referee') || '',
+          match_status: updatedRecord.get('match_status'),
+          status: updatedRecord.get('match_status')
+        };
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: 'Partita avviata con successo',
+            match: updatedMatch
+          })
+        };
+      }
+      
+      // POST normale - Crea una nuova partita
+      console.log('=== CREAZIONE PARTITA ===');
+      const body = JSON.parse(event.body);
+      console.log('Body ricevuto:', body);
+      
+      const { date, teamA, teamB, referee } = body;
+
+      // Validazione dati
+      if (!date || !teamA || !teamB) {
+        console.log('Validazione fallita: dati mancanti');
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Dati mancanti: data, teamA e teamB sono obbligatori' })
+        };
+      }
+
+      if (!Array.isArray(teamA) || !Array.isArray(teamB)) {
+        console.log('Validazione fallita: team non sono array');
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'teamA e teamB devono essere array di email' })
+        };
+      }
+
+      if (teamA.length === 0 || teamB.length === 0) {
+        console.log('Validazione fallita: squadre vuote');
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Ogni squadra deve avere almeno un giocatore' })
+        };
+      }
+
+      // Genera un ID unico per la partita
+      const matchId = `match_${Date.now()}`;
+      console.log('ID partita generato:', matchId);
+
+      // Verifica credenziali Airtable
+      console.log('API Key presente:', !!process.env.AIRTABLE_API_KEY);
+      console.log('Base ID presente:', !!process.env.AIRTABLE_BASE_ID);
+
+      // Crea il record in Airtable
+      console.log('Tentativo di creazione record in Airtable...');
+      const record = await matchesTable.create({
+        IDmatch: matchId,
+        date: date,
+        teamA: JSON.stringify(teamA),
+        teamB: JSON.stringify(teamB),
+        completed: false,
+        match_status: 'scheduled',
+        referee: referee || ''
+      });
+      console.log('Record creato con successo in Airtable:', record.id);
+
+      const newMatch = {
+        id: record.id,
+        matchId: matchId,
+        date: date,
+        teamA: teamA,
+        teamB: teamB,
+        completed: false,
+        match_status: 'scheduled',
+        referee: referee || ''
+      };
+
+      console.log('Partita creata:', newMatch);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          match: newMatch
+        })
+      };
+    }
+
     // GET - Recupera tutte le partite o una specifica
     if (event.httpMethod === 'GET') {
       // Controlla se c'è un matchId nell'URL
@@ -251,84 +452,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // POST - Crea una nuova partita
-    if (event.httpMethod === 'POST') {
-      console.log('=== CREAZIONE PARTITA ===');
-      const body = JSON.parse(event.body);
-      console.log('Body ricevuto:', body);
-      
-      const { date, teamA, teamB, referee } = body;
 
-      // Validazione dati
-      if (!date || !teamA || !teamB) {
-        console.log('Validazione fallita: dati mancanti');
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Dati mancanti: data, teamA e teamB sono obbligatori' })
-        };
-      }
-
-      if (!Array.isArray(teamA) || !Array.isArray(teamB)) {
-        console.log('Validazione fallita: team non sono array');
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'teamA e teamB devono essere array di email' })
-        };
-      }
-
-      if (teamA.length === 0 || teamB.length === 0) {
-        console.log('Validazione fallita: squadre vuote');
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Ogni squadra deve avere almeno un giocatore' })
-        };
-      }
-
-      // Genera un ID unico per la partita
-      const matchId = `match_${Date.now()}`;
-      console.log('ID partita generato:', matchId);
-
-      // Verifica credenziali Airtable
-      console.log('API Key presente:', !!process.env.AIRTABLE_API_KEY);
-      console.log('Base ID presente:', !!process.env.AIRTABLE_BASE_ID);
-
-      // Crea il record in Airtable
-      console.log('Tentativo di creazione record in Airtable...');
-      const record = await matchesTable.create({
-        IDmatch: matchId,
-        date: date,
-        teamA: JSON.stringify(teamA),
-        teamB: JSON.stringify(teamB),
-        completed: false,
-        match_status: 'scheduled',
-        referee: referee || ''
-      });
-      console.log('Record creato con successo in Airtable:', record.id);
-
-      const newMatch = {
-        id: record.id,
-        matchId: matchId,
-        date: date,
-        teamA: teamA,
-        teamB: teamB,
-        completed: false,
-        match_status: 'scheduled',
-        referee: referee || ''
-      };
-
-      console.log('Partita creata:', newMatch);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          match: newMatch
-        })
-      };
-    }
 
     // PUT - Aggiorna partita (finalizzazione)
     if (event.httpMethod === 'PUT') {
