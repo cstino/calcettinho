@@ -2,6 +2,7 @@ import Navigation from "../../components/Navigation";
 import Logo from "../../components/Logo";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import ProfileClientView from "./ProfileClientView";
+import { getApiBaseUrl } from "../../../utils/api";
 
 interface Player {
   id: string;
@@ -40,7 +41,8 @@ async function getProfileData(email: string): Promise<{
 }> {
   try {
     // Fetch player base data
-    const playerResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/players/${email}`, {
+    const baseUrl = getApiBaseUrl();
+    const playerResponse = await fetch(`${baseUrl}/api/players/${encodeURIComponent(email)}`, {
       cache: 'force-cache',
       next: { 
         revalidate: revalidate,
@@ -52,13 +54,14 @@ async function getProfileData(email: string): Promise<{
     });
 
     if (!playerResponse.ok) {
+      console.error(`Player API error: ${playerResponse.status} for email: ${email}`);
       throw new Error(`Errore nel caricamento del profilo: ${playerResponse.status}`);
     }
 
     const playerData = await playerResponse.json();
 
     // Fetch player stats
-    const statsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/player-stats/${email}`, {
+    const statsResponse = await fetch(`${baseUrl}/api/player-stats/${encodeURIComponent(email)}`, {
       cache: 'force-cache',
       next: { 
         revalidate: revalidate,

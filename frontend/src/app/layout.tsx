@@ -198,39 +198,20 @@ export default function RootLayout({
                   });
                 });
 
-                // Initialize offline queue and sync on load
+                // Initialize performance monitoring and basic systems
                 window.addEventListener('load', () => {
-                  // Import and initialize offline systems with dynamic imports
-                  setTimeout(() => {
-                    if (typeof window !== 'undefined' && 'indexedDB' in window) {
-                      // Initialize smart cache (default export)
-                      import('../../utils/smartCache').then((module) => {
-                        if (module.default) {
-                          console.log('💾 Smart cache initialized');
-                        }
-                      }).catch(err => console.warn('Smart cache init failed:', err));
-                      
-                      // Initialize offline queue (named export)
-                      import('../../utils/offlineQueue').then((module) => {
-                        if (module.offlineQueue) {
-                          console.log('📦 Offline queue initialized');
-                        }
-                      }).catch(err => console.warn('Offline queue init failed:', err));
-                      
-                      // Initialize data sync manager (named export)
-                      import('../../utils/dataSyncManager').then((module) => {
-                        if (module.dataSyncManager) {
-                          console.log('📡 Data sync manager initialized');
-                          // Start initial sync if online
-                          if (typeof navigator !== 'undefined' && navigator.onLine) {
-                            module.dataSyncManager.prioritySync().catch(err => {
-                              console.warn('Initial sync failed:', err);
-                            });
-                          }
-                        }
-                      }).catch(err => console.warn('Data sync manager init failed:', err));
-                    }
-                  }, 100); // Small delay to ensure DOM is ready
+                  console.log('🚀 App loaded successfully');
+                  
+                  // Basic performance metrics
+                  if (typeof window !== 'undefined' && 'performance' in window) {
+                    setTimeout(() => {
+                      const perfData = performance.getEntriesByType('navigation')[0];
+                      if (perfData) {
+                        const loadTime = Math.round(perfData.loadEventEnd - perfData.fetchStart);
+                        console.log('⚡ Page load time:', loadTime, 'ms');
+                      }
+                    }, 0);
+                  }
                 });
 
                 // PWA Install prompt optimization
