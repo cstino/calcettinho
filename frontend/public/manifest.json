@@ -1,14 +1,15 @@
 {
-  "name": "Calcettinho",
+  "name": "Calcettinho ⚽",
   "short_name": "Calcettinho",
-  "description": "App per gestire partite di calcetto con carte giocatori personalizzate",
+  "description": "App per gestire partite di calcetto con carte giocatori personalizzate, votazioni e statistiche",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#00a273",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "scope": "/",
   "lang": "it",
+  "categories": ["sports", "games", "social"],
   "icons": [
     {
       "src": "/icons/icon-144x144.png",
@@ -37,18 +38,51 @@
   ],
   "shortcuts": [
     {
-      "name": "Nuova Partita",
-      "short_name": "Partita",
-      "description": "Crea una nuova partita",
-      "url": "/create-match",
-      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+      "name": "Partite",
+      "short_name": "Partite",
+      "description": "Visualizza partite e vota",
+      "url": "/matches",
+      "icons": [{ 
+        "src": "/icons/icon-192x192.png", 
+        "sizes": "192x192",
+        "type": "image/png"
+      }]
     },
     {
-      "name": "Le Mie Partite",
-      "short_name": "Partite",
-      "description": "Visualizza le partite",
-      "url": "/matches",
-      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+      "name": "Giocatori",
+      "short_name": "Giocatori",
+      "description": "Consulta profili e statistiche",
+      "url": "/players",
+      "icons": [{ 
+        "src": "/icons/icon-192x192.png", 
+        "sizes": "192x192",
+        "type": "image/png"
+      }]
+    },
+    {
+      "name": "Classifica",
+      "short_name": "Stats",
+      "description": "Visualizza classifiche e statistiche",
+      "url": "/stats",
+      "icons": [{ 
+        "src": "/icons/icon-192x192.png", 
+        "sizes": "192x192",
+        "type": "image/png"
+      }]
+    },
+    {
+      "name": "Il Mio Profilo",
+      "short_name": "Profilo",
+      "description": "Il mio profilo e collezione card",
+      "url": "/profile",
+      "icons": [{ 
+        "src": "/icons/icon-192x192.png", 
+        "sizes": "192x192",
+        "type": "image/png"
+      }]
     }
-  ]
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "screenshots": []
 } 
