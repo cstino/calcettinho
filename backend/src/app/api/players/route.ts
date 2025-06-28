@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
+import OfflineMiddleware from '../../utils/offlineMiddleware';
 
 // Configurazione Airtable
 const apiKey = process.env.AIRTABLE_API_KEY;
@@ -16,8 +17,19 @@ Airtable.configure({
 
 const base = Airtable.base(baseId);
 
-export async function GET() {
+// CORS Preflight
+export async function OPTIONS() {
+  return OfflineMiddleware.handleCORSPreflight();
+}
+
+export async function GET(req: NextRequest) {
   try {
+    console.log('=== PLAYERS API (OFFLINE-AWARE) ===');
+    
+    // Parse offline headers
+    const offlineHeaders = OfflineMiddleware.parseOfflineHeaders(req);
+    console.log('📡 Offline headers:', offlineHeaders);
+    
     console.log('Recupero giocatori da Airtable...');
     
     const records = await base('players').select().all();
@@ -49,19 +61,30 @@ export async function GET() {
         PAS: Number(record.get('Passaggio')) || 50,
         FOR: Number(record.get('Forza')) || 50,
         POR: Number(record.get('Portiere')) || 50,
+        // Aggiungi timestamp per delta sync (mockup per ora)
+        updatedAt: record.get('lastModified') || new Date().toISOString()
       };
     });
     
     console.log(`Giocatori processati: ${players.length}`);
     
-    const response = NextResponse.json(players);
+    // Implementa delta sync se richiesto
+    const deltaResponse = OfflineMiddleware.createDeltaResponse(
+      players,
+      offlineHeaders.lastSync,
+      'updatedAt'
+    );
     
-    // Aggiungi header CORS
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    console.log(`🔄 Delta sync: ${deltaResponse.isPartial ? 'Partial' : 'Full'} - ${deltaResponse.data.length}/${players.length} players`);
     
-    return response;
+    return OfflineMiddleware.createOfflineResponse(
+      deltaResponse.data,
+      offlineHeaders,
+      {
+        deltaSync: true,
+        isPartial: deltaResponse.isPartial
+      }
+    );
     
   } catch (error) {
     console.error('Errore nel recupero giocatori da Airtable:', error);
@@ -105,13 +128,26 @@ export async function GET() {
     
     console.log('Usando dati di fallback');
     
-    const response = NextResponse.json(fallbackPlayers);
+    // Aggiungi timestamp anche ai dati di fallback per consistency
+    const fallbackWithTimestamp = fallbackPlayers.map(player => ({
+      ...player,
+      updatedAt: new Date().toISOString()
+    }));
     
-    // Aggiungi header CORS anche per i dati di fallback
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Delta sync anche per fallback
+    const deltaResponse = OfflineMiddleware.createDeltaResponse(
+      fallbackWithTimestamp,
+      offlineHeaders.lastSync,
+      'updatedAt'
+    );
     
-    return response;
+    return OfflineMiddleware.createOfflineResponse(
+      deltaResponse.data,
+      offlineHeaders,
+      {
+        deltaSync: true,
+        isPartial: deltaResponse.isPartial
+      }
+    );
   }
 } 
