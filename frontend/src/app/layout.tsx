@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from './contexts/NotificationContext';
 import EvolutionToast from './components/EvolutionToast';
+import Navigation from './components/Navigation';
+import OfflineStatusIndicator from '../components/OfflineStatusIndicator';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -168,19 +170,97 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://api.airtable.com" />
         <link rel="preconnect" href="https://api.airtable.com" />
         
-        {/* Service Worker Registration Script */}
+        {/* Enhanced Service Worker Registration with Offline Systems */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator && typeof window !== 'undefined') {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then((registration) => {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch((registrationError) => {
-                      console.log('SW registration failed: ', registrationError);
+                  navigator.serviceWorker.register('/sw.js', {
+                    scope: '/'
+                  }).then(function(registration) {
+                    console.log('🎯 SW registered successfully:', registration.scope);
+                    
+                    // Initialize offline systems after SW is ready
+                    registration.addEventListener('updatefound', () => {
+                      console.log('🔄 SW update found');
                     });
+                    
+                  }).catch(function(error) {
+                    console.log('❌ SW registration failed:', error);
+                  });
+
+                  // Background sync listener
+                  navigator.serviceWorker.addEventListener('message', event => {
+                    if (event.data.type === 'BACKGROUND_SYNC') {
+                      console.log('🔄 Background sync completed:', event.data.tag);
+                    }
+                  });
+                });
+
+                // Initialize offline queue and sync on load
+                window.addEventListener('load', () => {
+                  // Import and initialize offline systems with dynamic imports
+                  setTimeout(() => {
+                    if (typeof window !== 'undefined' && 'indexedDB' in window) {
+                      // Initialize smart cache
+                      import('../utils/smartCache').then(({ smartCache }) => {
+                        console.log('💾 Smart cache initialized');
+                      }).catch(err => console.warn('Smart cache init failed:', err));
+                      
+                      // Initialize offline queue
+                      import('../utils/offlineQueue').then(({ offlineQueue }) => {
+                        console.log('📦 Offline queue initialized');
+                      }).catch(err => console.warn('Offline queue init failed:', err));
+                      
+                      // Initialize data sync manager
+                      import('../utils/dataSyncManager').then(({ dataSyncManager }) => {
+                        console.log('📡 Data sync manager initialized');
+                        // Start initial sync if online
+                        if (navigator.onLine) {
+                          dataSyncManager.prioritySync().catch(err => {
+                            console.warn('Initial sync failed:', err);
+                          });
+                        }
+                      }).catch(err => console.warn('Data sync manager init failed:', err));
+                    }
+                  }, 100); // Small delay to ensure DOM is ready
+                });
+
+                // PWA Install prompt optimization
+                let deferredPrompt;
+                window.addEventListener('beforeinstallprompt', (e) => {
+                  e.preventDefault();
+                  deferredPrompt = e;
+                  console.log('💾 PWA install prompt ready');
+                  
+                  // Store for PWA install button
+                  window.deferredPrompt = deferredPrompt;
+                });
+
+                // Performance monitoring
+                window.addEventListener('load', () => {
+                  if ('performance' in window) {
+                    setTimeout(() => {
+                      const perfData = performance.getEntriesByType('navigation')[0];
+                      if (perfData) {
+                        console.log('⚡ Page load time:', Math.round(perfData.loadEventEnd - perfData.fetchStart), 'ms');
+                      }
+                    }, 0);
+                  }
+                });
+
+                // Network status monitoring
+                window.addEventListener('online', () => {
+                  console.log('🌐 Network: Online');
+                  // Trigger sync when back online
+                  if (window.dataSyncManager) {
+                    window.dataSyncManager.prioritySync();
+                  }
+                });
+
+                window.addEventListener('offline', () => {
+                  console.log('📱 Network: Offline - Switching to offline mode');
                 });
               }
             `,
@@ -192,7 +272,18 @@ export default function RootLayout({
       >
         <AuthProvider>
           <NotificationProvider>
-            {children}
+            <div className="flex flex-col min-h-screen">
+              {/* Navigation */}
+              <Navigation />
+              
+              {/* Main Content */}
+              <main className="flex-1 relative">
+                {children}
+              </main>
+              
+              {/* Offline Status Indicator - Fixed Position */}
+              <OfflineStatusIndicator />
+            </div>
             <EvolutionToast />
           </NotificationProvider>
         </AuthProvider>
