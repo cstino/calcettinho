@@ -318,11 +318,11 @@ export class PerformanceMonitor {
     this.config = { ...PerformanceMonitor.DEFAULT_CONFIG, ...config };
     this.cache = SmartCache.getInstance();
     this.sessionId = this.generateSessionId();
-    this.startTime = performance.now();
+    this.startTime = typeof window !== 'undefined' ? performance.now() : 0;
     this.metrics = this.initializeMetrics();
 
-    // Start monitoring se abilitato e nella sample rate
-    if (this.config.enabled && Math.random() < this.config.sampleRate) {
+    // Start monitoring se abilitato e nella sample rate (solo nel browser)
+    if (typeof window !== 'undefined' && this.config.enabled && Math.random() < this.config.sampleRate) {
       this.startMonitoring();
     }
   }
@@ -336,7 +336,7 @@ export class PerformanceMonitor {
 
   // 🚀 Avvio monitoring
   async startMonitoring(): Promise<void> {
-    if (this.isMonitoring) return;
+    if (typeof window === 'undefined' || this.isMonitoring) return;
 
     try {
       console.log('🚀 [PerformanceMonitor] Starting performance monitoring');
@@ -490,8 +490,8 @@ export class PerformanceMonitor {
     let downlink = 0;
     let rtt = 0;
 
-    // Network Information API
-    if ('connection' in navigator) {
+    // Network Information API (solo nel browser)
+    if (typeof window !== 'undefined' && 'connection' in navigator) {
       const connection = (navigator as any).connection;
       connectionType = connection.type || 'unknown';
       effectiveType = connection.effectiveType || 'unknown';
@@ -553,22 +553,24 @@ export class PerformanceMonitor {
     let serviceWorkerActive = false;
     let serviceWorkerUpdateAvailable = false;
 
-    // Check PWA installation
-    if ('getInstalledRelatedApps' in navigator) {
-      try {
-        const relatedApps = await (navigator as any).getInstalledRelatedApps();
-        isInstalled = relatedApps.length > 0;
-      } catch (error) {
-        // API not supported or denied
+    if (typeof window !== 'undefined') {
+      // Check PWA installation
+      if ('getInstalledRelatedApps' in navigator) {
+        try {
+          const relatedApps = await (navigator as any).getInstalledRelatedApps();
+          isInstalled = relatedApps.length > 0;
+        } catch (error) {
+          // API not supported or denied
+        }
       }
-    }
 
-    // Check Service Worker
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (registration) {
-        serviceWorkerActive = !!registration.active;
-        serviceWorkerUpdateAvailable = !!registration.waiting;
+      // Check Service Worker
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          serviceWorkerActive = !!registration.active;
+          serviceWorkerUpdateAvailable = !!registration.waiting;
+        }
       }
     }
 
@@ -586,9 +588,9 @@ export class PerformanceMonitor {
       manifestScore: manifestScore.score,
       manifestErrors: manifestScore.errors,
       offlineCapable: serviceWorkerActive,
-      pushNotificationsEnabled: Notification.permission === 'granted',
-      backgroundSyncEnabled: 'serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype,
-      sessionDuration: performance.now() - this.startTime,
+      pushNotificationsEnabled: typeof window !== 'undefined' ? Notification.permission === 'granted' : false,
+      backgroundSyncEnabled: typeof window !== 'undefined' && 'serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype,
+      sessionDuration: typeof window !== 'undefined' ? performance.now() - this.startTime : 0,
       pagesVisited: 1, // Would be tracked separately
       actionsPerformed: 0 // Would be tracked separately
     };
@@ -619,34 +621,36 @@ export class PerformanceMonitor {
     let jsHeapSizeUsed = 0;
     let jsHeapSizeTotal = 0;
     let jsHeapSizeLimit = 0;
-
-    // Memory usage
-    if ('memory' in performance) {
-      const memory = (performance as any).memory;
-      jsHeapSizeUsed = memory.usedJSHeapSize || 0;
-      jsHeapSizeTotal = memory.totalJSHeapSize || 0;
-      jsHeapSizeLimit = memory.jsHeapSizeLimit || 0;
-    }
-
-    // Storage quota
     let storageQuota = 0;
     let storageUsage = 0;
-    if ('storage' in navigator && 'estimate' in navigator.storage) {
-      const estimate = await navigator.storage.estimate();
-      storageQuota = estimate.quota || 0;
-      storageUsage = estimate.usage || 0;
-    }
-
-    // Battery API
     let batteryLevel: number | undefined;
     let batteryCharging: boolean | undefined;
-    if ('getBattery' in navigator) {
-      try {
-        const battery = await (navigator as any).getBattery();
-        batteryLevel = battery.level;
-        batteryCharging = battery.charging;
-      } catch (error) {
-        // Battery API not supported
+
+    if (typeof window !== 'undefined') {
+      // Memory usage
+      if ('memory' in performance) {
+        const memory = (performance as any).memory;
+        jsHeapSizeUsed = memory.usedJSHeapSize || 0;
+        jsHeapSizeTotal = memory.totalJSHeapSize || 0;
+        jsHeapSizeLimit = memory.jsHeapSizeLimit || 0;
+      }
+
+      // Storage quota
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        const estimate = await navigator.storage.estimate();
+        storageQuota = estimate.quota || 0;
+        storageUsage = estimate.usage || 0;
+      }
+
+      // Battery API
+      if ('getBattery' in navigator) {
+        try {
+          const battery = await (navigator as any).getBattery();
+          batteryLevel = battery.level;
+          batteryCharging = battery.charging;
+        } catch (error) {
+          // Battery API not supported
+        }
       }
     }
 
@@ -660,9 +664,9 @@ export class PerformanceMonitor {
       batteryLevel,
       batteryCharging,
       deviceType: this.getDeviceType(),
-      platform: navigator.platform,
-      userAgent: navigator.userAgent,
-      screenResolution: `${screen.width}x${screen.height}`,
+      platform: typeof window !== 'undefined' ? navigator.platform : 'unknown',
+      userAgent: typeof window !== 'undefined' ? navigator.userAgent : 'unknown',
+      screenResolution: typeof window !== 'undefined' ? `${screen.width}x${screen.height}` : 'unknown',
       storageQuota,
       storageUsage,
       storageQuotaExceeded: storageUsage > storageQuota * 0.9
@@ -671,7 +675,7 @@ export class PerformanceMonitor {
 
   // 🔧 Setup methods
   private setupPerformanceObservers(): void {
-    if (!('PerformanceObserver' in window)) return;
+    if (typeof window === 'undefined' || !('PerformanceObserver' in window)) return;
 
     // Largest Contentful Paint
     try {
@@ -740,6 +744,8 @@ export class PerformanceMonitor {
   }
 
   private setupEventListeners(): void {
+    if (typeof window === 'undefined') return;
+    
     // Page visibility changes
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -943,6 +949,7 @@ export class PerformanceMonitor {
   }
 
   private getDeviceType(): string {
+    if (typeof window === 'undefined') return 'unknown';
     const userAgent = navigator.userAgent;
     if (/Mobi|Android/i.test(userAgent)) return 'mobile';
     if (/Tablet|iPad/i.test(userAgent)) return 'tablet';
@@ -982,6 +989,8 @@ export class PerformanceMonitor {
   }
 
   private async collectInitialMetrics(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    
     // Wait for page to be fully loaded
     if (document.readyState !== 'complete') {
       await new Promise(resolve => {

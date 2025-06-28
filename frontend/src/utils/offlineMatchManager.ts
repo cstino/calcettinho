@@ -675,6 +675,8 @@ export class OfflineMatchManager {
   }
 
   private setupSyncListeners(): void {
+    if (typeof window === 'undefined') return;
+    
     // Listen per network status changes
     window.addEventListener('online', () => {
       console.log('🌐 [OfflineMatchManager] Network restored, triggering sync');
