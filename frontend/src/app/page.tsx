@@ -9,7 +9,7 @@ import Logo from "./components/Logo";
 import PlayerCard from "./components/PlayerCard";
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getPlayerPhotoUrl } from '../utils/api';
+import { getPlayerPhotoUrl, getApiBaseUrl } from '../utils/api';
 
 interface PlayerData {
   id: string;
@@ -309,113 +309,121 @@ export default function Home() {
   const [pendingVotes, setPendingVotes] = useState<MatchData[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Carica dati per la versione mobile
+  // 🚀 Pre-loading parallelo per performance ottimali
   useEffect(() => {
-    const fetchMobileData = async () => {
+    const fetchHomeData = async () => {
       if (!userEmail) return;
       
+      console.log('🚀 Avvio caricamento rapido homepage...');
+      setLoadingData(true);
+      
       try {
-        setLoadingData(true);
+        const baseUrl = getApiBaseUrl();
         
-        // Carica i dati del giocatore corrente
-        console.log('🔄 Caricamento players per homepage...');
-        const playersResponse = await fetch('/api/players');
+        // 🔥 Caricamento PARALLELO di tutti i dati critici
+        const [playersResponse, statsResponse, allStatsResponse, matchesResponse] = await Promise.all([
+          fetch(`${baseUrl}/api/players`),
+          fetch(`${baseUrl}/api/player-stats/${encodeURIComponent(userEmail)}`),
+          fetch(`${baseUrl}/api/stats`),
+          fetch(`${baseUrl}/api/matches`)
+        ]);
+
+        // Processo i risultati
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
-          console.log('✅ Players caricati per homepage:', playersData.length, 'giocatori');
+          console.log('✅ Players caricati rapidamente:', playersData.length, 'giocatori');
           const player = playersData.find((p: any) => p.email === userEmail);
           if (player) {
             setCurrentPlayer(player);
             console.log('✅ Player corrente trovato:', player.nome || player.name);
-          } else {
-            console.error('❌ Player corrente non trovato per email:', userEmail);
           }
-        } else {
-          console.error('❌ Errore nel caricamento players homepage:', playersResponse.status);
         }
 
-        // Carica le statistiche del giocatore
-        const statsResponse = await fetch(`/api/player-stats/${encodeURIComponent(userEmail)}`);
         if (statsResponse.ok) {
           const stats = await statsResponse.json();
           setPlayerStats(stats);
         }
 
-        // Carica tutte le statistiche dei giocatori
-        const allStatsResponse = await fetch('/api/stats');
         if (allStatsResponse.ok) {
           const allStats = await allStatsResponse.json();
           setAllPlayersStats(allStats);
         }
 
-        // Carica le partite per cui l'utente può votare
-        const matchesResponse = await fetch('/api/matches');
+        // Caricamento asincrono delle partite votabili (non bloccante)
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json();
           
-          // Filtra partite completate dove l'utente ha partecipato
-          const completedMatches = matchesData.filter((match: any) => {
-            if (!match.completed) return false;
-            
-            const teamA = Array.isArray(match.teamA) ? match.teamA : 
-                         (typeof match.teamA === 'string' ? JSON.parse(match.teamA || '[]') : []);
-            const teamB = Array.isArray(match.teamB) ? match.teamB : 
-                         (typeof match.teamB === 'string' ? JSON.parse(match.teamB || '[]') : []);
-            
-            return [...teamA, ...teamB].includes(userEmail);
-          });
-
-          // Controlla per ogni partita se l'utente può ancora votare
-          const votableMatches = [];
-          
-          for (const match of completedMatches) {
+          // Processo asincrono per non bloccare l'UI
+          setTimeout(async () => {
             try {
-              const voteCheckResponse = await fetch(
-                `/api/votes/check/${encodeURIComponent(userEmail)}/${match.matchId}`
-              );
-              
-              if (voteCheckResponse.ok) {
-                const voteData = await voteCheckResponse.json();
+              const completedMatches = matchesData.filter((match: any) => {
+                if (!match.completed) return false;
                 
-                if (!voteData.hasVoted) {
-                  votableMatches.push({
-                    id: match.id,
-                    matchId: match.matchId,
-                    title: match.title || `Partita del ${new Date(match.date).toLocaleDateString()}`,
-                    date: match.date,
-                    status: 'completed' as const,
-                    teamA: Array.isArray(match.teamA) ? match.teamA : JSON.parse(match.teamA || '[]'),
-                    teamB: Array.isArray(match.teamB) ? match.teamB : JSON.parse(match.teamB || '[]'),
-                    canVote: true
-                  });
+                const teamA = Array.isArray(match.teamA) ? match.teamA : 
+                             (typeof match.teamA === 'string' ? JSON.parse(match.teamA || '[]') : []);
+                const teamB = Array.isArray(match.teamB) ? match.teamB : 
+                             (typeof match.teamB === 'string' ? JSON.parse(match.teamB || '[]') : []);
+                
+                return [...teamA, ...teamB].includes(userEmail);
+              });
+
+              const votableMatches = [];
+              
+              for (const match of completedMatches.slice(0, 3)) { // Limita a 3 per performance
+                try {
+                  const voteCheckResponse = await fetch(
+                    `${baseUrl}/api/votes/check/${encodeURIComponent(userEmail)}/${match.matchId}`
+                  );
+                  
+                  if (voteCheckResponse.ok) {
+                    const voteData = await voteCheckResponse.json();
+                    
+                    if (!voteData.hasVoted) {
+                      votableMatches.push({
+                        id: match.id,
+                        matchId: match.matchId,
+                        title: match.title || `Partita del ${new Date(match.date).toLocaleDateString()}`,
+                        date: match.date,
+                        status: 'completed' as const,
+                        teamA: Array.isArray(match.teamA) ? match.teamA : JSON.parse(match.teamA || '[]'),
+                        teamB: Array.isArray(match.teamB) ? match.teamB : JSON.parse(match.teamB || '[]'),
+                        canVote: true
+                      });
+                    }
+                  }
+                } catch (error) {
+                  console.error(`Errore nel controllo voti per partita ${match.matchId}:`, error);
                 }
               }
-            } catch (error) {
-              console.error(`Errore nel controllo voti per partita ${match.matchId}:`, error);
-            }
-          }
 
-          setPendingVotes(votableMatches);
+              setPendingVotes(votableMatches);
+            } catch (error) {
+              console.error('Errore nel caricamento partite votabili:', error);
+            }
+          }, 100); // Caricamento asincrono non bloccante
         }
 
+        console.log('✅ Homepage caricata rapidamente!');
+
       } catch (error) {
-        console.error('Errore nel caricamento dati mobile:', error);
+        console.error('❌ Errore nel caricamento homepage:', error);
       } finally {
         setLoadingData(false);
       }
     };
 
     if (userEmail) {
-      fetchMobileData();
+      fetchHomeData();
     }
   }, [userEmail]);
 
+  // 🚀 Mostra l'app immediatamente invece di bloccare con loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-400"></div>
-          <p className="text-gray-200 mt-4 font-runtime">Caricamento...</p>
+          <div className="text-4xl font-bold text-white mb-4">Calcettinho</div>
+          <div className="w-12 h-12 border-2 border-green-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );

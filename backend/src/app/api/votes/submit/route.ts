@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
+import OfflineMiddleware from '../../../utils/offlineMiddleware';
 
 // Configurazione Airtable
 const airtable = new Airtable({
@@ -15,12 +16,27 @@ if (!apiKey || !baseId) {
 
 const base = Airtable.base(baseId);
 
+// CORS Preflight
+export async function OPTIONS() {
+  return OfflineMiddleware.handleCORSPreflight();
+}
+
 export async function POST(req: NextRequest) {
   try {
-    console.log('=== INIZIO SUBMISSION VOTI ===');
+    console.log('=== INIZIO SUBMISSION VOTI (OFFLINE-AWARE) ===');
+    
+    // Parse offline headers
+    const offlineHeaders = OfflineMiddleware.parseOfflineHeaders(req);
+    console.log('📡 Offline headers:', offlineHeaders);
     
     const { voterEmail, matchId, votes } = await req.json();
-    console.log('Dati ricevuti:', { voterEmail, matchId, votesCount: votes?.length });
+    console.log('Dati ricevuti:', { 
+      voterEmail, 
+      matchId, 
+      votesCount: votes?.length,
+      isOfflineRequest: offlineHeaders.isOfflineRequest,
+      actionId: offlineHeaders.actionId
+    });
     
     if (!voterEmail || !matchId || !votes || !Array.isArray(votes) || votes.length === 0) {
       console.log('Validazione fallita: dati mancanti');
@@ -45,12 +61,53 @@ export async function POST(req: NextRequest) {
         .firstPage();
 
       if (existingVotes.length > 0) {
-        console.log('❌ Voti già esistenti trovati:', existingVotes.length);
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Hai già votato per questa partita!',
-          code: 'ALREADY_VOTED'
-        }, { status: 409 }); // 409 Conflict
+        console.log('⚠️ Voti già esistenti trovati:', existingVotes.length);
+        
+        const existingVoteData = existingVotes[0].fields;
+        
+        // Detect conflicts usando offline middleware
+        const conflicts = OfflineMiddleware.detectConflicts(
+          { votes },
+          existingVoteData,
+          offlineHeaders.originalTimestamp
+        );
+        
+        if (conflicts.length > 0 && offlineHeaders.isOfflineRequest) {
+          console.log('🔍 Conflitti rilevati per richiesta offline:', conflicts);
+          
+          // Risolvi conflitti automaticamente
+          const { resolved, needsUserChoice } = OfflineMiddleware.resolveConflicts(
+            conflicts,
+            { voterEmail, matchId, votes },
+            existingVoteData,
+            offlineHeaders.conflictResolution
+          );
+          
+          if (needsUserChoice) {
+            // Conflitto richiede intervento utente
+            return OfflineMiddleware.createOfflineResponse(
+              null,
+              offlineHeaders,
+              { 
+                conflicts,
+                needsUserChoice: true
+              }
+            );
+          }
+          
+          // Aggiorna voti con dati risolti se necessario
+          console.log('🔀 Applicando risoluzione automatica conflitti');
+        } else {
+          // Voti duplicati senza conflitti - comportamento normale
+          return OfflineMiddleware.createOfflineResponse(
+            { 
+              success: false, 
+              error: 'Hai già votato per questa partita!',
+              code: 'ALREADY_VOTED'
+            },
+            offlineHeaders
+          );
+        }
       }
       
       console.log('✅ Nessun voto esistente trovato, procedo con l\'inserimento');
@@ -193,83 +250,101 @@ export async function POST(req: NextRequest) {
             if (finalizeData.success) {
               console.log('✅ FASE 2 completata automaticamente:', finalizeData.message);
               
-              return NextResponse.json({ 
-                success: true, 
-                message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
-                votesSubmitted: createdRecords.length,
-                matchId: matchId,
-                stats: stats,
-                autoFinalized: true,
-                phase2Complete: true,
-                finalizeMessage: finalizeData.message,
-                motmAwarded: finalizeData.motmAwards || 0,
-                abilitiesUpdated: finalizeData.playerAbilitiesUpdated || 0
-              });
+              return OfflineMiddleware.createOfflineResponse(
+                { 
+                  success: true, 
+                  message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+                  votesSubmitted: createdRecords.length,
+                  matchId: matchId,
+                  stats: stats,
+                  autoFinalized: true,
+                  phase2Complete: true,
+                  finalizeMessage: finalizeData.message,
+                  motmAwarded: finalizeData.motmAwards || 0,
+                  abilitiesUpdated: finalizeData.playerAbilitiesUpdated || 0
+                },
+                offlineHeaders
+              );
             } else {
               console.log('⚠️ Finalize-voting fallito, ma voti salvati:', finalizeData.error);
               
-              return NextResponse.json({ 
+              return OfflineMiddleware.createOfflineResponse(
+                { 
+                  success: true, 
+                  message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
+                  votesSubmitted: createdRecords.length,
+                  matchId: matchId,
+                  stats: stats,
+                  autoFinalized: false,
+                  finalizeError: finalizeData.error
+                },
+                offlineHeaders
+              );
+            }
+          } catch (finalizeError) {
+            console.error('❌ Errore durante finalize-voting automatico:', finalizeError);
+            
+            // Ritorna successo per i voti anche se finalize-voting fallisce
+            return OfflineMiddleware.createOfflineResponse(
+              { 
                 success: true, 
                 message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
                 votesSubmitted: createdRecords.length,
                 matchId: matchId,
                 stats: stats,
                 autoFinalized: false,
-                finalizeError: finalizeData.error
-              });
-            }
-          } catch (finalizeError) {
-            console.error('❌ Errore durante finalize-voting automatico:', finalizeError);
-            
-            // Ritorna successo per i voti anche se finalize-voting fallisce
-            return NextResponse.json({ 
+                finalizeError: 'Errore durante finalizzazione automatica'
+              },
+              offlineHeaders
+            );
+          }
+        } else {
+          console.log(`🔄 Votazioni in corso: ${votersFromMatch.length}/${allMatchPlayers.length} giocatori hanno votato`);
+          
+          return OfflineMiddleware.createOfflineResponse(
+            { 
               success: true, 
               message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
               votesSubmitted: createdRecords.length,
               matchId: matchId,
               stats: stats,
               autoFinalized: false,
-              finalizeError: 'Errore durante finalizzazione automatica'
-            });
-          }
-        } else {
-          console.log(`🔄 Votazioni in corso: ${votersFromMatch.length}/${allMatchPlayers.length} giocatori hanno votato`);
-          
-          return NextResponse.json({ 
+              votingProgress: `${votersFromMatch.length}/${allMatchPlayers.length} giocatori hanno votato`
+            },
+            offlineHeaders
+          );
+        }
+      } else {
+        console.log('⚠️ Partita non trovata per controllo votazioni');
+        
+        return OfflineMiddleware.createOfflineResponse(
+          { 
             success: true, 
             message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
             votesSubmitted: createdRecords.length,
             matchId: matchId,
             stats: stats,
             autoFinalized: false,
-            votingProgress: `${votersFromMatch.length}/${allMatchPlayers.length} giocatori hanno votato`
-          });
-        }
-      } else {
-        console.log('⚠️ Partita non trovata per controllo votazioni');
-        
-        return NextResponse.json({ 
+            note: 'Partita non trovata per controllo auto-finalizzazione'
+          },
+          offlineHeaders
+        );
+      }
+    } catch (checkError) {
+      console.error('⚠️ Errore nel controllo auto-finalizzazione (voti comunque salvati):', checkError);
+      
+      return OfflineMiddleware.createOfflineResponse(
+        { 
           success: true, 
           message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
           votesSubmitted: createdRecords.length,
           matchId: matchId,
           stats: stats,
           autoFinalized: false,
-          note: 'Partita non trovata per controllo auto-finalizzazione'
-        });
-      }
-    } catch (checkError) {
-      console.error('⚠️ Errore nel controllo auto-finalizzazione (voti comunque salvati):', checkError);
-      
-      return NextResponse.json({ 
-        success: true, 
-        message: `${createdRecords.length} voti salvati con successo per la partita ${matchId}`,
-        votesSubmitted: createdRecords.length,
-        matchId: matchId,
-        stats: stats,
-        autoFinalized: false,
-        checkError: 'Errore nel controllo auto-finalizzazione'
-      });
+          checkError: 'Errore nel controllo auto-finalizzazione'
+        },
+        offlineHeaders
+      );
     }
     
   } catch (error) {
