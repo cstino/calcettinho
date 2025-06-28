@@ -84,7 +84,6 @@ const nextConfig = {
   
   // Ottimizzazioni PWA
   experimental: {
-    optimizeCss: true,
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
   
