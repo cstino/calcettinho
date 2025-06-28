@@ -203,24 +203,30 @@ export default function RootLayout({
                   // Import and initialize offline systems with dynamic imports
                   setTimeout(() => {
                     if (typeof window !== 'undefined' && 'indexedDB' in window) {
-                      // Initialize smart cache
-                      import('../utils/smartCache').then(({ smartCache }) => {
-                        console.log('💾 Smart cache initialized');
+                      // Initialize smart cache (default export)
+                      import('../../utils/smartCache').then((module) => {
+                        if (module.default) {
+                          console.log('💾 Smart cache initialized');
+                        }
                       }).catch(err => console.warn('Smart cache init failed:', err));
                       
-                      // Initialize offline queue
-                      import('../utils/offlineQueue').then(({ offlineQueue }) => {
-                        console.log('📦 Offline queue initialized');
+                      // Initialize offline queue (named export)
+                      import('../../utils/offlineQueue').then((module) => {
+                        if (module.offlineQueue) {
+                          console.log('📦 Offline queue initialized');
+                        }
                       }).catch(err => console.warn('Offline queue init failed:', err));
                       
-                      // Initialize data sync manager
-                      import('../utils/dataSyncManager').then(({ dataSyncManager }) => {
-                        console.log('📡 Data sync manager initialized');
-                        // Start initial sync if online
-                        if (navigator.onLine) {
-                          dataSyncManager.prioritySync().catch(err => {
-                            console.warn('Initial sync failed:', err);
-                          });
+                      // Initialize data sync manager (named export)
+                      import('../../utils/dataSyncManager').then((module) => {
+                        if (module.dataSyncManager) {
+                          console.log('📡 Data sync manager initialized');
+                          // Start initial sync if online
+                          if (typeof navigator !== 'undefined' && navigator.onLine) {
+                            module.dataSyncManager.prioritySync().catch(err => {
+                              console.warn('Initial sync failed:', err);
+                            });
+                          }
                         }
                       }).catch(err => console.warn('Data sync manager init failed:', err));
                     }
