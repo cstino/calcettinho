@@ -315,7 +315,7 @@ export class WebSocketManager {
     if (token) {
       this.send(WebSocketEventType.USER_ONLINE, {
         token,
-        userAgent: navigator.userAgent,
+        userAgent: typeof window !== 'undefined' && typeof navigator !== 'undefined' ? navigator.userAgent : 'server-side',
         timestamp: new Date().toISOString()
       }, { priority: 'high', requireConnection: true });
     }

@@ -28,7 +28,7 @@ interface QueueMetrics {
 
 class OfflineQueueManager {
   private queue: QueueAction[] = [];
-  private isOnline: boolean = navigator.onLine;
+  private isOnline: boolean = typeof window !== 'undefined' && typeof navigator !== 'undefined' ? navigator.onLine : true;
   private isSyncing: boolean = false;
   private syncListeners: Set<(metrics: QueueMetrics) => void> = new Set();
   private storageKey = 'calcettinho_offline_queue';

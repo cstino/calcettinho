@@ -221,7 +221,7 @@ export function shouldPrefetch(resourceType: string): boolean {
 export function getStorageLimit(): number {
   if (typeof window === 'undefined') return STORAGE_LIMITS.desktop;
   
-  const userAgent = window.navigator.userAgent;
+      const userAgent = typeof window !== 'undefined' && window.navigator ? window.navigator.userAgent : 'server-side';
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
   const isTablet = /iPad|Android.*Tablet/i.test(userAgent);
   

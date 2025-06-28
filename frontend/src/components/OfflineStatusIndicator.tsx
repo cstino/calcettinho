@@ -13,7 +13,7 @@ interface ConflictData {
 }
 
 export default function OfflineStatusIndicator() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' && typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [queueCount, setQueueCount] = useState(0);
   const [conflicts, setConflicts] = useState<ConflictData[]>([]);
   const [showDetails, setShowDetails] = useState(false);

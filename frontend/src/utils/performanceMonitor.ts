@@ -829,7 +829,7 @@ export class PerformanceMonitor {
       await this.cache.set('performance_metrics', metricsToReport, { ttl: 24 * 60 * 60 * 1000 });
 
       // Send to analytics endpoint (if configured)
-      if (navigator.onLine) {
+      if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && navigator.onLine) {
         await this.sendMetricsToServer(metricsToReport);
       }
 
@@ -950,7 +950,7 @@ export class PerformanceMonitor {
 
   private getDeviceType(): string {
     if (typeof window === 'undefined') return 'unknown';
-    const userAgent = navigator.userAgent;
+          const userAgent = typeof window !== 'undefined' && typeof navigator !== 'undefined' ? navigator.userAgent : 'server-side';
     if (/Mobi|Android/i.test(userAgent)) return 'mobile';
     if (/Tablet|iPad/i.test(userAgent)) return 'tablet';
     return 'desktop';
