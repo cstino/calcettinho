@@ -55,6 +55,53 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
   const [currentStatAction, setCurrentStatAction] = useState<StatAction | null>(null);
   const [currentGolAction, setCurrentGolAction] = useState<GolAction | null>(null);
   const [isUpdatingStat, setIsUpdatingStat] = useState(false);
+  const [lastSaveTime, setLastSaveTime] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // 🔄 Auto-save e Restore system per prevenire perdita dati su refresh
+  const getStorageKey = (matchId: string) => `calcettinho_match_${matchId}_tabellino`;
+  
+  const saveToLocalStorage = (stats: { [email: string]: PlayerMatchStats }, matchId: string) => {
+    try {
+      const saveData = {
+        playerStats: stats,
+        timestamp: new Date().toISOString(),
+        matchId: matchId
+      };
+      localStorage.setItem(getStorageKey(matchId), JSON.stringify(saveData));
+      setLastSaveTime(new Date().toLocaleTimeString());
+      setHasUnsavedChanges(false);
+      console.log('✅ Tabellino auto-salvato nel localStorage:', saveData);
+    } catch (error) {
+      console.error('❌ Errore nel salvare tabellino:', error);
+    }
+  };
+  
+  const loadFromLocalStorage = (matchId: string) => {
+    try {
+      const savedData = localStorage.getItem(getStorageKey(matchId));
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        console.log('🔄 Dati tabellino ripristinati dal localStorage:', parsed);
+        setLastSaveTime(new Date(parsed.timestamp).toLocaleTimeString());
+        return parsed.playerStats;
+      }
+    } catch (error) {
+      console.error('❌ Errore nel caricare tabellino salvato:', error);
+    }
+    return null;
+  };
+  
+  const clearLocalStorage = (matchId: string) => {
+    try {
+      localStorage.removeItem(getStorageKey(matchId));
+      setLastSaveTime(null);
+      setHasUnsavedChanges(false);
+      console.log('🗑️ Dati tabellino rimossi dal localStorage');
+    } catch (error) {
+      console.error('❌ Errore nel rimuovere tabellino salvato:', error);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && match) {
@@ -66,6 +113,21 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
   useEffect(() => {
     console.log('Modal states - showGolModal:', showGolModal, 'showStatModal:', showStatModal);
   }, [showGolModal, showStatModal]);
+
+  // 🔄 Auto-save quando playerStats cambia (con debounce di 1 secondo)
+  useEffect(() => {
+    if (!match || !playerStats || Object.keys(playerStats).length === 0) return;
+    
+    // Debounce per evitare troppe scritture
+    const saveTimeout = setTimeout(() => {
+      saveToLocalStorage(playerStats, match.matchId);
+    }, 1000);
+    
+    // Marca come modificato immediatamente
+    setHasUnsavedChanges(true);
+    
+    return () => clearTimeout(saveTimeout);
+  }, [playerStats, match]);
 
   const fetchPlayers = async () => {
     try {
@@ -82,11 +144,15 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
   const initializeStats = () => {
     if (!match) return;
     
+    // 🔄 Prima controlla se ci sono dati salvati nel localStorage
+    const savedStats = loadFromLocalStorage(match.matchId);
+    
     const allPlayers = [...match.teamA, ...match.teamB];
     const initialStats: { [email: string]: PlayerMatchStats } = {};
     
     allPlayers.forEach(email => {
-      initialStats[email] = match.playerStats?.[email] || {
+      // Usa i dati salvati se esistono, altrimenti usa quelli dal server o inizializza a zero
+      initialStats[email] = savedStats?.[email] || match.playerStats?.[email] || {
         gol: 0,
         assist: 0,
         gialli: 0,
@@ -96,6 +162,12 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
     });
 
     setPlayerStats(initialStats);
+    
+    // Se abbiamo caricato dati salvati, mostra un messaggio
+    if (savedStats) {
+      console.log('🔄 Tabellino ripristinato dal salvataggio automatico');
+      setHasUnsavedChanges(true); // Indica che ci sono dati non salvati nel server
+    }
   };
 
   const getPlayerName = (email: string) => {
@@ -241,6 +313,10 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
       });
 
       if (response.ok) {
+        // 🗑️ Pulisci i dati auto-salvati quando la partita è stata salvata con successo
+        clearLocalStorage(match.matchId);
+        console.log('✅ Partita salvata e dati temporanei rimossi');
+        
         onSuccess();
         onClose();
       } else {
@@ -253,6 +329,24 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
     }
   };
 
+  // 🚨 Gestione chiusura con controllo modifiche non salvate
+  const handleClose = () => {
+    if (hasUnsavedChanges) {
+      const confirmed = confirm(
+        '⚠️ Attenzione: Modifiche non salvate!\n\n' +
+        'Hai delle modifiche al tabellino che non sono state salvate nel server.\n' +
+        'I dati sono comunque protetti da auto-save locale.\n\n' +
+        '• Clicca "OK" per chiudere (i dati rimangono salvati localmente)\n' +
+        '• Clicca "Annulla" per continuare a modificare\n\n' +
+        'Per salvare definitivamente, usa "Termina Partita"'
+      );
+      
+      if (!confirmed) return;
+    }
+    
+    onClose();
+  };
+
   if (!isOpen || !match) return null;
 
   return (
@@ -263,14 +357,36 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
           {/* Header */}
           <div className="border-b border-gray-700 p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-white font-runtime">Gestione Tabellino</h2>
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-white font-runtime">Gestione Tabellino</h2>
+                  
+                  {/* 🔄 Indicatore Auto-Save */}
+                  {lastSaveTime && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-green-400 font-runtime">
+                        Auto-salvato {lastSaveTime}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {hasUnsavedChanges && !lastSaveTime && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-yellow-400 font-runtime">
+                        Modifiche non salvate
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
                 <p className="text-gray-400 font-runtime mt-1">
                   {new Date(match.date).toLocaleDateString('it-IT')}
                 </p>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <X className="w-6 h-6" />
@@ -492,7 +608,7 @@ export default function MatchManagementModal({ isOpen, onClose, onSuccess, match
           <div className="border-t border-gray-700 p-6">
             <div className="flex gap-4 justify-end">
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-runtime font-semibold transition-all"
               >
                 Annulla
