@@ -69,6 +69,8 @@ export default function Matches() {
   const [votingStatusData, setVotingStatusData] = useState<any>(null);
   const [loadingVotingStatus, setLoadingVotingStatus] = useState(false);
   const [forcingFinalize, setForcingFinalize] = useState(false);
+  const [triggeringMilestones, setTriggeringMilestones] = useState(false);
+  const [milestoneResults, setMilestoneResults] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -468,6 +470,65 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
     }
   };
 
+  // 🎯 Funzione per triggerare controllo milestone retroattivo
+  const triggerMilestoneCheck = async () => {
+    try {
+      const confirmed = confirm(
+        '🎯 Controllo Milestone Retroattivo\n\n' +
+        'Questa azione controllerà tutte le statistiche attuali dei giocatori ' +
+        'e assegnerà automaticamente le milestone raggiunte ma non ancora sbloccate.\n\n' +
+        '✅ Sicuro? Le milestone già sbloccate NON verranno duplicate.'
+      );
+      
+      if (!confirmed) return;
+      
+      setTriggeringMilestones(true);
+      setMilestoneResults(null);
+      
+      console.log('🎯 Avvio controllo retroattivo milestone...');
+      
+      const response = await fetch('/.netlify/functions/retroactive-milestone-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Controllo milestone completato:', result);
+        setMilestoneResults(result);
+        
+        let alertMessage = '✅ Controllo milestone completato!\n\n';
+        alertMessage += `🎯 Milestone assegnate: ${result.milestonesAssigned || 0}\n`;
+        alertMessage += `👥 Giocatori controllati: ${result.playersChecked || 0}\n`;
+        
+        if (result.newMilestones && result.newMilestones.length > 0) {
+          alertMessage += '\n🏆 NUOVE MILESTONE SBLOCCATE:\n';
+          result.newMilestones.forEach((milestone: any) => {
+            const playerName = getPlayerName(milestone.playerEmail);
+            alertMessage += `• ${playerName}: ${milestone.template_id}\n`;
+          });
+        } else {
+          alertMessage += '\n✨ Nessuna nuova milestone da sbloccare - tutti i premi sono aggiornati!';
+        }
+        
+        alertMessage += '\n💡 I giocatori potranno ora vedere i nuovi premi nei loro profili.';
+        
+        alert(alertMessage);
+      } else {
+        const error = await response.json();
+        console.error('❌ Errore nel controllo milestone:', error);
+        alert(`❌ Errore nel controllo milestone: ${error.error || 'Errore sconosciuto'}`);
+      }
+    } catch (error) {
+      console.error('❌ Errore di rete nel controllo milestone:', error);
+      alert('❌ Errore di rete nel controllo milestone');
+    } finally {
+      setTriggeringMilestones(false);
+    }
+  };
+
   const CompactMatchCard = ({ match }: { match: Match }) => {
     const isExpanded = expandedMatches.has(match.matchId);
     const allPlayers = [...match.teamA, ...match.teamB];
@@ -857,6 +918,50 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                   </button>
                 </div>
               </MatchManagerOnly>
+
+              {/* Admin Global Controls */}
+              <AdminOnly>
+                <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-6 mb-8 relative z-20">
+                  <h3 className="text-xl font-bold text-purple-400 font-runtime mb-4 text-center">
+                    🔧 Controlli Amministrativi Globali
+                  </h3>
+                  <p className="text-gray-300 font-runtime text-sm text-center mb-6">
+                    Funzioni per la gestione generale del sistema
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      onClick={triggerMilestoneCheck}
+                      disabled={triggeringMilestones}
+                      className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-4 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed relative z-30"
+                    >
+                      {triggeringMilestones ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Controllando...
+                        </>
+                      ) : (
+                        <>
+                          <Trophy className="w-5 h-5" />
+                          🎯 Controlla Milestone
+                        </>
+                      )}
+                    </button>
+                    
+                    {milestoneResults && (
+                      <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                        <span className="text-green-400 font-runtime text-sm">
+                          ✅ Ultima esecuzione: {milestoneResults.milestonesAssigned || 0} milestone assegnate
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-4 text-xs text-gray-400 font-runtime text-center">
+                    💡 Questo controllo assegna automaticamente le milestone raggiunte ma non ancora sbloccate
+                  </div>
+                </div>
+              </AdminOnly>
             </div>
           </section>
 
