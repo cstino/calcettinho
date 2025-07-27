@@ -424,8 +424,9 @@ export default function PlayerProfile() {
           if (voteResponse.ok) {
             const voteData = await voteResponse.json();
             if (voteData.success) {
-              console.log('📊 Dati voti caricati da:', voteData.source || 'unknown');
-              console.log('📈 Statistiche voti:', voteData.statistics);
+              console.log('📊 STRATEGIA IBRIDA - Dati da:', voteData.source || 'unknown');
+              console.log('📈 Statistiche (da player_stats):', voteData.statistics);
+              console.log('🎯 Ultima partita (da votes):', voteData.matchResults?.length || 0, 'risultati');
               setVoteHistory(voteData);
             }
           }
@@ -1689,9 +1690,15 @@ export default function PlayerProfile() {
                 </div>
 
                 {/* ✅ NUOVO: Gestione intelligente risultati */}
-                {voteHistory.matchResults && voteHistory.matchResults.length > 0 ? (
+                {/* ✅ STRATEGIA IBRIDA: Risultati ultima partita dalla tabella votes */}
+                {voteHistory.matchResults && voteHistory.matchResults.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">Risultati ultima partita</h3>
+                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">
+                      Risultati ultima partita
+                      {voteHistory.source === 'hybrid_player_stats_and_votes' && (
+                        <span className="text-sm text-blue-400 ml-2">(Live da votes)</span>
+                      )}
+                    </h3>
                     <div className="bg-gray-700/50 rounded-lg p-4">
                       {(() => {
                         const lastMatch = voteHistory.matchResults[0];
@@ -1728,44 +1735,7 @@ export default function PlayerProfile() {
                       })()}
                     </div>
                   </div>
-                ) : voteHistory.source === 'player_stats' && voteHistory.statistics.totalVotes > 0 ? (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">
-                      📊 Totali Aggregati 
-                      <span className="text-sm text-green-400 ml-2">(Da player_stats)</span>
-                    </h3>
-                    <div className="bg-gray-700/50 rounded-lg p-4">
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="flex items-center space-x-2">
-                          <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
-                            {voteHistory.statistics.upVotes} UP
-                          </span>
-                          {voteHistory.statistics.neutralVotes > 0 && (
-                            <span className="bg-gray-500 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
-                              {voteHistory.statistics.neutralVotes} NEU
-                            </span>
-                          )}
-                          <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
-                            {voteHistory.statistics.downVotes} DOWN
-                          </span>
-                          {voteHistory.statistics.motmVotes > 0 && (
-                            <span className="bg-amber-500 text-black px-2 py-1 rounded text-xs font-runtime font-bold min-w-[45px] text-center">
-                              {voteHistory.statistics.motmVotes} MOTM
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className={`font-runtime font-bold text-sm ${
-                            voteHistory.statistics.netVotes > 0 ? 'text-green-400' :
-                            voteHistory.statistics.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
-                          }`}>
-                            Net: {voteHistory.statistics.netVotes > 0 ? '+' : ''}{voteHistory.statistics.netVotes}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
+                )}
               </div>
             )}
           </div>

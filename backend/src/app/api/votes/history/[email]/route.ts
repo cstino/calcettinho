@@ -171,10 +171,90 @@ export async function GET(
       });
     }
 
+    // ✅ NUOVO: Strategia ibrida - Totali da player_stats + ultima partita da votes
+    console.log('💡 Strategia ibrida: Totali da player_stats + ultima partita da votes');
+    
+    // Recupera i risultati dell'ultima partita dalla tabella votes
+    let lastMatchResults: Array<{
+      matchId: string;
+      upVotes: number;
+      downVotes: number;
+      neutralVotes: number;
+      motmVotes: number;
+      netVotes: number;
+      wasMotmCandidate: boolean;
+    }> = [];
+    try {
+      console.log('🔍 Recupero risultati ultima partita dalla tabella votes...');
+      
+      // Trova l'ultima partita del giocatore
+      const recentVotes = await base('votes').select({
+        filterByFormula: `{toPlayerId} = "${email}"`,
+        sort: [{ field: 'Created', direction: 'desc' }],
+        maxRecords: 50 // Prendi gli ultimi 50 voti per essere sicuri di avere almeno una partita completa
+      }).all();
+      
+      if (recentVotes.length > 0) {
+        // Raggruppa per matchId per trovare l'ultima partita
+        const votesByMatch = recentVotes.reduce((acc, vote) => {
+          const matchId = vote.get('matchId') as string;
+          const created = vote.get('Created') as string;
+          
+          if (!acc[matchId]) {
+            acc[matchId] = { 
+              votes: [], 
+              created: created,
+              up: 0, 
+              down: 0, 
+              neutral: 0, 
+              motm: 0 
+            };
+          }
+          
+          acc[matchId].votes.push(vote);
+          
+          // Conta i voti
+          const voteType = vote.get('voteType') as string;
+          const motmVote = vote.get('motm_vote') as boolean;
+          
+          if (voteType === 'UP') acc[matchId].up++;
+          else if (voteType === 'DOWN') acc[matchId].down++;
+          else if (voteType === 'NEUTRAL') acc[matchId].neutral++;
+          
+          if (motmVote) acc[matchId].motm++;
+          
+          return acc;
+        }, {} as Record<string, any>);
+        
+        // Trova la partita più recente
+        const sortedMatches = Object.entries(votesByMatch)
+          .sort(([,a], [,b]) => new Date(b.created).getTime() - new Date(a.created).getTime());
+        
+        if (sortedMatches.length > 0) {
+          const [lastMatchId, lastMatchData] = sortedMatches[0];
+          
+          lastMatchResults = [{
+            matchId: lastMatchId,
+            upVotes: lastMatchData.up,
+            downVotes: lastMatchData.down,
+            neutralVotes: lastMatchData.neutral,
+            motmVotes: lastMatchData.motm,
+            netVotes: lastMatchData.up - lastMatchData.down,
+            wasMotmCandidate: lastMatchData.motm > 0
+          }];
+          
+          console.log(`✅ Ultima partita trovata: ${lastMatchId} (${lastMatchData.up}UP, ${lastMatchData.down}DOWN, ${lastMatchData.neutral}NEU, ${lastMatchData.motm}MOTM)`);
+        }
+      }
+    } catch (lastMatchError) {
+      console.log('⚠️ Errore nel recupero ultima partita:', lastMatchError);
+      // Non bloccare se non riusciamo a recuperare l'ultima partita
+    }
+
     return NextResponse.json({
       success: true,
       playerEmail: email,
-      votes: [], // I singoli voti non sono più disponibili con i dati aggregati
+      votes: [], // I singoli voti non sono più necessari per il frontend
       statistics: {
         totalVotes,
         upVotes,
@@ -187,8 +267,8 @@ export async function GET(
         actualMotm: actualMotm,
         motmCandidacies: 0 // TODO: Potremmo dover aggiungere questo campo a player_stats
       },
-      matchResults: [], // I dettagli per partita non sono più disponibili con i dati aggregati
-      source: 'player_stats' // Indicatore del source per debug
+      matchResults: lastMatchResults, // ✅ NUOVO: Solo ultima partita dalla tabella votes
+      source: 'hybrid_player_stats_and_votes' // Indicatore per debug
     });
 
   } catch (error) {
