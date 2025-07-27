@@ -399,20 +399,133 @@ exports.handler = async (event, context) => {
       console.log('⚠️ Errore nell\'aggiornare stato votazioni:', error);
     }
 
-    console.log('🏁 FINALIZE VOTING completata: MOTM assegnato e abilità aggiornate con algoritmo Fair!');
+    // 9. ✅ NUOVO: Aggrega i voti in player_stats e pulisce la tabella votes
+    console.log('📊 PHASE 3: Aggregazione voti in player_stats...');
+    
+    try {
+      // Recupera tutti i voti per questa partita
+      const matchVotesRecords = await base('votes').select({
+        filterByFormula: `{matchId} = "${matchId}"`
+      }).all();
+
+      console.log(`📊 Trovati ${matchVotesRecords.length} voti per la partita ${matchId}`);
+
+      if (matchVotesRecords.length > 0) {
+        // Aggrega i voti per giocatore
+        const voteAggregation = {};
+        
+        matchVotesRecords.forEach(record => {
+          const toPlayerId = record.get('toPlayerId');
+          const voteType = record.get('voteType');
+          const motmVote = record.get('motm_vote') || false;
+
+          if (!voteAggregation[toPlayerId]) {
+            voteAggregation[toPlayerId] = {
+              upVotes: 0,
+              downVotes: 0,
+              neutralVotes: 0,
+              motmVotes: 0
+            };
+          }
+
+          if (voteType === 'UP') {
+            voteAggregation[toPlayerId].upVotes++;
+          } else if (voteType === 'DOWN') {
+            voteAggregation[toPlayerId].downVotes++;
+          } else if (voteType === 'NEUTRAL') {
+            voteAggregation[toPlayerId].neutralVotes++;
+          }
+
+          if (motmVote) {
+            voteAggregation[toPlayerId].motmVotes++;
+          }
+        });
+
+        console.log('📊 Voti aggregati per giocatore:', voteAggregation);
+
+        // Aggiorna player_stats per ogni giocatore
+        const playersUpdated = [];
+        for (const [playerEmail, votes] of Object.entries(voteAggregation)) {
+          try {
+            // Cerca il record esistente
+            const playerStatsRecords = await base('player_stats').select({
+              filterByFormula: `{playerEmail} = "${playerEmail}"`
+            }).firstPage();
+
+            if (playerStatsRecords && playerStatsRecords.length > 0) {
+              // Record esistente - aggiorna
+              const record = playerStatsRecords[0];
+              const currentUpVotes = record.get('upVotes') || 0;
+              const currentDownVotes = record.get('downVotes') || 0;
+              const currentNeutralVotes = record.get('neutralVotes') || 0;
+              const currentMotmVotes = record.get('motmVotes') || 0;
+
+              await base('player_stats').update(record.id, {
+                upVotes: currentUpVotes + votes.upVotes,
+                downVotes: currentDownVotes + votes.downVotes,
+                neutralVotes: currentNeutralVotes + votes.neutralVotes,
+                motmVotes: currentMotmVotes + votes.motmVotes
+              });
+
+              playersUpdated.push(`${playerEmail} (aggiornato)`);
+            } else {
+              // Record non esistente - crea nuovo
+              await base('player_stats').create({
+                playerEmail: playerEmail,
+                Gol: 0,
+                Assist: 0,
+                Clean_Sheet: 0,
+                Vittorie: 0,
+                Presenze: 0,
+                upVotes: votes.upVotes,
+                downVotes: votes.downVotes,
+                neutralVotes: votes.neutralVotes,
+                motmVotes: votes.motmVotes
+              });
+
+              playersUpdated.push(`${playerEmail} (creato)`);
+            }
+          } catch (playerError) {
+            console.error(`❌ Errore nell'aggiornare player_stats per ${playerEmail}:`, playerError);
+          }
+        }
+
+        console.log(`✅ Player stats aggiornati: ${playersUpdated.join(', ')}`);
+
+        // Elimina i voti di questa partita dalla tabella votes
+        console.log('🗑️ Eliminazione voti della partita dalla tabella votes...');
+        
+        const votesToDelete = matchVotesRecords.map(record => record.id);
+        
+        // Elimina in batch da 10 (limite Airtable)
+        for (let i = 0; i < votesToDelete.length; i += 10) {
+          const batch = votesToDelete.slice(i, i + 10);
+          await base('votes').destroy(batch);
+          console.log(`🗑️ Eliminati ${batch.length} voti (batch ${Math.floor(i/10) + 1})`);
+        }
+
+        console.log(`✅ Eliminati tutti i ${votesToDelete.length} voti della partita ${matchId}`);
+      }
+    } catch (aggregationError) {
+      console.error('❌ Errore nell\'aggregazione voti:', aggregationError);
+      // Non interrompiamo il processo per errori di aggregazione
+    }
+
+    console.log('🏁 FINALIZE VOTING completata: MOTM assegnato, abilità aggiornate e voti aggregati!');
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        message: 'Votazioni finalizzate - MOTM assegnato e abilità aggiornate con algoritmo Fair',
+        message: 'Votazioni finalizzate - MOTM assegnato, abilità aggiornate e voti aggregati in player_stats',
         motmAwards: motmAwards.length,
         motmDetails: motmAwards,
         playerAbilitiesUpdated: statUpdates.length,
         statUpdates: statUpdates,
         voteStats: voteStats,
-        votingCloseReason: votingStatus.reason
+        votingCloseReason: votingStatus.reason,
+        phase: 'finalized_with_aggregation'
       })
     };
 
