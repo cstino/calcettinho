@@ -69,6 +69,7 @@ export default function Matches() {
   const [votingStatusData, setVotingStatusData] = useState<any>(null);
   const [loadingVotingStatus, setLoadingVotingStatus] = useState(false);
   const [forcingFinalize, setForcingFinalize] = useState(false);
+  const [finalizedMatches, setFinalizedMatches] = useState<Set<string>>(new Set());
   const [triggeringMilestones, setTriggeringMilestones] = useState(false);
   const [milestoneResults, setMilestoneResults] = useState<any>(null);
 
@@ -454,6 +455,9 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
           `• Abilità aggiornate: ${data.abilitiesUpdated} giocatori`
         );
         
+        // Aggiungi la partita al set di partite finalizzate
+        setFinalizedMatches(prev => new Set(prev).add(matchId));
+        
         // Ricarica i dati delle partite
         await refreshMatches();
         
@@ -789,13 +793,22 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                         
                         <button
                           onClick={() => forceFinalize(match.matchId)}
-                          disabled={forcingFinalize}
-                          className="flex-1 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white px-4 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={forcingFinalize || finalizedMatches.has(match.matchId)}
+                          className={`flex-1 px-4 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed ${
+                            finalizedMatches.has(match.matchId) 
+                              ? 'bg-gray-500 text-white' 
+                              : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white hover:shadow-xl hover:scale-105'
+                          }`}
                         >
                           {forcingFinalize ? (
                             <>
                               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                               Finalizzando...
+                            </>
+                          ) : finalizedMatches.has(match.matchId) ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              Finalizzata
                             </>
                           ) : (
                             <>
