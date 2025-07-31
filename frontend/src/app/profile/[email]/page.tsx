@@ -43,7 +43,7 @@ interface VoteHistory {
   votes: Array<{
     id: string;
     voterEmail: string;
-    voteType: string; // 'UP' o 'DOWN'
+    voteType: string; // 'UP', 'DOWN', 'NEUTRAL'
     matchId: string;
     toPlayerId: string;
   }>;
@@ -51,18 +51,25 @@ interface VoteHistory {
     totalVotes: number;
     upVotes: number;
     downVotes: number;
+    neutralVotes: number; // ✅ AGGIUNTO
+    motmVotes: number;    // ✅ AGGIUNTO
     netVotes: number;
     upPercentage: number;
     totalMatches: number;
     actualMotm: number;
+    motmCandidacies?: number; // ✅ AGGIUNTO (opzionale per compatibilità)
   };
   matchResults: Array<{
     matchId: string;
     upVotes: number;
     downVotes: number;
+    neutralVotes?: number; // ✅ AGGIUNTO (opzionale per compatibilità)
+    motmVotes?: number;    // ✅ AGGIUNTO (opzionale per compatibilità)
     netVotes: number;
     isMotm: boolean;
+    wasMotmCandidate?: boolean; // ✅ AGGIUNTO (opzionale per compatibilità)
   }>;
+  source?: string; // ✅ AGGIUNTO per debug (da quale tabella vengono i dati)
 }
 
 interface PlayerAward {
@@ -417,6 +424,9 @@ export default function PlayerProfile() {
           if (voteResponse.ok) {
             const voteData = await voteResponse.json();
             if (voteData.success) {
+              console.log('📊 STRATEGIA IBRIDA - Dati da:', voteData.source || 'unknown');
+              console.log('📈 Statistiche (da player_stats):', voteData.statistics);
+              console.log('🎯 Ultima partita (da votes):', voteData.matchResults?.length || 0, 'risultati');
               setVoteHistory(voteData);
             }
           }
@@ -1679,10 +1689,16 @@ export default function PlayerProfile() {
                   </div>
                 </div>
 
-                {/* Risultati ultima partita */}
+                {/* ✅ NUOVO: Gestione intelligente risultati */}
+                {/* ✅ STRATEGIA IBRIDA: Risultati ultima partita dalla tabella votes */}
                 {voteHistory.matchResults && voteHistory.matchResults.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">Risultati ultima partita</h3>
+                    <h3 className="text-lg font-semibold text-white font-runtime mb-4">
+                      Risultati ultima partita
+                      {voteHistory.source === 'hybrid_player_stats_and_votes' && (
+                        <span className="text-sm text-blue-400 ml-2">(Live da votes)</span>
+                      )}
+                    </h3>
                     <div className="bg-gray-700/50 rounded-lg p-4">
                       {(() => {
                         const lastMatch = voteHistory.matchResults[0];
@@ -1690,17 +1706,17 @@ export default function PlayerProfile() {
                           <div className="flex items-center justify-center space-x-2">
                             <div className="flex items-center space-x-2">
                               <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
-                                {lastMatch.upVotes} UP
+                                {lastMatch.upVotes || 0} UP
                               </span>
-                              {lastMatch.neutralVotes > 0 && (
+                              {(lastMatch.neutralVotes || 0) > 0 && (
                                 <span className="bg-gray-500 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
                                   {lastMatch.neutralVotes} NEU
                                 </span>
                               )}
                               <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-runtime font-semibold min-w-[45px] text-center">
-                                {lastMatch.downVotes} DOWN
+                                {lastMatch.downVotes || 0} DOWN
                               </span>
-                              {lastMatch.motmVotes > 0 && (
+                              {(lastMatch.motmVotes || 0) > 0 && (
                                 <span className="bg-amber-500 text-black px-2 py-1 rounded text-xs font-runtime font-bold min-w-[45px] text-center">
                                   {lastMatch.motmVotes} MOTM
                                 </span>
@@ -1708,10 +1724,10 @@ export default function PlayerProfile() {
                             </div>
                             <div className="flex items-center space-x-2">
                               <div className={`font-runtime font-bold text-sm ${
-                                lastMatch.netVotes > 0 ? 'text-green-400' :
-                                lastMatch.netVotes < 0 ? 'text-red-400' : 'text-gray-400'
+                                (lastMatch.netVotes || 0) > 0 ? 'text-green-400' :
+                                (lastMatch.netVotes || 0) < 0 ? 'text-red-400' : 'text-gray-400'
                               }`}>
-                                Net: {lastMatch.netVotes > 0 ? '+' : ''}{lastMatch.netVotes}
+                                Net: {(lastMatch.netVotes || 0) > 0 ? '+' : ''}{lastMatch.netVotes || 0}
                               </div>
                             </div>
                           </div>

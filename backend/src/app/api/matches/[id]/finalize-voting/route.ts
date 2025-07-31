@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
+import { processMatchVotesToPlayerStats, cleanupMatchVotes } from '../../../../../utils/voteAggregation';
 
 // Configurazione Airtable
 const apiKey = process.env.AIRTABLE_API_KEY;
@@ -384,18 +385,42 @@ export async function POST(
       console.log('⚠️ Errore nell\'aggiornare stato votazioni:', error);
     }
 
-    console.log('🏁 FASE 2 completata: MOTM assegnato e abilità aggiornate con algoritmo Fair!');
+    // 9. ✅ NUOVO: Aggrega voti in player_stats e cancella voti vecchi
+    let voteAggregationSuccess = false;
+    try {
+      console.log('📊 FASE 3: Aggregazione voti in player_stats...');
+      
+      // Aggrega i voti di questa partita in player_stats
+      await processMatchVotesToPlayerStats(matchId);
+      console.log('✅ Voti aggregati con successo in player_stats');
+      
+      // Cancella i voti vecchi dalla tabella votes per liberare spazio
+      await cleanupMatchVotes(matchId);
+      console.log('✅ Voti vecchi cancellati dalla tabella votes');
+      
+      voteAggregationSuccess = true;
+      
+    } catch (aggregationError) {
+      console.error('❌ Errore nell\'aggregazione voti:', aggregationError);
+      // Non bloccare il processo se l'aggregazione fallisce
+      // La partita è comunque finalizzata
+    }
+
+    console.log('🏁 FASE 2+3 completata: MOTM assegnato, abilità aggiornate e voti aggregati!');
 
     return NextResponse.json({
       success: true,
-      message: 'FASE 2: Votazioni finalizzate - MOTM assegnato e abilità aggiornate',
-      phase: 2,
+      message: voteAggregationSuccess 
+        ? 'FASE 2+3: Votazioni finalizzate - MOTM assegnato, abilità aggiornate e voti aggregati'
+        : 'FASE 2: Votazioni finalizzate - MOTM assegnato e abilità aggiornate (aggregazione voti fallita)',
+      phase: voteAggregationSuccess ? 3 : 2,
       motmAwards: motmAwards.length,
       motmDetails: motmAwards,
       playerAbilitiesUpdated: statUpdates.length,
       statUpdates: statUpdates,
       voteStats: voteStats,
       votingCloseReason: votingStatus.reason,
+      voteAggregationSuccess: voteAggregationSuccess,
       operation: 'finalize'
     });
 

@@ -41,7 +41,6 @@ exports.handler = async (event, context) => {
     }
 
     const email = decodeURIComponent(emailEncoded);
-    console.log('Ricerca storico votazioni completo per:', email);
 
     // Configurazione Airtable
     const airtable = new Airtable({
@@ -57,108 +56,184 @@ exports.handler = async (event, context) => {
 
     const base = Airtable.base(baseId);
 
-    // ✅ Recupera tutti i voti ricevuti (UP, DOWN, NEUTRAL, MOTM)
-    const records = await base('votes').select({
-      filterByFormula: `{toPlayerId} = "${email}"`,
-      sort: [{ field: 'matchId', direction: 'desc' }]
-    }).all();
+    // ✅ NUOVO: Strategia ibrida - Totali da player_stats + ultima partita da votes
+    console.log('💡 Strategia ibrida: Totali da player_stats + ultima partita da votes');
 
-    console.log('Voti totali trovati:', records.length);
-
-    // Recupera i veri premi Man of the Match dalla tabella player_awards
-    let actualMotm = 0;
+    // 1. Prova a recuperare i totali aggregati da player_stats
+    let playerStatsRecord = null;
     try {
-      const awardsRecords = await base('player_awards').select({
-        filterByFormula: `AND({player_email} = "${email}", {award_type} = "motm")`
-      }).all();
-      actualMotm = awardsRecords.length;
-      console.log('Premi MotM effettivi trovati:', actualMotm);
-    } catch (awardsError) {
-      console.log('Tabella player_awards non disponibile, usando valore 0 per MotM');
-      actualMotm = 0;
+      const playerStatsRecords = await base('player_stats').select({
+        filterByFormula: `{playerEmail} = "${email}"`
+      }).firstPage();
+
+      if (playerStatsRecords && playerStatsRecords.length > 0) {
+        playerStatsRecord = playerStatsRecords[0];
+        console.log('✅ Player trovato in player_stats');
+      }
+    } catch (error) {
+      console.log('❌ Errore nel recupero da player_stats:', error.message);
     }
 
-    // ✅ Mappa i dati includendo NEUTRAL e MOTM
-    const votes = records.map(record => ({
-      id: record.id,
-      voterEmail: record.get('fromPlayerId'),
-      voteType: record.get('voteType'), // 'UP', 'DOWN' o 'NEUTRAL'
-      motmVote: record.get('motm_vote') || false, // Voto MOTM
-      matchId: record.get('matchId'),
-      toPlayerId: record.get('toPlayerId')
-    }));
+    // 2. Calcola statistiche da player_stats se disponibili
+    let statistics = null;
+    if (playerStatsRecord) {
+      const upVotes = playerStatsRecord.get('upVotes') || 0;
+      const downVotes = playerStatsRecord.get('downVotes') || 0;
+      const neutralVotes = playerStatsRecord.get('neutralVotes') || 0;
+      const motmVotes = playerStatsRecord.get('motmVotes') || 0;
 
-    // ✅ Calcola statistiche complete
-    const totalVotes = votes.length;
-    const upVotes = votes.filter(vote => vote.voteType === 'UP').length;
-    const downVotes = votes.filter(vote => vote.voteType === 'DOWN').length;
-    const neutralVotes = votes.filter(vote => vote.voteType === 'NEUTRAL').length;
-    const motmVotes = votes.filter(vote => vote.motmVote).length;
-    const netVotes = upVotes - downVotes; // NEUTRAL non influisce sul net
-    const upPercentage = totalVotes > 0 ? ((upVotes / totalVotes) * 100).toFixed(1) : '0';
+      const totalVotes = upVotes + downVotes + neutralVotes;
+      const netVotes = upVotes - downVotes;
+      const upPercentage = totalVotes > 0 ? ((upVotes / totalVotes) * 100).toFixed(1) : '0';
 
-    console.log('📊 Statistiche calcolate:', {
-      totalVotes,
-      upVotes,
-      downVotes,
-      neutralVotes,
-      motmVotes,
-      netVotes
+      // Recupera i veri premi Man of the Match dalla tabella player_awards
+      let actualMotm = 0;
+      try {
+        const awardsRecords = await base('player_awards').select({
+          filterByFormula: `AND({player_email} = "${email}", {award_type} = "motm")`
+        }).all();
+        actualMotm = awardsRecords.length;
+      } catch (awardsError) {
+        console.log('Tabella player_awards non disponibile, usando valore 0 per MotM');
+        actualMotm = 0;
+      }
+
+      statistics = {
+        totalVotes,
+        upVotes,
+        downVotes,
+        neutralVotes,
+        motmVotes,
+        netVotes,
+        upPercentage: parseFloat(upPercentage),
+        actualMotm,
+        motmCandidacies: motmVotes // Candidature MOTM
+      };
+
+      console.log('📊 Statistiche da player_stats:', statistics);
+    }
+
+    // 3. Recupera risultati ultima partita dalla tabella votes
+    let lastMatchResults = [];
+    try {
+      const recentVotesRecords = await base('votes').select({
+        filterByFormula: `{toPlayerId} = "${email}"`,
+        sort: [{ field: 'matchId', direction: 'desc' }],
+        maxRecords: 50 // Prendiamo gli ultimi 50 voti per essere sicuri
+      }).all();
+
+      if (recentVotesRecords && recentVotesRecords.length > 0) {
+        // Raggruppa per matchId per trovare l'ultima partita
+        const votesByMatch = recentVotesRecords.reduce((acc, record) => {
+          const matchId = record.get('matchId');
+          if (!acc[matchId]) {
+            acc[matchId] = { up: 0, down: 0, neutral: 0, motm: 0 };
+          }
+          
+          const voteType = record.get('voteType');
+          const motmVote = record.get('motm_vote') || false;
+          
+          if (voteType === 'UP') {
+            acc[matchId].up++;
+          } else if (voteType === 'DOWN') {
+            acc[matchId].down++;
+          } else if (voteType === 'NEUTRAL') {
+            acc[matchId].neutral++;
+          }
+          
+          if (motmVote) {
+            acc[matchId].motm++;
+          }
+          
+          return acc;
+        }, {});
+
+        // Converti in array e prendi solo l'ultima partita
+        lastMatchResults = Object.entries(votesByMatch).map(([matchId, votes]) => ({
+          matchId,
+          upVotes: votes.up,
+          downVotes: votes.down,
+          neutralVotes: votes.neutral,
+          motmVotes: votes.motm,
+          netVotes: votes.up - votes.down,
+          wasMotmCandidate: votes.motm > 0
+        })).slice(0, 1); // Solo ultima partita
+
+        console.log('🎯 Risultati ultima partita da votes:', lastMatchResults);
+      }
+    } catch (error) {
+      console.log('❌ Errore nel recupero da votes per ultima partita:', error.message);
+    }
+
+    // 4. Se non abbiamo statistics da player_stats, fallback a votes (vecchio comportamento)
+    if (!statistics) {
+      console.log('⚠️ Fallback: Calcolo da votes (player_stats non disponibile)');
+      
+      const allVotesRecords = await base('votes').select({
+        filterByFormula: `{toPlayerId} = "${email}"`,
+        sort: [{ field: 'matchId', direction: 'desc' }]
+      }).all();
+
+      const votes = allVotesRecords.map(record => ({
+        id: record.id,
+        voterEmail: record.get('fromPlayerId'),
+        voteType: record.get('voteType'),
+        motmVote: record.get('motm_vote') || false,
+        matchId: record.get('matchId'),
+        toPlayerId: record.get('toPlayerId')
+      }));
+
+      const totalVotes = votes.length;
+      const upVotes = votes.filter(vote => vote.voteType === 'UP').length;
+      const downVotes = votes.filter(vote => vote.voteType === 'DOWN').length;
+      const neutralVotes = votes.filter(vote => vote.voteType === 'NEUTRAL').length;
+      const motmVotes = votes.filter(vote => vote.motmVote).length;
+      const netVotes = upVotes - downVotes;
+      const upPercentage = totalVotes > 0 ? ((upVotes / totalVotes) * 100).toFixed(1) : '0';
+
+      // Recupera premi MotM effettivi
+      let actualMotm = 0;
+      try {
+        const awardsRecords = await base('player_awards').select({
+          filterByFormula: `AND({player_email} = "${email}", {award_type} = "motm")`
+        }).all();
+        actualMotm = awardsRecords.length;
+      } catch (awardsError) {
+        actualMotm = 0;
+      }
+
+      statistics = {
+        totalVotes,
+        upVotes,
+        downVotes,
+        neutralVotes,
+        motmVotes,
+        netVotes,
+        upPercentage: parseFloat(upPercentage),
+        actualMotm,
+        motmCandidacies: motmVotes
+      };
+    }
+
+    const responseData = {
+      success: true,
+      playerEmail: email,
+      votes: [], // I singoli voti non sono più necessari per il frontend
+      statistics: statistics,
+      matchResults: lastMatchResults, // ✅ NUOVO: Solo ultima partita dalla tabella votes
+      source: statistics && playerStatsRecord ? 'hybrid_player_stats_and_votes' : 'fallback_votes_only' // Indicatore per debug
+    };
+
+    console.log('✅ Risposta finale:', { 
+      source: responseData.source, 
+      hasStatistics: !!statistics, 
+      hasMatchResults: lastMatchResults.length > 0 
     });
-
-    // ✅ Statistiche per partita (raggruppa per matchId)
-    const votesByMatch = votes.reduce((acc, vote) => {
-      const matchId = vote.matchId;
-      if (!acc[matchId]) {
-        acc[matchId] = { up: 0, down: 0, neutral: 0, motm: 0 };
-      }
-      
-      if (vote.voteType === 'UP') {
-        acc[matchId].up++;
-      } else if (vote.voteType === 'DOWN') {
-        acc[matchId].down++;
-      } else if (vote.voteType === 'NEUTRAL') {
-        acc[matchId].neutral++;
-      }
-      
-      if (vote.motmVote) {
-        acc[matchId].motm++;
-      }
-      
-      return acc;
-    }, {});
-
-    const matchResults = Object.entries(votesByMatch).map(([matchId, votes]) => ({
-      matchId,
-      upVotes: votes.up,
-      downVotes: votes.down,
-      neutralVotes: votes.neutral,
-      motmVotes: votes.motm,
-      netVotes: votes.up - votes.down,
-      wasMotmCandidate: votes.motm > 0 // Se ha ricevuto voti MOTM
-    }));
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        success: true,
-        playerEmail: email,
-        votes,
-        statistics: {
-          totalVotes,
-          upVotes,
-          downVotes,
-          neutralVotes, // ✅ NUOVO
-          motmVotes,    // ✅ NUOVO
-          netVotes,
-          upPercentage: parseFloat(upPercentage),
-          totalMatches: Object.keys(votesByMatch).length,
-          actualMotm: actualMotm, // Veri premi MotM vinti
-          motmCandidacies: matchResults.filter(match => match.wasMotmCandidate).length // ✅ NUOVO
-        },
-        matchResults: matchResults.slice(0, 10) // Ultimi 10 match
-      })
+      body: JSON.stringify(responseData)
     };
 
   } catch (error) {
