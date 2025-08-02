@@ -742,9 +742,23 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                   {/* Player Voting Section */}
                   <div className="flex flex-col sm:flex-row gap-4">
                     {userEmail && [...match.teamA, ...match.teamB].includes(userEmail) && (
-                      // ✅ Controllo se l'utente ha già votato per questa partita
+                      // ✅ Controllo se l'utente ha già votato per questa partita O se la partita è finalizzata
                       (() => {
                         const hasVoted = votedMatches.has(match.matchId);
+                        const isFinalized = match.finalized; // ✅ NUOVO: Controllo partita finalizzata
+                        
+                        if (isFinalized) {
+                          // Partita finalizzata - votazioni chiuse
+                          return (
+                            <button
+                              disabled
+                              className="flex-1 bg-gray-600 text-gray-300 px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg cursor-not-allowed"
+                            >
+                              <Check className="w-5 h-5" />
+                              Votazioni Chiuse
+                            </button>
+                          );
+                        }
                         
                         return hasVoted ? (
                           <button
