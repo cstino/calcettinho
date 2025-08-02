@@ -63,6 +63,12 @@ async function checkVotingClosed(matchId: string): Promise<{ closed: boolean, re
     const teamB = JSON.parse(match.get('teamB') as string || '[]');
     const allPlayers = [...teamA, ...teamB];
     const votingStartedAt = match.get('voting_started_at') as string;
+    const finalized = match.get('finalized') as boolean; // ✅ NUOVO: Controlla se partita è stata finalizzata
+
+    // 🔒 CONTROLLO PRIORITARIO: Se la partita è finalizzata, votazioni chiuse
+    if (finalized) {
+      return { closed: true, reason: 'Partita finalizzata (voti aggregati)' };
+    }
 
     // 2. Controlla se sono passate 24 ore
     if (votingStartedAt) {
@@ -375,11 +381,12 @@ export async function POST(
 
     // 8. Aggiorna stato votazioni
     try {
-      await base('matches').update(match.id, {
-        voting_status: 'closed',
-        voting_closed_at: new Date().toISOString(),
-        voting_close_reason: votingStatus.reason
-      });
+              await base('matches').update(match.id, {
+          voting_status: 'closed',
+          voting_closed_at: new Date().toISOString(),
+          voting_close_reason: votingStatus.reason,
+          finalized: true // ✅ NUOVO: Marca la partita come finalizzata (voti aggregati)
+        });
       console.log('🗳️ Stato votazioni aggiornato a "closed"');
     } catch (error) {
       console.log('⚠️ Errore nell\'aggiornare stato votazioni:', error);

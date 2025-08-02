@@ -55,6 +55,56 @@ exports.handler = async (event, context) => {
 
     const base = Airtable.base(baseId);
 
+    // 🔒 CONTROLLO PARTITA FINALIZZATA - Verifica se la partita è ancora votabile
+    console.log('🔍 Controllo stato partita:', matchId);
+    
+    try {
+      const matchRecords = await base('matches').select({
+        filterByFormula: `{IDmatch} = "${matchId}"`
+      }).firstPage();
+
+      if (matchRecords.length === 0) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ 
+            success: false, 
+            error: 'Partita non trovata',
+            code: 'MATCH_NOT_FOUND'
+          })
+        };
+      }
+
+      const match = matchRecords[0];
+      const finalized = match.get('finalized');
+      const votingStatus = match.get('voting_status');
+
+      if (finalized || votingStatus === 'closed') {
+        console.log('❌ Tentativo di voto su partita finalizzata/chiusa');
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ 
+            success: false, 
+            error: 'Le votazioni per questa partita sono chiuse',
+            code: 'VOTING_CLOSED'
+          })
+        };
+      }
+
+      console.log('✅ Partita votabile:', { finalized, votingStatus });
+    } catch (matchError) {
+      console.error('❌ Errore nel controllo stato partita:', matchError);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: 'Errore nel controllo stato partita'
+        })
+      };
+    }
+
     // ✅ CONTROLLO VOTI DUPLICATI - Verifica se l'utente ha già votato
     console.log('🔍 Controllo voti esistenti per:', { voterEmail, matchId });
     
