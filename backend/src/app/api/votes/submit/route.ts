@@ -30,6 +30,44 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // 🔒 CONTROLLO PARTITA FINALIZZATA - Verifica se la partita è ancora votabile
+    console.log('🔍 Controllo stato partita:', matchId);
+    
+    try {
+      const matchRecords = await base('matches').select({
+        filterByFormula: `{IDmatch} = "${matchId}"`
+      }).firstPage();
+
+      if (matchRecords.length === 0) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Partita non trovata',
+          code: 'MATCH_NOT_FOUND'
+        }, { status: 404 });
+      }
+
+      const match = matchRecords[0];
+      const finalized = match.get('finalized') as boolean;
+      const votingStatus = match.get('voting_status') as string;
+
+      if (finalized || votingStatus === 'closed') {
+        console.log('❌ Tentativo di voto su partita finalizzata/chiusa');
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Le votazioni per questa partita sono chiuse',
+          code: 'VOTING_CLOSED'
+        }, { status: 403 });
+      }
+
+      console.log('✅ Partita votabile:', { finalized, votingStatus });
+    } catch (matchError) {
+      console.error('❌ Errore nel controllo stato partita:', matchError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Errore nel controllo stato partita'
+      }, { status: 500 });
+    }
+
     // ✅ CONTROLLO VOTI DUPLICATI - Verifica se l'utente ha già votato
     console.log('🔍 Controllo voti esistenti per:', { voterEmail, matchId });
     
