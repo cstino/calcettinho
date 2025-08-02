@@ -353,9 +353,10 @@ export default function Home() {
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json();
           
-          // Filtra partite completate dove l'utente ha partecipato
+          // Filtra partite completate dove l'utente ha partecipato E non sono finalizzate
           const completedMatches = matchesData.filter((match: any) => {
             if (!match.completed) return false;
+            if (match.finalized) return false; // ✅ NUOVO: Escludi partite finalizzate (voti aggregati)
             
             const teamA = Array.isArray(match.teamA) ? match.teamA : 
                          (typeof match.teamA === 'string' ? JSON.parse(match.teamA || '[]') : []);
