@@ -42,6 +42,7 @@ interface Match {
   status: 'scheduled' | 'completed' | 'in_progress';
   match_status?: 'scheduled' | 'completed' | 'in_progress';
   referee?: string;
+  finalized?: boolean; // ✅ NUOVO: Campo per partite con voti aggregati
 }
 
 interface CampoPlayer {
@@ -793,9 +794,9 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                         
                         <button
                           onClick={() => forceFinalize(match.matchId)}
-                          disabled={forcingFinalize || finalizedMatches.has(match.matchId)}
+                          disabled={forcingFinalize || finalizedMatches.has(match.matchId) || match.finalized}
                           className={`flex-1 px-4 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed ${
-                            finalizedMatches.has(match.matchId) 
+                            finalizedMatches.has(match.matchId) || match.finalized
                               ? 'bg-gray-500 text-white' 
                               : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white hover:shadow-xl hover:scale-105'
                           }`}
@@ -805,7 +806,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                               Finalizzando...
                             </>
-                          ) : finalizedMatches.has(match.matchId) ? (
+                          ) : finalizedMatches.has(match.matchId) || match.finalized ? (
                             <>
                               <Check className="w-4 h-4" />
                               Finalizzata

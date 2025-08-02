@@ -436,6 +436,7 @@ exports.handler = async (event, context) => {
           completed: record.get('completed') === true || record.get('completed') === 'true',
           referee: record.get('referee') || '',
           match_status: record.get('match_status') || 'scheduled',
+          finalized: record.get('finalized') === true || record.get('finalized') === 'true', // ✅ NUOVO: Campo per partite finalizzate
           playerStats: playerStats,
           status: record.get('match_status') || (record.get('completed') === true || record.get('completed') === 'true' 
             ? 'completed' 
