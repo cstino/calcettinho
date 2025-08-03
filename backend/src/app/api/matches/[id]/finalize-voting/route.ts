@@ -379,17 +379,35 @@ export async function POST(
       }
     }
 
-    // 8. Aggiorna stato votazioni
+    // 8. ✅ CRITICO: Aggiorna stato votazioni e marca come finalizzata
     try {
-              await base('matches').update(match.id, {
-          voting_status: 'closed',
-          voting_closed_at: new Date().toISOString(),
-          voting_close_reason: votingStatus.reason,
-          finalized: true // ✅ NUOVO: Marca la partita come finalizzata (voti aggregati)
-        });
-      console.log('🗳️ Stato votazioni aggiornato a "closed"');
+      await base('matches').update(match.id, {
+        voting_status: 'closed',
+        voting_closed_at: new Date().toISOString(),
+        voting_close_reason: votingStatus.reason,
+        finalized: true // ✅ NUOVO: Marca la partita come finalizzata (voti aggregati)
+      });
+      console.log('🗳️ ✅ Partita marcata come finalizzata con successo');
+      
+      // Verifica che l'aggiornamento sia andato a buon fine
+      const verifyMatch = await base('matches').find(match.id);
+      const finalizedStatus = verifyMatch.get('finalized');
+      console.log(`🔍 Verifica stato finalized: ${finalizedStatus}`);
+      
+      if (!finalizedStatus) {
+        throw new Error('Campo finalized non aggiornato correttamente in Airtable');
+      }
+      
     } catch (error) {
-      console.log('⚠️ Errore nell\'aggiornare stato votazioni:', error);
+      console.error('❌ ERRORE CRITICO nell\'aggiornare stato votazioni:', error);
+      // Questo è un errore critico - se non riusciamo a marcare come finalizzata,
+      // la partita rimarrà votabile. Meglio fallire tutto il processo.
+      return NextResponse.json({
+        success: false,
+        error: 'Errore critico nell\'aggiornamento stato finalizzazione',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto',
+        phase: 'update_finalized_status'
+      }, { status: 500 });
     }
 
     // 9. ✅ NUOVO: Aggrega voti in player_stats e cancella voti vecchi
