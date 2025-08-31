@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from './contexts/AuthContext';
+import { useAdminGuard } from './hooks/useAdminGuard';
 import { useNotifications } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Link from "next/link";
@@ -302,6 +303,7 @@ function TopPlayersCarousel({ players }: { players: PlayerStatsData[] }) {
 
 export default function Home() {
   const { loading, userEmail } = useAuth();
+  const { AdminOnly } = useAdminGuard();
   const { hasUnseenEvolutions, evolutionCount } = useNotifications();
   const [currentPlayer, setCurrentPlayer] = useState<PlayerData | null>(null);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
@@ -644,6 +646,43 @@ export default function Home() {
                 <h2 className="text-3xl font-bold font-runtime text-center text-white mb-12 drop-shadow-lg">
                   Funzionalità Principali
                 </h2>
+
+                {/* Admin: Controllo retroattivo milestone */}
+                <AdminOnly>
+                  <div className="mb-10 flex justify-center">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const confirmed = confirm(
+                            '🎯 Eseguire controllo retroattivo milestone?\n\n' +
+                            'Assegnerà automaticamente premi raggiunti ma non ancora sbloccati.'
+                          );
+                          if (!confirmed) return;
+                          const res = await fetch('/.netlify/functions/retroactive-milestone-check', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          const result = await res.json();
+                          if (res.ok) {
+                            alert(
+                              `✅ Controllo completato!\n\n` +
+                              `Milestone assegnate: ${result.milestonesAssigned || 0}\n` +
+                              `Giocatori controllati: ${result.playersChecked || 0}`
+                            );
+                          } else {
+                            alert(`❌ Errore: ${result.error || 'Errore sconosciuto'}`);
+                          }
+                        } catch (e) {
+                          console.error('Errore controllo milestone:', e);
+                          alert('❌ Errore di rete nel controllo milestone');
+                        }
+                      }}
+                      className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-2xl transform hover:scale-105 border border-yellow-400/40"
+                    >
+                      🎯 Controlla Milestone (Admin)
+                    </button>
+                  </div>
+                </AdminOnly>
                 
                 <div className="grid md:grid-cols-3 gap-8">
                   {/* Card Personalizzate */}

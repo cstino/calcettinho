@@ -308,6 +308,17 @@ export async function GET(
         console.log(`🎨 Colori determinati automaticamente: text=${textColor}, value=${valueColor}`);
       }
 
+      // Override specifico per template scuri
+      if (template === 'regista') {
+        // Forza colori chiari per massima leggibilità sullo sfondo verde scuro
+        nameColor = '#F3F4F6';
+        textColor = '#F3F4F6';
+        valueColor = '#FFD700';
+        overallTextColor = '#F3F4F6';
+        overallValueColor = '#FFD700';
+        console.log('🎯 Override colori per template regista: testo chiaro e valori oro');
+      }
+
       // Disegna foto giocatore - posizioni specifiche per template special
       const maxFaceSize = 420;
       let faceY = 156; // Alzato di 5 pixel (era 161)

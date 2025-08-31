@@ -808,7 +808,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
                         
                         <button
                           onClick={() => forceFinalize(match.matchId)}
-                          disabled={forcingFinalize || finalizedMatches.has(match.matchId) || match.finalized}
+                          disabled={forcingFinalize || finalizedMatches.has(match.matchId) || match.finalized || !match.completed}
                           className={`flex-1 px-4 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed ${
                             finalizedMatches.has(match.matchId) || match.finalized
                               ? 'bg-gray-500 text-white' 
