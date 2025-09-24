@@ -78,6 +78,40 @@ exports.handler = async (event, context) => {
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.error('❌ Airtable non OK:', res.status, text);
+
+      // Fallback: se rate limit 429, prova whitelist locale da env FALLBACK_WHITELIST_JSON
+      if (res.status === 429 && process.env.FALLBACK_WHITELIST_JSON) {
+        try {
+          const cfg = JSON.parse(process.env.FALLBACK_WHITELIST_JSON);
+          const inAdmins = Array.isArray(cfg.admins) && cfg.admins.map((e) => String(e).toLowerCase()).includes(email.toLowerCase());
+          const inRefs = Array.isArray(cfg.referees) && cfg.referees.map((e) => String(e).toLowerCase()).includes(email.toLowerCase());
+          const inUsers = Array.isArray(cfg.users) && cfg.users.map((e) => String(e).toLowerCase()).includes(email.toLowerCase());
+
+          if (inAdmins || inRefs || inUsers) {
+            const role = inAdmins ? 'admin' : inRefs ? 'arbitro' : 'user';
+            const isAdmin = inAdmins;
+            const isReferee = inRefs;
+            const hasMatchManagementPrivileges = isAdmin || isReferee;
+            console.log('🟡 Fallback whitelist locale usata per', email);
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({
+                success: true,
+                email,
+                role,
+                isAdmin,
+                isReferee,
+                hasMatchManagementPrivileges,
+                message: 'Risposta da fallback locale (rate limit Airtable)'
+              })
+            };
+          }
+        } catch (e) {
+          console.error('Errore parsing FALLBACK_WHITELIST_JSON:', e && e.message ? e.message : e);
+        }
+      }
+
       // 401/403 → token o permessi; 404 → base/table; 422 → formula
       return {
         statusCode: res.status,
