@@ -55,7 +55,7 @@
 
 [[redirects]]
   from = "/api/auth/role/*"
-  to = "/.netlify/functions/auth-role"
+  to = "/.netlify/functions/auth-role/:splat"
   status = 200
 
 # API per le votazioni

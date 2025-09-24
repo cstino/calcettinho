@@ -28,6 +28,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    const startedAt = Date.now();
     // Estrai l'email dal path
     const pathSegments = event.path.split('/');
     const emailEncoded = pathSegments[pathSegments.length - 1];
@@ -41,7 +42,7 @@ exports.handler = async (event, context) => {
     }
 
     const email = decodeURIComponent(emailEncoded);
-    console.log('🔍 Controllo ruolo per:', email);
+    console.log('🔍 Controllo ruolo per:', email, 'reqId=', event.requestId || 'n/a');
 
     // Configurazione Airtable
     const apiKey = process.env.AIRTABLE_API_KEY;
@@ -58,10 +59,20 @@ exports.handler = async (event, context) => {
 
     const base = Airtable.base(baseId);
 
-    // Cerca l'utente nella tabella whitelist
-    const records = await base('whitelist').select({
-      filterByFormula: `{email} = "${email}"`
-    }).firstPage();
+    // Cerca l'utente nella tabella whitelist con timeout manuale di 9s
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    let records;
+    try {
+      records = await base('whitelist')
+        .select({ filterByFormula: `{email} = "${email}"` })
+        .firstPage({ signal: controller.signal });
+    } catch (e) {
+      console.error('⏰ Timeout o errore Airtable:', e && e.message ? e.message : e);
+      throw new Error('Timeout contattando Airtable');
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (records.length === 0) {
       console.log('❌ Utente non trovato in whitelist:', email);
@@ -86,7 +97,7 @@ exports.handler = async (event, context) => {
     const isReferee = role.toLowerCase() === 'arbitro';
     const hasMatchManagementPrivileges = isAdmin || isReferee; // Admin e arbitro hanno privilegi di gestione partite
 
-    console.log('✅ Ruolo trovato:', { email, role, isAdmin, isReferee, hasMatchManagementPrivileges });
+    console.log('✅ Ruolo trovato:', { email, role, isAdmin, isReferee, hasMatchManagementPrivileges, durationMs: Date.now() - startedAt });
 
     return {
       statusCode: 200,
@@ -103,7 +114,7 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('❌ Errore nel controllo ruolo:', error);
+    console.error('❌ Errore nel controllo ruolo:', error && error.message ? error.message : error);
     return {
       statusCode: 500,
       headers,
