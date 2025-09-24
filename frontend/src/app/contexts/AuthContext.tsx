@@ -30,7 +30,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Controlla il ruolo utente
   const checkUserRole = async (email: string): Promise<User | null> => {
     try {
-      const response = await fetch(`/api/auth/role/${encodeURIComponent(email)}`);
+      // Costruisci URL backend: usa NEXT_PUBLIC_BACKEND_URL se definita, altrimenti stessa origin
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
+      const apiPath = `/api/auth/role/${encodeURIComponent(email)}`;
+      const url = baseUrl ? `${baseUrl.replace(/\/$/, '')}${apiPath}` : apiPath;
+
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        console.error('Controllo ruolo non OK:', response.status, response.statusText);
+        return null;
+      }
+
+      // Tenta il parse JSON solo se il content-type è corretto
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.error('Risposta non JSON dal backend auth/role');
+        return null;
+      }
+
       const data = await response.json();
       
       if (data.success) {
