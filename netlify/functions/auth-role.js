@@ -1,4 +1,4 @@
-const Airtable = require('airtable');
+// Usa direttamente l'API REST di Airtable: lo SDK legacy può bloccarsi su runtime serverless
 
 exports.handler = async (event, context) => {
   // Gestione CORS
@@ -52,29 +52,42 @@ exports.handler = async (event, context) => {
       throw new Error('Credenziali Airtable mancanti');
     }
 
-    Airtable.configure({
-      endpointUrl: 'https://api.airtable.com',
-      apiKey: apiKey
-    });
+    // Chiama REST API Airtable con timeout (9s)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 9000);
+    const filterFormula = encodeURIComponent(`{email} = "${email}"`);
+    const url = `https://api.airtable.com/v0/${baseId}/whitelist?filterByFormula=${filterFormula}&maxRecords=1`;
 
-    const base = Airtable.base(baseId);
-
-    // Cerca l'utente nella tabella whitelist con timeout manuale di 9s (senza argomenti a firstPage)
-    const withTimeout = (promise, ms) => Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Airtable timeout')), ms))
-    ]);
-
-    let records;
+    let res;
     try {
-      const queryPromise = base('whitelist')
-        .select({ filterByFormula: `{email} = "${email}"` })
-        .firstPage();
-      records = await withTimeout(queryPromise, 9000);
+      res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: 'application/json'
+        },
+        signal: controller.signal
+      });
     } catch (e) {
-      console.error('⏰ Timeout o errore Airtable:', e && e.message ? e.message : e);
+      console.error('⏰ Timeout o errore rete verso Airtable:', e && e.message ? e.message : e);
       throw new Error('Timeout contattando Airtable');
+    } finally {
+      clearTimeout(timeout);
     }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('❌ Airtable non OK:', res.status, text);
+      // 401/403 → token o permessi; 404 → base/table; 422 → formula
+      return {
+        statusCode: res.status,
+        headers,
+        body: JSON.stringify({ success: false, error: 'Airtable error', status: res.status, body: text.slice(0, 500) })
+      };
+    }
+
+    const json = await res.json();
+    const records = Array.isArray(json.records) ? json.records : [];
 
     if (records.length === 0) {
       console.log('❌ Utente non trovato in whitelist:', email);
