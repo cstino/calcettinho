@@ -59,19 +59,21 @@ exports.handler = async (event, context) => {
 
     const base = Airtable.base(baseId);
 
-    // Cerca l'utente nella tabella whitelist con timeout manuale di 9s
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    // Cerca l'utente nella tabella whitelist con timeout manuale di 9s (senza argomenti a firstPage)
+    const withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Airtable timeout')), ms))
+    ]);
+
     let records;
     try {
-      records = await base('whitelist')
+      const queryPromise = base('whitelist')
         .select({ filterByFormula: `{email} = "${email}"` })
-        .firstPage({ signal: controller.signal });
+        .firstPage();
+      records = await withTimeout(queryPromise, 9000);
     } catch (e) {
       console.error('⏰ Timeout o errore Airtable:', e && e.message ? e.message : e);
       throw new Error('Timeout contattando Airtable');
-    } finally {
-      clearTimeout(timeoutId);
     }
 
     if (records.length === 0) {
