@@ -658,7 +658,7 @@ export default function Home() {
                             'Assegnerà automaticamente premi raggiunti ma non ancora sbloccati.'
                           );
                           if (!confirmed) return;
-                          const res = await fetch('/.netlify/functions/retroactive-milestone-check', {
+                          const res = await fetch('/api/admin/retroactive-milestone-check', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' }
                           });

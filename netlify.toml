@@ -6,12 +6,11 @@
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Forza il plugin Next.js per il riconoscimento del framework
+# Forza il plugin Next.js per il riconoscimento del framework.
+# Le API route sotto frontend/src/app/api/** vengono servite direttamente da questo plugin,
+# come funzioni Netlify colocate con l'app — non serve più una cartella netlify/functions separata.
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-[functions]
-  directory = "netlify/functions"
 
 # Headers per sicurezza e performance
 [[headers]]
@@ -20,96 +19,8 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    
+
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-
-# Configurazione delle API redirects - complete per evitare conflitti
-[[redirects]]
-  from = "/api/players"
-  to = "/.netlify/functions/players"
-  status = 200
-
-[[redirects]]
-  from = "/api/matches"
-  to = "/.netlify/functions/matches"
-  status = 200
-
-[[redirects]]
-  from = "/api/matches/*"
-  to = "/.netlify/functions/matches"
-  status = 200
-
-[[redirects]]
-  from = "/api/stats"
-  to = "/.netlify/functions/stats"
-  status = 200
-
-# API di autenticazione
-[[redirects]]
-  from = "/api/auth/check"
-  to = "/.netlify/functions/auth-check"
-  status = 200
-
-[[redirects]]
-  from = "/api/auth/role/*"
-  to = "/.netlify/functions/auth-role/:splat"
-  status = 200
-
-# API per le votazioni
-[[redirects]]
-  from = "/api/votes/check/*/*"
-  to = "/.netlify/functions/votes-check"
-  status = 200
-
-[[redirects]]
-  from = "/api/votes/history/*"
-  to = "/.netlify/functions/votes-history"
-  status = 200
-
-[[redirects]]
-  from = "/api/votes/submit"
-  to = "/.netlify/functions/votes-submit"
-  status = 200
-
-# API per le statistiche dei giocatori
-[[redirects]]
-  from = "/api/player-stats/*"
-  to = "/.netlify/functions/player-stats"
-  status = 200
-
-[[redirects]]
-  from = "/api/player-awards/*"
-  to = "/.netlify/functions/player-awards"
-  status = 200
-
-# API per le foto dei giocatori
-[[redirects]]
-  from = "/api/players/*"
-  to = "/.netlify/functions/player-photo"
-  status = 200
-
-# API per le card
-[[redirects]]
-  from = "/api/card-special/*"
-  to = "/.netlify/functions/card-special"
-  status = 200
-
-[[redirects]]
-  from = "/api/card/*"
-  to = "/.netlify/functions/card"
-  status = 200
-
-# API per comparazione giocatori
-[[redirects]]
-  from = "/api/compare-players"
-  to = "/.netlify/functions/compare-players"
-  status = 200
-
-# Redirect generico per tutte le altre API (deve essere ultimo)
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200 

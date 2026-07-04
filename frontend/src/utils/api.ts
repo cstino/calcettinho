@@ -1,8 +1,8 @@
 // Utility per ottenere la base URL dell'API
+// Le API vivono nella stessa app Next.js (frontend/src/app/api), quindi bastano URL relativi
+// sia in sviluppo che in produzione.
 export const getApiBaseUrl = () => {
-  // In produzione usa URL relativi, in sviluppo usa localhost:3001
-  const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
-  return baseUrl;
+  return '';
 };
 
 // Utility per ottenere l'URL completo di una card
