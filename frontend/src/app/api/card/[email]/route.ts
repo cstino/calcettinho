@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createCanvas, loadImage, registerFont } from 'canvas';
+import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import path from 'path';
 import { getPlayerByEmail } from '@/utils/supabase';
 
+// Nel runtime serverless non esistono font di sistema: oltre a Nebulax va
+// registrato anche un font per la famiglia "Arial" usata dalle statistiche,
+// altrimenti quei testi non vengono renderizzati.
 try {
-  registerFont(path.join(process.cwd(), 'public/fonts/Nebulax-3lqLp.ttf'), { family: 'Nebulax' });
+  GlobalFonts.registerFromPath(path.join(process.cwd(), 'public/fonts/Nebulax-3lqLp.ttf'), 'Nebulax');
+  GlobalFonts.registerFromPath(path.join(process.cwd(), 'public/fonts/Oswald-Bold.ttf'), 'Arial');
 } catch (error) {
-  console.log('Font Nebulax non trovato, uso Arial come fallback');
+  console.log('Errore nella registrazione font:', error);
 }
 
 const CARD_WIDTH = 600;
