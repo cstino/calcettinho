@@ -102,7 +102,7 @@ export default function AnimatedCard({
         <div className="cglow" />
         <div className="cphoto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo} alt={isUnranked ? 'Giocatore unranked' : name} loading="lazy" />
+          <img src={photo} alt={name} loading="lazy" />
         </div>
         <div className="csheen" />
         <div className="ctop">
@@ -113,7 +113,7 @@ export default function AnimatedCard({
           <span className="cchip">{tierLabel(stats.tier).toUpperCase()}</span>
         </div>
         <div className="cpanel">
-          <h3 className="cname">{isUnranked ? '???' : name}</h3>
+          <h3 className="cname">{name}</h3>
           {isUnranked && (
             <div className="cprogress">
               <div className="bar">

@@ -16,7 +16,7 @@ export default function StatRing({ label, value, gradientFrom, gradientTo }: Sta
   const pct = value != null ? Math.round((value / 99) * 100) : 0;
 
   return (
-    <div className="ring" style={{ '--v': pct } as React.CSSProperties}>
+    <div className="stat-ring" style={{ '--v': pct } as React.CSSProperties}>
       <svg viewBox="0 0 48 48" aria-hidden="true">
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">

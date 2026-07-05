@@ -81,9 +81,10 @@ export default function AdminPage() {
 interface RegistrationRequest {
   id: string;
   email: string;
-  note: string | null;
+  full_name: string | null;
+  username: string | null;
+  raw_photo_url: string | null;
   status: 'pending' | 'approved' | 'rejected';
-  invite_code: string | null;
   created_at: string;
 }
 
@@ -111,7 +112,6 @@ function RichiesteTab() {
       const res = await fetch(`/api/admin/registration-requests/${id}/approve`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        alert(`Approvato! Codice inviato via email: ${data.inviteCode}`);
         fetchRequests();
       } else {
         alert(`Errore: ${data.error}`);
@@ -146,11 +146,20 @@ function RichiesteTab() {
       ) : (
         <div className="space-y-3">
           {pending.map((r) => (
-            <div key={r.id} className="bg-gray-800/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-              <div>
-                <p className="text-white font-runtime font-semibold">{r.email}</p>
-                {r.note && <p className="text-gray-400 text-sm font-runtime mt-1">{r.note}</p>}
-                <p className="text-gray-500 text-xs font-runtime mt-1">{new Date(r.created_at).toLocaleString('it-IT')}</p>
+            <div key={r.id} className="bg-gray-800/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {r.raw_photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.raw_photo_url} alt={r.username || r.email} className="w-14 h-14 rounded-lg object-cover flex-none" />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-gray-700 flex-none" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-white font-runtime font-semibold truncate">{r.full_name || r.email}</p>
+                  {r.username && <p className="text-green-400 text-sm font-runtime">@{r.username}</p>}
+                  <p className="text-gray-400 text-sm font-runtime truncate">{r.email}</p>
+                  <p className="text-gray-500 text-xs font-runtime mt-1">{new Date(r.created_at).toLocaleString('it-IT')}</p>
+                </div>
               </div>
               <div className="flex gap-2 flex-none">
                 <button
@@ -298,7 +307,11 @@ function FotoTab() {
   const [players, setPlayers] = useState<ActivePlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyEmail, setBusyEmail] = useState<string | null>(null);
-  const [cacheBust, setCacheBust] = useState(0);
+  // Seed con Date.now() (non 0): /api/players/[email] serve la foto con
+  // Cache-Control: max-age=3600, quindi se il contatore ripartisse sempre da 0
+  // ogni ricarica della pagina richiederebbe lo stesso URL già in cache del
+  // browser, mostrando la foto vecchia anche dopo un caricamento riuscito.
+  const [cacheBust, setCacheBust] = useState(() => Date.now());
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {

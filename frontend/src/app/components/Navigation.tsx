@@ -1,16 +1,17 @@
 'use client';
 
 import { NavBar } from "../../components/ui/tubelight-navbar";
-import { 
-  Home, 
-  Users, 
-  Calendar, 
-  Trophy, 
+import {
+  Home,
+  Users,
+  Calendar,
+  Trophy,
   LogOut,
   User,
   UserCircle,
   Shield,
-  BarChart3
+  BarChart3,
+  Wrench
 } from "lucide-react";
 import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 
 export default function Navigation() {
-  const { userEmail, logout } = useAuth();
+  const { userEmail, logout, checkAdminAccess } = useAuth();
   const { hasUnseenEvolutions, evolutionCount } = useNotifications();
   const pathname = usePathname();
   const [showMobileNav, setShowMobileNav] = useState(true);
@@ -90,6 +91,11 @@ export default function Navigation() {
       icon: UserCircle,
       badge: hasUnseenEvolutions ? evolutionCount : undefined,
       badgeColor: 'bg-red-500'
+    }] : []),
+    ...(checkAdminAccess() ? [{
+      name: "Admin",
+      url: "/admin",
+      icon: Wrench
     }] : [])
   ];
 

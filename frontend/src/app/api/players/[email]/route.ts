@@ -26,7 +26,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ emai
     return new NextResponse(Buffer.from(imageBuffer), {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=3600',
+        // Niente cache: il server rilegge photo_url ad ogni richiesta, ma con una
+        // Cache-Control lunga il browser/CDN non richiederebbe nemmeno una foto
+        // appena sostituita dall'admin per un'ora intera.
+        'Cache-Control': 'no-store',
       },
     });
   } catch (error) {

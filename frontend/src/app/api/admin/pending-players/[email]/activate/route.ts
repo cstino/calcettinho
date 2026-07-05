@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
+import { sendEmail } from '@/utils/email';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ email: string }> }) {
   try {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ema
 
     const { data: player, error: fetchError } = await supabase
       .from('players')
-      .select('email, status')
+      .select('email, name, status')
       .eq('email', email)
       .maybeSingle();
 
@@ -30,13 +31,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ema
     // Niente encodeURIComponent: è una chiave di storage, non un segmento URL —
     // il client Supabase la codifica lui in getPublicUrl(). Farlo due volte produce
     // un URL pubblico rotto (doppia codifica di "@").
+    // Nome file univoco (non upsert sullo stesso nome): altrimenti la CDN di
+    // Supabase Storage potrebbe continuare a servire i byte vecchi sullo stesso URL.
     const ext = photo.type === 'image/png' ? 'png' : 'jpg';
-    const path = `${email}.${ext}`;
+    const path = `${email}-${Date.now()}.${ext}`;
     const buffer = Buffer.from(await photo.arrayBuffer());
 
     const { error: uploadError } = await supabase.storage
       .from('player-photos')
-      .upload(path, buffer, { contentType: photo.type || 'image/jpeg', upsert: true });
+      .upload(path, buffer, { contentType: photo.type || 'image/jpeg' });
 
     if (uploadError) {
       return NextResponse.json({ success: false, error: 'Errore nel caricamento della foto' }, { status: 500 });
@@ -50,6 +53,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ema
       .eq('email', email);
 
     if (updateError) throw updateError;
+
+    await sendEmail({
+      to: email,
+      subject: 'Calcettinho — Il tuo profilo è pronto!',
+      html: `
+        <p>Ciao ${player.name},</p>
+        <p>La tua card è pronta ed è ora attiva su Calcettinho. Accedi con la tua email dalla pagina di login.</p>
+      `,
+    });
 
     return NextResponse.json({ success: true, message: 'Giocatore attivato, card ora live' });
   } catch (error) {

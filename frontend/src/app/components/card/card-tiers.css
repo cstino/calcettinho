@@ -194,26 +194,29 @@
   grid-template-columns: repeat(4, 1fr);
 }
 
-/* anelli statistiche */
-.pcard .ring {
+/* anelli statistiche
+   Nota: la classe si chiama "stat-ring", NON "ring" — Tailwind ha già una
+   utility integrata chiamata `ring` (box-shadow blu per il focus) che
+   altrimenti si scontra con questa e produce un alone/riquadro blu indesiderato. */
+.pcard .stat-ring {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.6cqw;
 }
-.pcard .ring svg {
+.pcard .stat-ring svg {
   width: 20.2cqw;
   height: 20.2cqw;
   transform: rotate(-90deg);
   overflow: visible;
 }
-.pcard .ring .track {
+.pcard .stat-ring .track {
   fill: none;
   stroke: rgba(255, 255, 255, 0.13);
   stroke-width: 4.5;
 }
-.pcard .ring .fill {
+.pcard .stat-ring .fill {
   fill: none;
   stroke-width: 4.5;
   stroke-linecap: round;
@@ -221,7 +224,7 @@
   transition: stroke-dasharray 1.2s cubic-bezier(0.16, 1, 0.3, 1);
   filter: drop-shadow(0 0 1.4cqw color-mix(in srgb, var(--chi) 75%, transparent));
 }
-.pcard.rings-in .ring .fill {
+.pcard.rings-in .stat-ring .fill {
   stroke-dasharray: var(--v) 100;
 }
 .pcard .ring-val {
@@ -257,13 +260,9 @@
     radial-gradient(120% 60% at 50% -12%, color-mix(in srgb, var(--cf1) 24%, transparent), transparent 55%);
 }
 
-/* unranked: sagoma in ombra + progress */
-.pcard.tier-unranked .cphoto img {
-  filter: brightness(0) drop-shadow(0 0 1px rgba(160, 178, 188, 0.9)) drop-shadow(0 0 5.6cqw rgba(130, 150, 160, 0.28));
-  opacity: 0.92;
-}
+/* unranked: foto normale (nessun effetto sagoma), solo stats/overall nascosti */
 .pcard.tier-unranked .csheen { opacity: 0.4; }
-.pcard.tier-unranked .ring .track { stroke-dasharray: 2.6 3; }
+.pcard.tier-unranked .stat-ring .track { stroke-dasharray: 2.6 3; }
 .pcard .unranked-q {
   position: absolute;
   top: 10.1cqw;
@@ -300,5 +299,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pcard .csheen { animation: none; }
-  .pcard .ring .fill { transition: none; stroke-dasharray: var(--v) 100; }
+  .pcard .stat-ring .fill { transition: none; stroke-dasharray: var(--v) 100; }
 }

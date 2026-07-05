@@ -127,10 +127,6 @@ export default function LoginPage() {
               <Link href="/richiedi-accesso" className="text-green-400 hover:text-green-300 underline">
                 Richiedi l&apos;invito
               </Link>
-              {" · "}
-              <Link href="/registrati" className="text-green-400 hover:text-green-300 underline">
-                Ho già un codice
-              </Link>
             </p>
           </div>
         </div>
