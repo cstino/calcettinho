@@ -39,6 +39,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
+    // Un profilo eliminato non viene mai cancellato fisicamente (vedi 0005_soft_delete_users.sql),
+    // quindi l'email potrebbe avere già una riga players: senza questo controllo l'insert
+    // sotto fallirebbe con un errore grezzo di violazione chiave primaria.
+    const { data: existingPlayer } = await supabase
+      .from('players')
+      .select('email')
+      .eq('email', request.email)
+      .maybeSingle();
+
+    if (existingPlayer) {
+      return NextResponse.json(
+        { success: false, error: 'Questa email ha già (o aveva) un profilo — serve un intervento manuale per riattivarlo' },
+        { status: 409 }
+      );
+    }
+
     const { error: whitelistError } = await supabase
       .from('whitelist')
       .upsert({ email: request.email, role: 'user' }, { onConflict: 'email' });

@@ -7,17 +7,19 @@ import { useAdminGuard } from '../hooks/useAdminGuard';
 import { useAuth } from '../contexts/AuthContext';
 import { getPlayerPhotoUrl } from '@/utils/api';
 import VotingModal from '../components/VotingModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  Inbox, UserCog, Image as ImageIcon, FlaskConical,
-  Check, X, Camera, Trash2, Play, Loader2,
+  Inbox, UserCog, Image as ImageIcon, FlaskConical, Users,
+  Check, X, Camera, Trash2, Play, Loader2, RotateCcw,
 } from 'lucide-react';
 
-type Tab = 'richieste' | 'registrazioni' | 'foto' | 'sandbox';
+type Tab = 'richieste' | 'registrazioni' | 'foto' | 'utenti' | 'sandbox';
 
 const TABS: { id: Tab; label: string; icon: typeof Inbox }[] = [
   { id: 'richieste', label: 'Richieste', icon: Inbox },
   { id: 'registrazioni', label: 'Registrazioni', icon: UserCog },
   { id: 'foto', label: 'Foto giocatori', icon: ImageIcon },
+  { id: 'utenti', label: 'Utenti', icon: Users },
   { id: 'sandbox', label: 'Test votazioni', icon: FlaskConical },
 ];
 
@@ -45,7 +47,7 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-8">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-8">
                     {TABS.map(({ id, label, icon: Icon }) => (
                       <button
                         key={id}
@@ -63,6 +65,7 @@ export default function AdminPage() {
                   {tab === 'richieste' && <RichiesteTab />}
                   {tab === 'registrazioni' && <RegistrazioniTab />}
                   {tab === 'foto' && <FotoTab />}
+                  {tab === 'utenti' && <UtentiTab />}
                   {tab === 'sandbox' && <SandboxTab />}
                 </>
               )}
@@ -589,6 +592,144 @@ function SandboxTab() {
           onSuccess={handleVoteSuccess}
         />
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════ Tab 5: Utenti (elimina/ripristina) ═══════════════════ */
+
+interface DeletedUser {
+  email: string;
+  name: string;
+  username: string | null;
+  photoUrl: string | null;
+  deletedAt: string;
+  daysLeft: number;
+}
+
+function UtentiTab() {
+  const [players, setPlayers] = useState<ActivePlayer[]>([]);
+  const [deletedUsers, setDeletedUsers] = useState<DeletedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyEmail, setBusyEmail] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<ActivePlayer | null>(null);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [playersRes, deletedRes] = await Promise.all([
+        fetch('/api/players'),
+        fetch('/api/admin/deleted-users'),
+      ]);
+      const playersData = await playersRes.json();
+      const deletedData = await deletedRes.json();
+      setPlayers(playersData);
+      if (deletedData.success) setDeletedUsers(deletedData.users);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const handleDelete = async () => {
+    if (!confirmTarget) return;
+    const email = confirmTarget.email;
+    setConfirmTarget(null);
+    setBusyEmail(email);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) fetchAll();
+      else alert(`Errore: ${data.error}`);
+    } finally {
+      setBusyEmail(null);
+    }
+  };
+
+  const handleRestore = async (email: string) => {
+    setBusyEmail(email);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(email)}/restore`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) fetchAll();
+      else alert(`Errore: ${data.error}`);
+    } finally {
+      setBusyEmail(null);
+    }
+  };
+
+  if (loading) return <Loader2 className="w-8 h-8 text-green-400 animate-spin mx-auto" />;
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-gray-400 font-runtime text-sm font-semibold mb-3">Giocatori attivi</h3>
+        <div className="space-y-2">
+          {players.map((p) => (
+            <div key={p.email} className="bg-gray-800/80 rounded-xl p-3 flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={getPlayerPhotoUrl(p.email)} alt={p.nome} className="w-10 h-10 rounded-full object-cover flex-none" />
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-runtime font-semibold truncate">{p.nome}</p>
+                <p className="text-gray-500 text-xs font-runtime truncate">{p.email}</p>
+              </div>
+              <button
+                onClick={() => setConfirmTarget(p)}
+                disabled={busyEmail === p.email}
+                className="flex-none flex items-center gap-1.5 px-3 py-1.5 bg-red-600/80 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-runtime text-xs font-semibold"
+              >
+                {busyEmail === p.email ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Elimina
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {deletedUsers.length > 0 && (
+        <div>
+          <h3 className="text-gray-400 font-runtime text-sm font-semibold mb-3">
+            Eliminati di recente <span className="text-gray-500">(ripristinabili per 7 giorni)</span>
+          </h3>
+          <div className="space-y-2">
+            {deletedUsers.map((u) => (
+              <div key={u.email} className="bg-yellow-500/[.06] border border-yellow-500/20 rounded-xl p-3 flex items-center gap-3">
+                {u.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={u.photoUrl} alt={u.name} className="w-10 h-10 rounded-full object-cover flex-none opacity-60" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-700 flex-none" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-runtime font-semibold truncate">{u.name}</p>
+                  <p className="text-yellow-400/80 text-xs font-runtime">
+                    {u.daysLeft > 0 ? `${u.daysLeft} giorni rimanenti` : "ultimo giorno"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRestore(u.email)}
+                  disabled={busyEmail === u.email}
+                  className="flex-none flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg font-runtime text-xs font-semibold"
+                >
+                  {busyEmail === u.email ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                  Ripristina
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!confirmTarget}
+        title={`Eliminare ${confirmTarget?.nome}?`}
+        message="Perderà subito l'accesso all'app e la card non sarà più visibile. Potrai ripristinarlo entro 7 giorni dalla tab qui sopra."
+        confirmLabel="Elimina"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </div>
   );
 }

@@ -51,7 +51,7 @@ export async function getPlayerIdentity(email: string): Promise<PlayerIdentity |
 
 export async function getPlayers(): Promise<Player[]> {
   const [playersRes, statsRes, framesRes] = await Promise.all([
-    supabase.from('players').select('email, name, photo_url'),
+    supabase.from('players').select('email, name, photo_url').is('deleted_at', null),
     supabase.from('player_stats').select('*'),
     supabase.from('player_awards').select('player_email, award_type').eq('selected', true),
   ]);
