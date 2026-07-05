@@ -1,28 +1,15 @@
 import { supabase } from './supabase';
 import { getMatchByMatchId, getMatchPlayerStats } from './matches';
-import { processMatchVotesToPlayerStats, cleanupMatchVotes } from './voteAggregation';
 
-// Algoritmo Fair Graduale v1.3 - Bilanciamento Avanzato (porting 1:1 da backend/matches/[id]/finalize-voting)
-function calculateStatChange(currentOverall: number, baseChange: number, netVotes: number): number {
-  const voteBonus = netVotes * 0.095;
-  const totalChange = baseChange + voteBonus;
-
-  const MEDIA = 83.95;
-  const MIN_OVERALL = 56;
-  const MAX_OVERALL = 99;
-
-  const distanceFromMean = (currentOverall - MEDIA) / (MAX_OVERALL - MIN_OVERALL);
-
-  let multiplier = 1.0;
-
-  if (totalChange > 0) {
-    multiplier = 1.0 - distanceFromMean * 0.5;
-  } else {
-    multiplier = 1.0 + distanceFromMean * 0.7;
-  }
-
-  return totalChange * multiplier;
-}
+/**
+ * Motore di finalizzazione partita v3.
+ *
+ * Il vecchio "algoritmo Fair" (evoluzione delle abilità in players) non esiste più:
+ * le stats sono calcolate da player_stats (vedi playerRating.ts). Qui si aggregano
+ * i voti 1-10 (DIF/POR/MVP), si assegna il MOTM alla media MVP più alta, si
+ * aggiornano i contatori dell'era ranked e si scrive lo snapshot match_ratings
+ * prima di cancellare i votes (tabella transiente).
+ */
 
 export async function checkVotingClosed(matchId: string): Promise<{ closed: boolean; reason: string }> {
   const match = await getMatchByMatchId(matchId);
@@ -67,6 +54,17 @@ export async function checkVotingClosed(matchId: string): Promise<{ closed: bool
   return { closed: false, reason: `${playersVoted.length}/${allPlayers.length} giocatori hanno votato` };
 }
 
+interface PlayerRatingAgg {
+  difSum: number;
+  porSum: number;
+  mvpSum: number;
+  count: number;
+}
+
+export interface RatingStats {
+  [email: string]: { difAvg: number; porAvg: number; mvpAvg: number; count: number };
+}
+
 export interface FinalizeVotingResult {
   success: boolean;
   error?: string;
@@ -75,11 +73,9 @@ export interface FinalizeVotingResult {
   message?: string;
   motmAwards?: number;
   motmDetails?: Array<{ playerEmail: string; awardType: string; matchId: string }>;
-  playerAbilitiesUpdated?: number;
-  statUpdates?: Array<{ email: string; changes: Record<string, number> }>;
-  voteStats?: Record<string, { up: number; down: number; neutral: number; net: number; motm: number }>;
+  playersUpdated?: number;
+  ratingStats?: RatingStats;
   votingCloseReason?: string;
-  voteAggregationSuccess?: boolean;
 }
 
 export async function finalizeVoting(matchId: string, options: { force?: boolean } = {}): Promise<FinalizeVotingResult> {
@@ -106,149 +102,154 @@ export async function finalizeVoting(matchId: string, options: { force?: boolean
   const scoreB = match.score_b || 0;
   const isDraw = scoreA === scoreB;
   const teamAWins = scoreA > scoreB;
+  const allPlayers = [...teamA, ...teamB];
 
+  // 1. Aggrega i rating ricevuti da ogni giocatore
   const { data: voteRecords, error: voteError } = await supabase
     .from('votes')
-    .select('to_player_id, vote_type, motm_vote')
+    .select('to_player_id, dif_rating, por_rating, mvp_rating')
     .eq('match_id', matchId);
 
   if (voteError) {
     return { success: false, error: 'Errore nel recupero voti', reason: voteError.message };
   }
 
-  const voteStats: Record<string, { up: number; down: number; neutral: number; net: number; motm: number }> = {};
-
+  const aggByPlayer: Record<string, PlayerRatingAgg> = {};
   (voteRecords || []).forEach((vote) => {
-    const playerEmail = vote.to_player_id as string;
-    const voteType = vote.vote_type as string;
-    const motmVote = vote.motm_vote as boolean;
-
-    if (!voteStats[playerEmail]) {
-      voteStats[playerEmail] = { up: 0, down: 0, neutral: 0, net: 0, motm: 0 };
+    const email = vote.to_player_id as string;
+    if (!aggByPlayer[email]) {
+      aggByPlayer[email] = { difSum: 0, porSum: 0, mvpSum: 0, count: 0 };
     }
-
-    if (voteType === 'UP') voteStats[playerEmail].up++;
-    else if (voteType === 'DOWN') voteStats[playerEmail].down++;
-    else if (voteType === 'NEUTRAL') voteStats[playerEmail].neutral++;
-
-    if (motmVote) voteStats[playerEmail].motm++;
-
-    voteStats[playerEmail].net = voteStats[playerEmail].up - voteStats[playerEmail].down;
+    aggByPlayer[email].difSum += vote.dif_rating;
+    aggByPlayer[email].porSum += vote.por_rating;
+    aggByPlayer[email].mvpSum += vote.mvp_rating;
+    aggByPlayer[email].count += 1;
   });
 
-  // MOTM: assegna a chi ha più voti MOTM, con gestione pareggi (squadra vincente ha priorità)
+  const ratingStats: RatingStats = {};
+  Object.entries(aggByPlayer).forEach(([email, agg]) => {
+    ratingStats[email] = {
+      difAvg: Math.round((agg.difSum / agg.count) * 100) / 100,
+      porAvg: Math.round((agg.porSum / agg.count) * 100) / 100,
+      mvpAvg: Math.round((agg.mvpSum / agg.count) * 100) / 100,
+      count: agg.count,
+    };
+  });
+
+  // 2. MOTM: media MVP più alta tra i partecipanti (confronto a 2 decimali).
+  //    Pareggi: priorità alla squadra vincente, altrimenti premiati tutti i pari merito.
   const motmAwards: Array<{ playerEmail: string; awardType: string; matchId: string }> = [];
 
-  const sortedByMOTM = Object.entries(voteStats)
-    .sort(([, a], [, b]) => b.motm - a.motm)
-    .filter(([email]) => [...teamA, ...teamB].includes(email))
-    .filter(([, stats]) => stats.motm > 0);
+  const ranked = Object.entries(ratingStats)
+    .filter(([email]) => allPlayers.includes(email))
+    .sort(([, a], [, b]) => b.mvpAvg - a.mvpAvg);
 
-  if (sortedByMOTM.length > 0) {
-    const [topPlayerEmail, topPlayerVotes] = sortedByMOTM[0];
-    const tied = sortedByMOTM.filter(([, votes]) => votes.motm === topPlayerVotes.motm);
+  if (ranked.length > 0) {
+    const topAvg = ranked[0][1].mvpAvg;
+    const tied = ranked.filter(([, s]) => s.mvpAvg === topAvg);
 
     if (tied.length === 1) {
-      motmAwards.push({ playerEmail: topPlayerEmail, awardType: 'motm', matchId });
+      motmAwards.push({ playerEmail: tied[0][0], awardType: 'motm', matchId });
     } else {
       const tiedFromWinningTeam = tied.filter(
         ([email]) => !isDraw && ((teamAWins && teamA.includes(email)) || (!teamAWins && teamB.includes(email)))
       );
-
-      if (tiedFromWinningTeam.length > 0) {
-        tiedFromWinningTeam.forEach(([email]) => motmAwards.push({ playerEmail: email, awardType: 'motm', matchId }));
-      } else {
-        tied.forEach(([email]) => motmAwards.push({ playerEmail: email, awardType: 'motm', matchId }));
-      }
+      const winners = tiedFromWinningTeam.length > 0 ? tiedFromWinningTeam : tied;
+      winners.forEach(([email]) => motmAwards.push({ playerEmail: email, awardType: 'motm', matchId }));
     }
   }
 
-  if (motmAwards.length > 0) {
-    for (const award of motmAwards) {
-      const { data: existingMOTM } = await supabase
-        .from('player_awards')
-        .select('id')
-        .eq('player_email', award.playerEmail)
-        .eq('award_type', 'motm')
-        .eq('match_id', matchId);
+  const motmEmails = new Set(motmAwards.map((a) => a.playerEmail));
 
-      if (!existingMOTM || existingMOTM.length === 0) {
-        await supabase.from('player_awards').insert({
-          player_email: award.playerEmail,
-          award_type: award.awardType,
-          match_id: award.matchId,
-          status: 'pending',
-        });
-      }
+  for (const award of motmAwards) {
+    const { data: existingMOTM } = await supabase
+      .from('player_awards')
+      .select('id')
+      .eq('player_email', award.playerEmail)
+      .eq('award_type', 'motm')
+      .eq('match_id', matchId);
+
+    if (!existingMOTM || existingMOTM.length === 0) {
+      await supabase.from('player_awards').insert({
+        player_email: award.playerEmail,
+        award_type: award.awardType,
+        match_id: award.matchId,
+        status: 'pending',
+      });
     }
   }
 
-  // Aggiorna abilità giocatori con l'Algoritmo Fair
-  const allPlayers = [...teamA, ...teamB];
-  const statUpdates: Array<{ email: string; changes: Record<string, number> }> = [];
+  // 3. Aggiorna player_stats: contatori era ranked + somme/conteggi rating.
+  //    rk_* si incrementano SOLO qui: finalize è l'unico punto in cui la partita
+  //    diventa definitiva, e numeratore/denominatore devono muoversi insieme.
+  const matchPlayerStats = await getMatchPlayerStats(matchId);
+  let playersUpdated = 0;
 
   for (const playerEmail of allPlayers) {
-    const { data: player, error: playerError } = await supabase
-      .from('players')
-      .select('*')
-      .eq('email', playerEmail)
+    const matchStats = matchPlayerStats[playerEmail] || { gol: 0, assist: 0, gialli: 0, rossi: 0 };
+    const agg = aggByPlayer[playerEmail] || { difSum: 0, porSum: 0, mvpSum: 0, count: 0 };
+
+    const { data: existing } = await supabase
+      .from('player_stats')
+      .select('rk_matches, rk_goals, rk_assists, dif_sum, dif_count, por_sum, por_count, mvp_sum, mvp_count')
+      .eq('player_email', playerEmail)
       .maybeSingle();
 
-    if (playerError || !player) {
-      console.log(`Giocatore ${playerEmail} non trovato in tabella players`);
-      continue;
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('player_stats')
+        .update({
+          rk_matches: existing.rk_matches + 1,
+          rk_goals: existing.rk_goals + (matchStats.gol || 0),
+          rk_assists: existing.rk_assists + (matchStats.assist || 0),
+          dif_sum: existing.dif_sum + agg.difSum,
+          dif_count: existing.dif_count + agg.count,
+          por_sum: existing.por_sum + agg.porSum,
+          por_count: existing.por_count + agg.count,
+          mvp_sum: existing.mvp_sum + agg.mvpSum,
+          mvp_count: existing.mvp_count + agg.count,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('player_email', playerEmail);
+      if (!updateError) playersUpdated++;
+    } else {
+      const { error: insertError } = await supabase.from('player_stats').insert({
+        player_email: playerEmail,
+        rk_matches: 1,
+        rk_goals: matchStats.gol || 0,
+        rk_assists: matchStats.assist || 0,
+        dif_sum: agg.difSum,
+        dif_count: agg.count,
+        por_sum: agg.porSum,
+        por_count: agg.count,
+        mvp_sum: agg.mvpSum,
+        mvp_count: agg.count,
+      });
+      if (!insertError) playersUpdated++;
     }
-
-    const currentStats = {
-      ATT: Number(player.attacco) || 50,
-      DIF: Number(player.difesa) || 50,
-      VEL: Number(player.velocita) || 50,
-      PAS: Number(player.passaggio) || 50,
-      FOR: Number(player.forza) || 50,
-      POR: Number(player.portiere) || 50,
-    };
-
-    const statValues = Object.values(currentStats);
-    const top5Stats = statValues.sort((a, b) => b - a).slice(0, 5);
-    const currentOverall = top5Stats.reduce((sum, val) => sum + val, 0) / 5;
-
-    const playerTeam = teamA.includes(playerEmail) ? 'A' : 'B';
-    let baseChange = 0;
-
-    if (!isDraw) {
-      if ((playerTeam === 'A' && teamAWins) || (playerTeam === 'B' && !teamAWins)) {
-        baseChange = 0.25;
-      } else {
-        baseChange = -0.25;
-      }
-    }
-
-    const netVotes = voteStats[playerEmail]?.net || 0;
-    const totalChange = calculateStatChange(currentOverall, baseChange, netVotes);
-
-    const fieldMap: Record<string, string> = {
-      ATT: 'attacco',
-      DIF: 'difesa',
-      VEL: 'velocita',
-      PAS: 'passaggio',
-      FOR: 'forza',
-      POR: 'portiere',
-    };
-
-    const newStats: Record<string, number> = {};
-    const changes: Record<string, number> = {};
-    Object.entries(currentStats).forEach(([stat, value]) => {
-      const newValue = Math.max(1.0, Math.min(99.0, value + totalChange));
-      const rounded = Math.round(newValue * 10) / 10;
-      newStats[fieldMap[stat]] = rounded;
-      changes[stat] = Math.round((rounded - value) * 1000) / 1000;
-    });
-
-    await supabase.from('players').update(newStats).eq('email', playerEmail);
-
-    statUpdates.push({ email: playerEmail, changes });
   }
 
+  // 4. Snapshot match_ratings (PRIMA del cleanup votes: è l'unico storico per-partita)
+  const ratingRows = Object.entries(ratingStats).map(([email, s]) => ({
+    match_id: matchId,
+    player_email: email,
+    dif_avg: s.difAvg,
+    por_avg: s.porAvg,
+    mvp_avg: s.mvpAvg,
+    ratings_count: s.count,
+    is_motm: motmEmails.has(email),
+  }));
+
+  if (ratingRows.length > 0) {
+    const { error: snapshotError } = await supabase
+      .from('match_ratings')
+      .upsert(ratingRows, { onConflict: 'match_id,player_email' });
+    if (snapshotError) {
+      console.error('Errore nello snapshot match_ratings:', snapshotError);
+    }
+  }
+
+  // 5. Chiudi la partita
   await supabase
     .from('matches')
     .update({
@@ -259,27 +260,20 @@ export async function finalizeVoting(matchId: string, options: { force?: boolean
     })
     .eq('match_id', matchId);
 
-  let voteAggregationSuccess = false;
-  try {
-    await processMatchVotesToPlayerStats(matchId);
-    await cleanupMatchVotes(matchId);
-    voteAggregationSuccess = true;
-  } catch (aggregationError) {
-    console.error("Errore nell'aggregazione voti:", aggregationError);
+  // 6. Cleanup votes (transiente: lo storico vive in match_ratings + player_stats)
+  const { error: cleanupError } = await supabase.from('votes').delete().eq('match_id', matchId);
+  if (cleanupError) {
+    console.error('Errore nella cancellazione voti:', cleanupError);
   }
 
   return {
     success: true,
-    message: voteAggregationSuccess
-      ? 'Votazioni finalizzate - MOTM assegnato, abilità aggiornate e voti aggregati'
-      : 'Votazioni finalizzate - MOTM assegnato e abilità aggiornate (aggregazione voti fallita)',
+    message: 'Votazioni finalizzate: MOTM assegnato, rating aggregati e snapshot salvato',
     motmAwards: motmAwards.length,
     motmDetails: motmAwards,
-    playerAbilitiesUpdated: statUpdates.length,
-    statUpdates,
-    voteStats,
+    playersUpdated,
+    ratingStats,
     votingCloseReason: votingStatus.reason,
-    voteAggregationSuccess,
   };
 }
 
@@ -294,7 +288,8 @@ export interface ProcessAwardsResult {
 }
 
 export async function processAwards(matchId: string): Promise<ProcessAwardsResult> {
-  // Controllo aggiornamento sicuro: se la partita è già stata processata, sottrai le vecchie statistiche prima di ricalcolare
+  // Controllo aggiornamento sicuro: se la partita è già stata processata, sottrai le
+  // vecchie statistiche prima di ricalcolare
   const { data: existingAwards } = await supabase
     .from('player_awards')
     .select('*')
@@ -307,10 +302,12 @@ export async function processAwards(matchId: string): Promise<ProcessAwardsResul
     return { success: false, error: 'Partita non trovata' };
   }
 
+  // Statistiche della partita al momento del reprocessing (le "vecchie", prima
+  // dell'eventuale nuovo salvataggio del risultato che ha preceduto questa chiamata)
+  const oldPlayerStats = await getMatchPlayerStats(matchId);
+
   if (existingAwards && existingAwards.length > 0) {
     isReprocessing = true;
-
-    const oldPlayerStats = await getMatchPlayerStats(matchId);
 
     const immediateAwards = existingAwards.filter((award) => award.award_type !== 'motm');
     if (immediateAwards.length > 0) {
@@ -342,19 +339,25 @@ export async function processAwards(matchId: string): Promise<ProcessAwardsResul
 
         const oldMatchStats = oldPlayerStats[playerEmail] || { gol: 0, assist: 0, gialli: 0, rossi: 0 };
 
-        await supabase
-          .from('player_stats')
-          .update({
-            gol: Math.max(0, existingRecord.gol - (oldMatchStats.gol || 0)),
-            partite_disputate: Math.max(0, existingRecord.partite_disputate - 1),
-            partite_vinte: Math.max(0, existingRecord.partite_vinte - (oldIsWin ? 1 : 0)),
-            partite_pareggiate: Math.max(0, existingRecord.partite_pareggiate - (oldIsDraw ? 1 : 0)),
-            partite_perse: Math.max(0, existingRecord.partite_perse - (oldIsLoss ? 1 : 0)),
-            assistenze: Math.max(0, existingRecord.assistenze - (oldMatchStats.assist || 0)),
-            cartellini_gialli: Math.max(0, existingRecord.cartellini_gialli - (oldMatchStats.gialli || 0)),
-            cartellini_rossi: Math.max(0, existingRecord.cartellini_rossi - (oldMatchStats.rossi || 0)),
-          })
-          .eq('player_email', playerEmail);
+        const updates: Record<string, number> = {
+          gol: Math.max(0, existingRecord.gol - (oldMatchStats.gol || 0)),
+          partite_disputate: Math.max(0, existingRecord.partite_disputate - 1),
+          partite_vinte: Math.max(0, existingRecord.partite_vinte - (oldIsWin ? 1 : 0)),
+          partite_pareggiate: Math.max(0, existingRecord.partite_pareggiate - (oldIsDraw ? 1 : 0)),
+          partite_perse: Math.max(0, existingRecord.partite_perse - (oldIsLoss ? 1 : 0)),
+          assistenze: Math.max(0, existingRecord.assistenze - (oldMatchStats.assist || 0)),
+          cartellini_gialli: Math.max(0, existingRecord.cartellini_gialli - (oldMatchStats.gialli || 0)),
+          cartellini_rossi: Math.max(0, existingRecord.cartellini_rossi - (oldMatchStats.rossi || 0)),
+        };
+
+        // Se il risultato viene modificato DOPO la finalizzazione, i contatori dell'era
+        // ranked (solo gol/assist, mai rk_matches) vanno corretti insieme a quelli legacy.
+        if (match.finalized) {
+          updates.rk_goals = Math.max(0, existingRecord.rk_goals - (oldMatchStats.gol || 0));
+          updates.rk_assists = Math.max(0, existingRecord.rk_assists - (oldMatchStats.assist || 0));
+        }
+
+        await supabase.from('player_stats').update(updates).eq('player_email', playerEmail);
       }
     }
   }
@@ -368,9 +371,6 @@ export async function processAwards(matchId: string): Promise<ProcessAwardsResul
   const teamAWins = scoreA > scoreB;
 
   const awards: Array<{ playerEmail: string; awardType: string; matchId: string }> = [];
-
-  // Goleador/Assistman ecc. sono ora milestone su statistiche cumulative (vedi sotto), non premi immediati.
-
   const allPlayers = [...teamA, ...teamB];
 
   for (const playerEmail of allPlayers) {
@@ -386,20 +386,24 @@ export async function processAwards(matchId: string): Promise<ProcessAwardsResul
       .maybeSingle();
 
     if (existingRecord) {
-      await supabase
-        .from('player_stats')
-        .update({
-          gol: existingRecord.gol + (matchStats.gol || 0),
-          partite_disputate: existingRecord.partite_disputate + 1,
-          partite_vinte: existingRecord.partite_vinte + (isWin ? 1 : 0),
-          partite_pareggiate: existingRecord.partite_pareggiate + (isDraw ? 1 : 0),
-          partite_perse: existingRecord.partite_perse + (isLoss ? 1 : 0),
-          assistenze: existingRecord.assistenze + (matchStats.assist || 0),
-          cartellini_gialli: existingRecord.cartellini_gialli + (matchStats.gialli || 0),
-          cartellini_rossi: existingRecord.cartellini_rossi + (matchStats.rossi || 0),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('player_email', playerEmail);
+      const updates: Record<string, unknown> = {
+        gol: existingRecord.gol + (matchStats.gol || 0),
+        partite_disputate: existingRecord.partite_disputate + 1,
+        partite_vinte: existingRecord.partite_vinte + (isWin ? 1 : 0),
+        partite_pareggiate: existingRecord.partite_pareggiate + (isDraw ? 1 : 0),
+        partite_perse: existingRecord.partite_perse + (isLoss ? 1 : 0),
+        assistenze: existingRecord.assistenze + (matchStats.assist || 0),
+        cartellini_gialli: existingRecord.cartellini_gialli + (matchStats.gialli || 0),
+        cartellini_rossi: existingRecord.cartellini_rossi + (matchStats.rossi || 0),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (isReprocessing && match.finalized) {
+        updates.rk_goals = existingRecord.rk_goals + (matchStats.gol || 0);
+        updates.rk_assists = existingRecord.rk_assists + (matchStats.assist || 0);
+      }
+
+      await supabase.from('player_stats').update(updates).eq('player_email', playerEmail);
     } else {
       await supabase.from('player_stats').insert({
         player_email: playerEmail,
@@ -494,7 +498,7 @@ export interface TimeoutCheckResult {
   hoursRemaining?: number;
   votingStatus?: string;
   motmAwarded?: number;
-  abilitiesUpdated?: number;
+  playersUpdated?: number;
 }
 
 export async function checkVotingTimeout(matchId: string): Promise<TimeoutCheckResult> {
@@ -537,7 +541,7 @@ export async function checkVotingTimeout(matchId: string): Promise<TimeoutCheckR
       hoursElapsed: Math.round(hoursElapsed * 10) / 10,
       autoFinalized: true,
       motmAwarded: finalizeResult.motmAwards || 0,
-      abilitiesUpdated: finalizeResult.playerAbilitiesUpdated || 0,
+      playersUpdated: finalizeResult.playersUpdated || 0,
     };
   }
 

@@ -1,0 +1,304 @@
+/*
+ * Card v3 — design approvato (anteprima rev 4).
+ * Dimensioni in cqw (container query units, base design 248px = 100cqw):
+ * la card scala fluida a qualsiasi larghezza decisa dal parent.
+ */
+
+.pcard-wrap {
+  container-type: inline-size;
+  position: relative; /* ancora per la cornice (sibling della card, così la corona MOTM può sporgere) */
+  width: 100%;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pcard-wrap.pcard-hoverable:hover {
+  transform: translateY(-7px);
+}
+.pcard-wrap.pcard-hoverable:hover .pcard {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 34px 60px -22px rgba(0, 0, 0, 0.95);
+}
+
+.pcard {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 6.5cqw;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 24px 48px -20px rgba(0, 0, 0, 0.9);
+  transition: box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--font-chakra), system-ui, sans-serif;
+  color: #ededef;
+}
+
+/* layer 0: base metallica + faccette angolari + texture */
+.pcard .cbg,
+.pcard .cbg::before,
+.pcard .cbg::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.pcard .cbg {
+  background: linear-gradient(170deg, var(--ca), var(--cb) 72%);
+}
+.pcard .cbg::before {
+  content: "";
+  background:
+    linear-gradient(118deg, transparent 0 54.8%, color-mix(in srgb, var(--chi) 26%, transparent) 55% 55.45%, transparent 55.6%),
+    linear-gradient(118deg, color-mix(in srgb, var(--cf1) 21%, transparent) 0 34%, color-mix(in srgb, var(--cf2) 12%, transparent) 34% 55%, transparent 55%),
+    linear-gradient(298deg, color-mix(in srgb, var(--cf2) 18%, transparent) 0 26%, transparent 26%),
+    radial-gradient(120% 60% at 50% -12%, color-mix(in srgb, var(--cf1) 16%, transparent), transparent 55%);
+}
+.pcard .cbg::after {
+  content: "";
+  background:
+    repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 7px),
+    radial-gradient(130% 70% at 50% 118%, rgba(0, 0, 0, 0.55), transparent 55%);
+}
+
+/* layer 1: glow dietro la foto */
+.pcard .cglow {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 38%;
+  width: 76.6cqw;
+  height: 76.6cqw;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--chi) 26%, transparent), transparent 70%);
+  filter: blur(4cqw);
+}
+
+/* layer 2: foto — protagonista */
+.pcard .cphoto {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: 16cqw;
+  bottom: 42cqw;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.pcard .cphoto img {
+  max-height: 104%;
+  max-width: 88%;
+  object-fit: contain;
+  filter: drop-shadow(0 4cqw 7.3cqw rgba(0, 0, 0, 0.55));
+}
+
+/* layer 3: riflesso */
+@keyframes pcard-sheen {
+  0%, 62% { transform: translateX(-140%) skewX(-16deg); }
+  92%, 100% { transform: translateX(240%) skewX(-16deg); }
+}
+.pcard .csheen {
+  position: absolute;
+  z-index: 3;
+  inset: -8% -30%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, 0.09) 50%, transparent 60%);
+  animation: pcard-sheen 6.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* layer 4: contenuto */
+.pcard .ctop {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 5.6cqw 6cqw 0;
+}
+.pcard .covr {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.pcard .covr b {
+  font-family: var(--font-russo), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 15.3cqw;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 7.3cqw color-mix(in srgb, var(--chi) 55%, transparent), 0 0.8cqw 3.2cqw rgba(0, 0, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.pcard .covr span {
+  font-family: var(--font-chakra), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 3.6cqw;
+  letter-spacing: 0.34em;
+  color: color-mix(in srgb, #ededef 62%, transparent);
+  margin-top: 1.6cqw;
+}
+.pcard .cchip {
+  font-family: var(--font-chakra), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 3.8cqw;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 2.4cqw 4cqw 2cqw;
+  border-radius: 2.4cqw;
+  color: var(--chi);
+  background: color-mix(in srgb, var(--chi) 10%, rgba(0, 0, 0, 0.45));
+  border: 1px solid color-mix(in srgb, var(--chi) 35%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* pannello inferiore "a targa": nome + anelli su vetro scuro */
+.pcard .cpanel {
+  position: absolute;
+  z-index: 4;
+  left: 3.6cqw;
+  right: 3.6cqw;
+  bottom: 3.6cqw;
+  border-radius: 4.4cqw;
+  padding: 3.2cqw 2.4cqw 3.6cqw;
+  background: rgba(4, 6, 9, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+.pcard .cname {
+  margin: 0 0 2.4cqw;
+  text-align: center;
+  font-family: var(--font-russo), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 7.3cqw;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  text-shadow: 0 0.8cqw 4cqw rgba(0, 0, 0, 0.7);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pcard .cname::after {
+  content: "";
+  display: block;
+  width: 13.7cqw;
+  height: 0.8cqw;
+  margin: 2cqw auto 0;
+  border-radius: 1cqw;
+  background: color-mix(in srgb, var(--chi) 75%, transparent);
+  box-shadow: 0 0 3.2cqw color-mix(in srgb, var(--chi) 55%, transparent);
+}
+
+.pcard .cstats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* anelli statistiche */
+.pcard .ring {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.6cqw;
+}
+.pcard .ring svg {
+  width: 20.2cqw;
+  height: 20.2cqw;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+.pcard .ring .track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.13);
+  stroke-width: 4.5;
+}
+.pcard .ring .fill {
+  fill: none;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0 100;
+  transition: stroke-dasharray 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  filter: drop-shadow(0 0 1.4cqw color-mix(in srgb, var(--chi) 75%, transparent));
+}
+.pcard.rings-in .ring .fill {
+  stroke-dasharray: var(--v) 100;
+}
+.pcard .ring-val {
+  position: absolute;
+  top: 10.1cqw;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-chakra), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 5.8cqw;
+  font-variant-numeric: tabular-nums;
+}
+.pcard .ring-lbl {
+  font-family: var(--font-chakra), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 3.4cqw;
+  letter-spacing: 0.24em;
+  color: color-mix(in srgb, #ededef 58%, transparent);
+}
+
+/* binding tier */
+.pcard.tier-unranked { --ca: #1a1d21; --cb: #0b0d0f; --cf1: #39424a; --cf2: #242b31; --chi: #8a97a1; }
+.pcard.tier-bronzo   { --ca: #241409; --cb: #0e0703; --cf1: #b87333; --cf2: #8c5a2b; --chi: #f5b570; }
+.pcard.tier-argento  { --ca: #181d24; --cb: #090b0f; --cf1: #c9d3dc; --cf2: #7e8b98; --chi: #eef4f9; }
+.pcard.tier-oro      { --ca: #231a07; --cb: #0d0902; --cf1: #e9bc3f; --cf2: #a87c14; --chi: #ffdf7e; }
+.pcard.tier-platino  { --ca: #0d1c21; --cb: #040b0e; --cf1: #9be8df; --cf2: #3e93ac; --chi: #d8fff8; }
+.pcard.tier-champion { --ca: #1c0a2b; --cb: #08020f; --cf1: #c13bff; --cf2: #ff2d95; --chi: #ff8bdf; }
+.pcard.tier-champion .cbg::before {
+  background:
+    linear-gradient(118deg, transparent 0 54.8%, color-mix(in srgb, var(--chi) 30%, transparent) 55% 55.45%, transparent 55.6%),
+    linear-gradient(118deg, color-mix(in srgb, var(--cf1) 26%, transparent) 0 34%, color-mix(in srgb, #7a1fa8 20%, transparent) 34% 55%, transparent 55%),
+    linear-gradient(298deg, color-mix(in srgb, var(--cf2) 22%, transparent) 0 26%, transparent 26%),
+    radial-gradient(120% 60% at 50% -12%, color-mix(in srgb, var(--cf1) 24%, transparent), transparent 55%);
+}
+
+/* unranked: sagoma in ombra + progress */
+.pcard.tier-unranked .cphoto img {
+  filter: brightness(0) drop-shadow(0 0 1px rgba(160, 178, 188, 0.9)) drop-shadow(0 0 5.6cqw rgba(130, 150, 160, 0.28));
+  opacity: 0.92;
+}
+.pcard.tier-unranked .csheen { opacity: 0.4; }
+.pcard.tier-unranked .ring .track { stroke-dasharray: 2.6 3; }
+.pcard .unranked-q {
+  position: absolute;
+  top: 10.1cqw;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-chakra), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 5.6cqw;
+  color: #8a8f98;
+}
+.pcard .cprogress { margin: 0.8cqw 9.7cqw 3.2cqw; }
+.pcard .cprogress .bar {
+  height: 1.6cqw;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.pcard .cprogress .bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #57d98a, #3ecf6e);
+  box-shadow: 0 0 3.2cqw rgba(62, 207, 110, 0.6);
+}
+.pcard .cprogress p {
+  margin: 2.4cqw 0 0;
+  text-align: center;
+  font-family: var(--font-chakra), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 3.6cqw;
+  letter-spacing: 0.28em;
+  color: #8a8f98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pcard .csheen { animation: none; }
+  .pcard .ring .fill { transition: none; stroke-dasharray: var(--v) 100; }
+}

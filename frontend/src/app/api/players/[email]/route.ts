@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPlayerByEmail } from '@/utils/supabase';
+import { getPlayerIdentity } from '@/utils/supabase';
 
 // Serve la foto profilo del giocatore. Se il giocatore non ha una foto su Supabase Storage,
 // fa fallback sul file statico /players/{email}.jpg (stesso comportamento della produzione attuale).
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ emai
   const staticFallbackUrl = new URL(`/players/${encodeURIComponent(email)}.jpg`, req.url);
 
   try {
-    const player = await getPlayerByEmail(email);
+    const player = await getPlayerIdentity(email);
 
     if (!player || !player.photoUrl) {
       return NextResponse.redirect(staticFallbackUrl, { status: 302 });

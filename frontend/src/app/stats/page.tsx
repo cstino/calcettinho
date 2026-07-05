@@ -5,7 +5,9 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import Navigation from "../components/Navigation";
 import Logo from "../components/Logo";
 import ProtectedRoute from "../components/ProtectedRoute";
-import { getPlayerPhotoUrl, getCardUrl } from '../../utils/api';
+import { getPlayerPhotoUrl } from '../../utils/api';
+import AnimatedCard from '../components/card/AnimatedCard';
+import type { CardTier } from '@/utils/playerRating';
 
 interface PlayerStats {
   id: string;
@@ -23,61 +25,34 @@ interface PlayerStats {
   overall: number;
 }
 
+interface ComparePlayer {
+  id: string;
+  name: string;
+  email: string;
+  overall: number;
+  tier: CardTier;
+  ranked: boolean;
+  rkMatches: number;
+  ATT: number;
+  PAS: number;
+  DIF: number;
+  POR: number;
+  ratings: { difAvg: number; porAvg: number; mvpAvg: number };
+  stats: {
+    gol: number;
+    partiteDisputate: number;
+    partiteVinte: number;
+    partitePareggiate: number;
+    partitePerse: number;
+    assistenze: number;
+    cartelliniGialli: number;
+    cartelliniRossi: number;
+  };
+}
+
 interface ComparisonData {
-  player1: {
-    id: string;
-    name: string;
-    email: string;
-    overall: number;
-    attacco: number;
-    difesa: number;
-    velocità: number;
-    forza: number;
-    passaggio: number;
-    portiere: number;
-    stats: {
-      gol: number;
-      partiteDisputate: number;
-      partiteVinte: number;
-      partitePareggiate: number;
-      partitePerse: number;
-      assistenze: number;
-      cartelliniGialli: number;
-      cartelliniRossi: number;
-      minutiGiocati: number;
-    };
-    votes: {
-      upVotes: number;
-      downVotes: number;
-    };
-  };
-  player2: {
-    id: string;
-    name: string;
-    email: string;
-    overall: number;
-    attacco: number;
-    difesa: number;
-    velocità: number;
-    forza: number;
-    passaggio: number;
-    portiere: number;
-    stats: {
-      gol: number;
-      partiteDisputate: number;
-      partiteVinte: number;
-      partitePareggiate: number;
-      partitePerse: number;
-      assistenze: number;
-      cartelliniGialli: number;
-      cartelliniRossi: number;
-      minutiGiocati: number;
-    };
-    votes: {
-      upVotes: number;
-      downVotes: number;
-    };
-  };
+  player1: ComparePlayer;
+  player2: ComparePlayer;
 }
 
 // Componente per l'avatar del giocatore con foto
@@ -235,16 +210,22 @@ const ComparisonChart = ({ data }: { data: ComparisonData }) => {
       maxValue: Math.max(data.player1.stats.partiteDisputate || 0, data.player2.stats.partiteDisputate || 0, 20) * 1.5
     },
     {
-      label: 'UP ricevuti',
-      player1: data.player1.votes.upVotes || 0,
-      player2: data.player2.votes.upVotes || 0,
-      maxValue: Math.max(data.player1.votes.upVotes || 0, data.player2.votes.upVotes || 0, 10) * 1.5
+      label: 'Media DIF',
+      player1: data.player1.ratings.difAvg || 0,
+      player2: data.player2.ratings.difAvg || 0,
+      maxValue: 10
     },
     {
-      label: 'DOWN ricevuti',
-      player1: data.player1.votes.downVotes || 0,
-      player2: data.player2.votes.downVotes || 0,
-      maxValue: Math.max(data.player1.votes.downVotes || 0, data.player2.votes.downVotes || 0, 5) * 1.5
+      label: 'Media POR',
+      player1: data.player1.ratings.porAvg || 0,
+      player2: data.player2.ratings.porAvg || 0,
+      maxValue: 10
+    },
+    {
+      label: 'Media MVP',
+      player1: data.player1.ratings.mvpAvg || 0,
+      player2: data.player2.ratings.mvpAvg || 0,
+      maxValue: 10
     },
     {
       label: 'Cartellini gialli',
@@ -344,42 +325,10 @@ const ComparisonChart = ({ data }: { data: ComparisonData }) => {
 const ComparisonRadarChart = ({ data }: { data: ComparisonData }) => {
   // Preparo i dati per il radar chart con entrambi i giocatori
   const radarData = [
-    { 
-      stat: 'ATT', 
-      player1: data.player1.attacco || 0,
-      player2: data.player2.attacco || 0,
-      fullMark: 100 
-    },
-    { 
-      stat: 'VEL', 
-      player1: data.player1.velocità || 0,
-      player2: data.player2.velocità || 0,
-      fullMark: 100 
-    },
-    { 
-      stat: 'PAS', 
-      player1: data.player1.passaggio || 0,
-      player2: data.player2.passaggio || 0,
-      fullMark: 100 
-    },
-    { 
-      stat: 'FOR', 
-      player1: data.player1.forza || 0,
-      player2: data.player2.forza || 0,
-      fullMark: 100 
-    },
-    { 
-      stat: 'DIF', 
-      player1: data.player1.difesa || 0,
-      player2: data.player2.difesa || 0,
-      fullMark: 100 
-    },
-    { 
-      stat: 'POR', 
-      player1: data.player1.portiere || 0,
-      player2: data.player2.portiere || 0,
-      fullMark: 100 
-    },
+    { stat: 'ATT', player1: data.player1.ATT || 0, player2: data.player2.ATT || 0, fullMark: 99 },
+    { stat: 'PAS', player1: data.player1.PAS || 0, player2: data.player2.PAS || 0, fullMark: 99 },
+    { stat: 'POR', player1: data.player1.POR || 0, player2: data.player2.POR || 0, fullMark: 99 },
+    { stat: 'DIF', player1: data.player1.DIF || 0, player2: data.player2.DIF || 0, fullMark: 99 },
   ];
 
   return (
@@ -797,30 +746,21 @@ export default function Stats() {
                 <div className="p-6">
                   {/* Card dei Giocatori */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    {/* Card Giocatore 1 */}
-                    <div className="text-center">
-                      <img 
-                        src={getCardUrl(comparisonData.player1.email)}
-                        alt={`Card di ${comparisonData.player1.name}`}
-                        className="w-64 h-auto mx-auto mb-4"
+                    <div className="max-w-[240px] mx-auto">
+                      <AnimatedCard
+                        name={comparisonData.player1.name}
+                        email={comparisonData.player1.email}
+                        stats={comparisonData.player1}
+                        enableHover={false}
                       />
-                      <h3 className="text-xl font-bold text-white font-runtime">
-                        {comparisonData.player1.name}
-                      </h3>
-                      <p className="text-gray-300 font-runtime">Overall: {comparisonData.player1.overall}</p>
                     </div>
-
-                    {/* Card Giocatore 2 */}
-                    <div className="text-center">
-                      <img 
-                        src={getCardUrl(comparisonData.player2.email)}
-                        alt={`Card di ${comparisonData.player2.name}`}
-                        className="w-64 h-auto mx-auto mb-4"
+                    <div className="max-w-[240px] mx-auto">
+                      <AnimatedCard
+                        name={comparisonData.player2.name}
+                        email={comparisonData.player2.email}
+                        stats={comparisonData.player2}
+                        enableHover={false}
                       />
-                      <h3 className="text-xl font-bold text-white font-runtime">
-                        {comparisonData.player2.name}
-                      </h3>
-                      <p className="text-gray-300 font-runtime">Overall: {comparisonData.player2.overall}</p>
                     </div>
                   </div>
 

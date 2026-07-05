@@ -1,0 +1,284 @@
+/*
+ * Cornici achievement v3 — effetti d'identità per famiglia (design approvato rev 4):
+ * gol = fuoco (braci → fiamme → inferno), assist = circuito di energia (1→3 flussi),
+ * vittorie = alloro (germogli → rami → corona con stelle), MOTM = corona con raggi,
+ * prima presenza = scanner di luce bianca.
+ * Dimensioni in cqw sul container della card (base design 248px).
+ */
+
+@property --fa {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes frame-spin { to { --fa: 360deg; } }
+@keyframes frame-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+@keyframes frame-ember {
+  0% { transform: translate(0, 0) scale(1); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate(var(--dx, 0), -34cqw) scale(0.2); opacity: 0; }
+}
+@keyframes frame-flick {
+  0%, 100% { transform: scaleY(1) skewX(0deg); }
+  35% { transform: scaleY(1.24) skewX(4deg) translateY(-0.8cqw); }
+  70% { transform: scaleY(0.88) skewX(-3.5deg); }
+}
+@keyframes frame-spark {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translate(var(--dx, 2.4cqw), -44cqw); opacity: 0; }
+}
+@keyframes frame-dashflow { to { stroke-dashoffset: -56; } }
+@keyframes frame-dashflowr { to { stroke-dashoffset: 56; } }
+@keyframes frame-nodepulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes frame-leafshine { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+@keyframes frame-rayspin { to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes frame-dustfall {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 0.95; }
+  100% { transform: translateY(26.6cqw); opacity: 0; }
+}
+@keyframes frame-arcflash { 0%, 86%, 100% { opacity: 0; } 88%, 94% { opacity: 1; } }
+@keyframes frame-tipstar {
+  0%, 80%, 100% { opacity: 0; transform: scale(0.4); }
+  88% { opacity: 1; transform: scale(1); }
+}
+
+.cframe { position: absolute; inset: 0; z-index: 5; border-radius: 6.5cqw; pointer-events: none; }
+.cframe .fx { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.cframe .edge,
+.cframe .edge2 {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--fw, 0.8cqw);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.cframe .edge { background: var(--fbg); }
+.cframe .edge2 { background: var(--fbg2, none); animation: frame-spin var(--fs, 4s) linear infinite; }
+.cframe .glow { position: absolute; inset: 0; border-radius: inherit; }
+
+/* particelle fuoco */
+.cframe .em {
+  position: absolute;
+  bottom: 1.6cqw;
+  width: 1.6cqw;
+  height: 1.6cqw;
+  border-radius: 50%;
+  background: #ffc276;
+  box-shadow: 0 0 2.4cqw 0.6cqw #ff7a1a;
+  animation: frame-ember var(--d, 2.6s) ease-out var(--dl, 0s) infinite;
+}
+.cframe .sp {
+  position: absolute;
+  bottom: 3.2cqw;
+  width: 0.8cqw;
+  height: 0.8cqw;
+  border-radius: 50%;
+  background: #fff6d8;
+  box-shadow: 0 0 2cqw #ffe066;
+  animation: frame-spark var(--d, 1.4s) ease-out var(--dl, 0s) infinite;
+}
+.cframe .fl {
+  position: absolute;
+  bottom: -4cqw;
+  mix-blend-mode: screen;
+  filter: blur(1.2cqw);
+  transform-origin: 50% 100%;
+  border-radius: 50% 50% 42% 42% / 64% 64% 36% 36%;
+  background: radial-gradient(52% 64% at 50% 78%, #ffefa0 0%, #ffc53d 26%, #ff7a1a 54%, rgba(212, 43, 12, 0.55) 78%, transparent 83%);
+  animation: frame-flick var(--d, 0.7s) ease-in-out var(--dl, 0s) infinite;
+}
+.cframe .fl.back {
+  filter: blur(2.4cqw);
+  opacity: 0.85;
+  background: radial-gradient(52% 62% at 50% 80%, #ff9e42 0%, #e5530f 48%, rgba(150, 20, 5, 0.5) 78%, transparent 83%);
+}
+
+/* ── Prima Presenza: scanner di luce bianca ── */
+.cframe.f-presenza {
+  --fw: 0.6cqw;
+  --fbg: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.14));
+  --fbg2: conic-gradient(from var(--fa), transparent 0 76%, rgba(255, 255, 255, 0.95) 88%, transparent 97%);
+  --fs: 5.5s;
+}
+.cframe.f-presenza .glow { box-shadow: inset 0 0 7.3cqw rgba(255, 255, 255, 0.1); }
+
+/* ── Famiglia GOL: fuoco crescente ── */
+.cframe.f-goleador {
+  --fw: 0.8cqw;
+  --fbg: linear-gradient(0deg, rgba(255, 140, 50, 0.95), rgba(255, 140, 50, 0.1) 55%, rgba(255, 180, 90, 0.22));
+}
+.cframe.f-goleador .glow { box-shadow: inset 0 -8cqw 13cqw -4.8cqw rgba(255, 110, 26, 0.45); }
+
+.cframe.f-matador {
+  --fw: 1cqw;
+  --fbg: linear-gradient(0deg, #ff6b1a, rgba(255, 107, 26, 0.14) 62%, rgba(255, 197, 61, 0.28));
+  --fbg2: conic-gradient(from var(--fa), transparent 0 72%, rgba(255, 197, 61, 0.9) 84%, transparent 95%);
+  --fs: 4.5s;
+}
+.cframe.f-matador .glow {
+  box-shadow: inset 0 -12cqw 17.7cqw -5.6cqw rgba(255, 90, 20, 0.5), 0 3.2cqw 10.5cqw -4cqw rgba(255, 90, 20, 0.4);
+  animation: frame-pulse 2.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.cframe.f-goldenboot {
+  --fw: 1.2cqw;
+  --fbg: linear-gradient(0deg, #ffb021, #e5530f 40%, rgba(255, 107, 26, 0.2) 68%, rgba(255, 224, 102, 0.4));
+  --fbg2: conic-gradient(from var(--fa), transparent 0 62%, rgba(255, 240, 160, 0.95) 76%, rgba(255, 140, 30, 0.6) 84%, transparent 94%);
+  --fs: 3s;
+}
+.cframe.f-goldenboot .glow {
+  box-shadow: inset 0 -16cqw 22.6cqw -6.5cqw rgba(255, 120, 20, 0.55), 0 4cqw 13.7cqw -3.2cqw rgba(255, 120, 20, 0.5);
+  animation: frame-pulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* ── Famiglia ASSIST: circuito di energia (3 livelli) ── */
+.cframe.f-circuit { --fw: 0px; }
+.cframe.f-circuit .circuit { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cframe.f-circuit .circuit rect {
+  fill: none;
+  x: 2.8cqw;
+  y: 2.8cqw;
+  width: calc(100% - 5.6cqw);
+  height: calc(100% - 5.6cqw);
+  rx: 4.4cqw;
+}
+.cframe.f-circuit .c1 {
+  stroke: var(--circuit-grad, #2dd4bf);
+  stroke-width: 2.2;
+  stroke-dasharray: 7 7;
+  animation: frame-dashflow var(--cs, 1.5s) linear infinite;
+  filter: drop-shadow(0 0 1.6cqw rgba(45, 212, 191, 0.9));
+}
+.cframe.f-circuit .c2 {
+  stroke: rgba(94, 234, 212, 0.45);
+  stroke-width: 1;
+  stroke-dasharray: 2 12;
+  animation: frame-dashflowr calc(var(--cs, 1.5s) * 1.7) linear infinite;
+}
+.cframe.f-circuit .c3 {
+  stroke: rgba(190, 255, 250, 0.75);
+  stroke-width: 1.2;
+  stroke-dasharray: 1 27;
+  animation: frame-dashflow calc(var(--cs, 1.5s) * 0.6) linear infinite;
+  filter: drop-shadow(0 0 2cqw rgba(140, 255, 245, 0.9));
+}
+.cframe.f-circuit .nd {
+  position: absolute;
+  width: 2.8cqw;
+  height: 2.8cqw;
+  border-radius: 50%;
+  background: #5eead4;
+  box-shadow: 0 0 3.2cqw 0.8cqw rgba(45, 212, 191, 0.8);
+  animation: frame-nodepulse 1.8s cubic-bezier(0.16, 1, 0.3, 1) var(--dl, 0s) infinite;
+}
+.cframe.f-circuit .glow { box-shadow: inset 0 0 10.5cqw rgba(45, 212, 191, 0.16); }
+.cframe.f-assistman { --cs: 2.4s; }
+.cframe.f-assistman .c1 { stroke-width: 1.6; }
+.cframe.f-assistman .glow { box-shadow: inset 0 0 7.3cqw rgba(45, 212, 191, 0.1); }
+.cframe.f-regista { --cs: 1.5s; }
+.cframe.f-elfutbol { --cs: 0.9s; }
+.cframe.f-elfutbol .c1 { stroke-width: 2.8; }
+.cframe.f-elfutbol .glow {
+  box-shadow: inset 0 0 13.7cqw rgba(45, 212, 191, 0.24), 0 0 9.7cqw -3.2cqw rgba(56, 189, 248, 0.55);
+  animation: frame-pulse 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+.cframe .arc {
+  position: absolute;
+  width: 6.5cqw;
+  height: 6.5cqw;
+  opacity: 0;
+  animation: frame-arcflash var(--d, 2.8s) linear var(--dl, 0s) infinite;
+}
+.cframe .arc polyline {
+  fill: none;
+  stroke: #cffafe;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1.2cqw #22d3ee);
+}
+
+/* ── Famiglia VITTORIE: alloro (3 livelli) ── */
+.cframe.f-laurel {
+  --fw: 0.8cqw;
+  --fbg: linear-gradient(0deg, rgba(212, 175, 55, 0.85), rgba(20, 83, 45, 0.5) 45%, rgba(74, 222, 128, 0.35));
+}
+.cframe.f-laurel .laurel { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cframe.f-laurel .laurel ellipse { animation: frame-leafshine 2.6s cubic-bezier(0.16, 1, 0.3, 1) var(--dl, 0s) infinite; }
+.cframe.f-laurel .glow { box-shadow: inset 0 -9.7cqw 14.5cqw -5.6cqw rgba(212, 175, 55, 0.3), inset 0 0 8.9cqw rgba(74, 222, 128, 0.12); }
+.cframe.f-win10 { --fbg: linear-gradient(0deg, rgba(176, 141, 87, 0.7), rgba(20, 60, 35, 0.4) 45%, rgba(74, 222, 128, 0.2)); }
+.cframe.f-win50 {
+  --fw: 1cqw;
+  --fbg: linear-gradient(0deg, #d4af37, rgba(20, 83, 45, 0.55) 42%, rgba(245, 222, 139, 0.5));
+  --fbg2: conic-gradient(from var(--fa), transparent 0 74%, rgba(245, 222, 139, 0.9) 86%, transparent 96%);
+  --fs: 5.5s;
+}
+.cframe.f-win50 .glow {
+  box-shadow: inset 0 -13.7cqw 19.4cqw -6.5cqw rgba(212, 175, 55, 0.42), 0 0 8.9cqw -3.2cqw rgba(212, 175, 55, 0.5);
+  animation: frame-pulse 3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+.cframe .st {
+  position: absolute;
+  width: 2cqw;
+  height: 2cqw;
+  opacity: 0;
+  background: radial-gradient(circle, #fff7d6 0 30%, rgba(245, 222, 139, 0.9) 55%, transparent 70%);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: frame-tipstar var(--d, 3.2s) cubic-bezier(0.16, 1, 0.3, 1) var(--dl, 0s) infinite;
+}
+
+/* ── MOTM: corona con raggi rotanti e polvere d'oro ── */
+.cframe.f-motm {
+  --fw: 1cqw;
+  --fbg: linear-gradient(180deg, #ffd700, rgba(150, 112, 10, 0.5) 45%, rgba(255, 215, 0, 0.55));
+  --fbg2: conic-gradient(from var(--fa), transparent 0 70%, rgba(255, 243, 176, 0.95) 83%, transparent 94%);
+  --fs: 5s;
+}
+.cframe.f-motm .rays {
+  position: absolute;
+  top: -21cqw;
+  left: 50%;
+  width: 68.5cqw;
+  height: 68.5cqw;
+  transform: translateX(-50%);
+  background: repeating-conic-gradient(from 0deg, rgba(255, 215, 0, 0.55) 0deg 6deg, transparent 6deg 17deg);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  -webkit-mask: radial-gradient(circle, #000 0 28%, transparent 60%);
+  mask: radial-gradient(circle, #000 0 28%, transparent 60%);
+  animation: frame-rayspin 15s linear infinite;
+}
+.cframe.f-motm .du {
+  position: absolute;
+  top: 1.6cqw;
+  width: 1cqw;
+  height: 1cqw;
+  border-radius: 50%;
+  background: #ffe97a;
+  box-shadow: 0 0 2cqw rgba(255, 215, 0, 0.9);
+  animation: frame-dustfall var(--d, 3s) linear var(--dl, 0s) infinite;
+}
+.cframe.f-motm .glow {
+  box-shadow: inset 0 0 12cqw rgba(255, 215, 0, 0.28), 0 0 10.5cqw -3.2cqw rgba(255, 215, 0, 0.5);
+  animation: frame-pulse 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+.cframe-crown {
+  position: absolute;
+  top: -5.2cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14.5cqw;
+  height: 9.3cqw;
+  z-index: 6;
+  filter: drop-shadow(0 1.2cqw 4cqw rgba(255, 200, 0, 0.65));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cframe *, .cframe::before, .cframe::after { animation: none !important; }
+  .cframe .em, .cframe .sp, .cframe .fl, .cframe .du, .cframe .arc, .cframe .st { display: none; }
+}

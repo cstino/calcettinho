@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Russo_One, Chakra_Petch } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -12,6 +12,20 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+// Font delle card v3 (design approvato): Russo One per display/OVR/nomi,
+// Chakra Petch per valori numerici ed etichette.
+const russoOne = Russo_One({
+  variable: "--font-russo",
+  weight: "400",
+  subsets: ["latin"],
+});
+
+const chakraPetch = Chakra_Petch({
+  variable: "--font-chakra",
+  weight: ["500", "700"],
   subsets: ["latin"],
 });
 
@@ -97,7 +111,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} ${russoOne.variable} ${chakraPetch.variable} antialiased bg-black min-h-screen`}
       >
         <AuthProvider>
           <NotificationProvider>

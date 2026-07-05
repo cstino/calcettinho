@@ -5,8 +5,13 @@ import { finalizeVoting } from '@/utils/matchEngine';
 
 interface IncomingVote {
   playerEmail: string;
-  voteType: 'UP' | 'DOWN' | 'NEUTRAL';
-  motmVote: boolean;
+  difRating: number;
+  porRating: number;
+  mvpRating: number;
+}
+
+function isValidRating(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 10;
 }
 
 export async function POST(req: NextRequest) {
@@ -32,6 +37,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const allMatchPlayers = [...match.team_a, ...match.team_b];
+    const voterLower = String(voterEmail).toLowerCase();
+
+    // Il votante deve essere un partecipante della partita
+    if (!allMatchPlayers.some((email) => email.toLowerCase() === voterLower)) {
+      return NextResponse.json(
+        { success: false, error: 'Solo i partecipanti della partita possono votare', code: 'NOT_A_PARTICIPANT' },
+        { status: 403 }
+      );
+    }
+
     const { data: existingVotes, error: existingError } = await supabase
       .from('votes')
       .select('id')
@@ -48,12 +64,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const invalidVotes = (votes as IncomingVote[]).filter(
-      (vote) => !['UP', 'DOWN', 'NEUTRAL'].includes(vote.voteType) || typeof vote.motmVote !== 'boolean'
-    );
-    if (invalidVotes.length > 0) {
+    // Validazione: tre rating interi 1-10 per ogni altro giocatore del match (tutti, una volta sola)
+    const expectedTargets = allMatchPlayers.filter((email) => email.toLowerCase() !== voterLower);
+    const seenTargets = new Set<string>();
+
+    for (const vote of votes as IncomingVote[]) {
+      const target = String(vote.playerEmail || '').toLowerCase();
+
+      if (!expectedTargets.some((email) => email.toLowerCase() === target)) {
+        return NextResponse.json(
+          { success: false, error: `Giocatore non valido nel voto: ${vote.playerEmail}` },
+          { status: 400 }
+        );
+      }
+      if (seenTargets.has(target)) {
+        return NextResponse.json(
+          { success: false, error: `Voto duplicato per ${vote.playerEmail}` },
+          { status: 400 }
+        );
+      }
+      seenTargets.add(target);
+
+      if (!isValidRating(vote.difRating) || !isValidRating(vote.porRating) || !isValidRating(vote.mvpRating)) {
+        return NextResponse.json(
+          { success: false, error: 'Ogni voto deve avere difRating, porRating e mvpRating interi da 1 a 10' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (seenTargets.size !== expectedTargets.length) {
       return NextResponse.json(
-        { success: false, error: 'Voti non validi: ogni voto deve essere UP, DOWN o NEUTRAL con motmVote boolean' },
+        { success: false, error: `Devi votare tutti i giocatori della partita (${expectedTargets.length})` },
         { status: 400 }
       );
     }
@@ -62,24 +104,17 @@ export async function POST(req: NextRequest) {
       match_id: matchId,
       from_player_id: voterEmail,
       to_player_id: vote.playerEmail,
-      vote_type: vote.voteType,
-      motm_vote: vote.motmVote,
+      dif_rating: vote.difRating,
+      por_rating: vote.porRating,
+      mvp_rating: vote.mvpRating,
     }));
 
     const { data: createdRecords, error: insertError } = await supabase.from('votes').insert(voteRows).select();
     if (insertError) throw insertError;
 
-    const stats = {
-      total: createdRecords?.length || 0,
-      upVotes: votes.filter((v: IncomingVote) => v.voteType === 'UP').length,
-      downVotes: votes.filter((v: IncomingVote) => v.voteType === 'DOWN').length,
-      neutralVotes: votes.filter((v: IncomingVote) => v.voteType === 'NEUTRAL').length,
-      motmVotes: votes.filter((v: IncomingVote) => v.motmVote).length,
-    };
+    const votesSubmitted = createdRecords?.length || 0;
 
-    // Controlla se tutti i giocatori della partita hanno votato (o se sono passate 24h) e, in caso, finalizza subito.
-    const allMatchPlayers = [...match.team_a, ...match.team_b];
-
+    // Auto-finalizzazione: se tutti hanno votato (o 24h passate), chiudi subito
     const { data: allVoteRecords, error: allVotesError } = await supabase
       .from('votes')
       .select('from_player_id')
@@ -88,10 +123,9 @@ export async function POST(req: NextRequest) {
     if (allVotesError) {
       return NextResponse.json({
         success: true,
-        message: `${stats.total} voti salvati con successo per la partita ${matchId}`,
-        votesSubmitted: stats.total,
+        message: `${votesSubmitted} voti salvati con successo per la partita ${matchId}`,
+        votesSubmitted,
         matchId,
-        stats,
         autoFinalized: false,
         checkError: 'Errore nel controllo auto-finalizzazione',
       });
@@ -112,24 +146,21 @@ export async function POST(req: NextRequest) {
       if (finalizeResult.success) {
         return NextResponse.json({
           success: true,
-          message: `${stats.total} voti salvati con successo per la partita ${matchId}`,
-          votesSubmitted: stats.total,
+          message: `${votesSubmitted} voti salvati con successo per la partita ${matchId}`,
+          votesSubmitted,
           matchId,
-          stats,
           autoFinalized: true,
-          phase2Complete: true,
           finalizeMessage: finalizeResult.message,
           motmAwarded: finalizeResult.motmAwards || 0,
-          abilitiesUpdated: finalizeResult.playerAbilitiesUpdated || 0,
+          playersUpdated: finalizeResult.playersUpdated || 0,
         });
       }
 
       return NextResponse.json({
         success: true,
-        message: `${stats.total} voti salvati con successo per la partita ${matchId}`,
-        votesSubmitted: stats.total,
+        message: `${votesSubmitted} voti salvati con successo per la partita ${matchId}`,
+        votesSubmitted,
         matchId,
-        stats,
         autoFinalized: false,
         finalizeError: finalizeResult.error,
       });
@@ -137,10 +168,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `${stats.total} voti salvati con successo per la partita ${matchId}`,
-      votesSubmitted: stats.total,
+      message: `${votesSubmitted} voti salvati con successo per la partita ${matchId}`,
+      votesSubmitted,
       matchId,
-      stats,
       autoFinalized: false,
       votingProgress: `${votersFromMatch.length}/${allMatchPlayers.length} giocatori hanno votato`,
     });

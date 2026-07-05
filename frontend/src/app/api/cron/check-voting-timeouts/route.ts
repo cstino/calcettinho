@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
               status: 'timeout_finalized',
               hoursElapsed: Math.round(hoursElapsed * 10) / 10,
               motmAwarded: timeoutResult.motmAwarded || 0,
-              abilitiesUpdated: timeoutResult.abilitiesUpdated || 0,
+              playersUpdated: timeoutResult.playersUpdated || 0,
             });
           } else {
             errorCount++;

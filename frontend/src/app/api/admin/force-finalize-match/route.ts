@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
         message: 'Partita finalizzata forzatamente con successo',
         matchId,
         motmAwarded: result.motmAwards || 0,
-        abilitiesUpdated: result.playerAbilitiesUpdated || 0,
+        playersUpdated: result.playersUpdated || 0,
         details: result,
       });
     }

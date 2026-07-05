@@ -453,7 +453,7 @@ Assist B: ${match.assistB ? getPlayerName(match.assistB) : 'Nessuno'}`;
         alert(
           '✅ Votazioni finalizzate con successo!\n\n' +
           `• MOTM assegnati: ${data.motmAwarded}\n` +
-          `• Abilità aggiornate: ${data.abilitiesUpdated} giocatori`
+          `• Giocatori aggiornati: ${data.playersUpdated ?? 0}`
         );
         
         // Aggiungi la partita al set di partite finalizzate

@@ -7,22 +7,24 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Link from "next/link";
 import Navigation from "./components/Navigation";
 import Logo from "./components/Logo";
-import PlayerCard from "./components/PlayerCard";
+import AnimatedCard from "./components/card/AnimatedCard";
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getPlayerPhotoUrl } from '../utils/api';
+import type { CardTier } from '@/utils/playerRating';
 
 interface PlayerData {
-  id: string;
-  name: string;
+  nome: string;
   email: string;
+  ATT: number;
+  PAS: number;
+  DIF: number;
+  POR: number;
   overall: number;
-  att: number;
-  vel: number;
-  pas: number;
-  for: number;
-  dif: number;
-  por: number;
+  tier: CardTier;
+  ranked: boolean;
+  rkMatches: number;
+  selectedFrame: string | null;
 }
 
 interface PlayerStatsData {
@@ -489,7 +491,14 @@ export default function Home() {
                 </h2>
                 <div className="flex justify-center">
                   <div className="w-64">
-                    <PlayerCard player={currentPlayer} />
+                    <Link href={`/profile/${encodeURIComponent(currentPlayer.email)}`}>
+                      <AnimatedCard
+                        name={currentPlayer.nome}
+                        email={currentPlayer.email}
+                        stats={currentPlayer}
+                        frame={currentPlayer.selectedFrame}
+                      />
+                    </Link>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { computeStats, type ComputedStats } from './playerRating';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -20,60 +21,21 @@ export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   },
 });
 
-export interface Player {
+export interface PlayerIdentity {
   nome: string;
   email: string;
-  foto: string;
   photoUrl: string;
-  ATT: number;
-  DEF: number;
-  VEL: number;
-  FOR: number;
-  PAS: number;
-  POR: number;
 }
 
-function mapPlayerRow(row: {
-  email: string;
-  name: string;
-  photo_url: string | null;
-  attacco: number;
-  difesa: number;
-  velocita: number;
-  forza: number;
-  passaggio: number;
-  portiere: number;
-}): Player {
-  const photoUrl = row.photo_url || '';
-  return {
-    nome: row.name,
-    email: row.email,
-    foto: photoUrl,
-    photoUrl,
-    ATT: Number(row.attacco) || 0,
-    DEF: Number(row.difesa) || 0,
-    VEL: Number(row.velocita) || 0,
-    FOR: Number(row.forza) || 0,
-    PAS: Number(row.passaggio) || 0,
-    POR: Number(row.portiere) || 0,
-  };
+// Giocatore con stats v3 calcolate (vedi playerRating.ts) + frame attivo
+export interface Player extends PlayerIdentity, ComputedStats {
+  selectedFrame: string | null;
 }
 
-export async function getPlayers(): Promise<Player[]> {
-  const { data, error } = await supabase.from('players').select('*');
-
-  if (error) {
-    console.error('Errore nel recupero dei giocatori da Supabase:', error);
-    throw error;
-  }
-
-  return (data || []).map(mapPlayerRow);
-}
-
-export async function getPlayerByEmail(email: string): Promise<Player | null> {
+export async function getPlayerIdentity(email: string): Promise<PlayerIdentity | null> {
   const { data, error } = await supabase
     .from('players')
-    .select('*')
+    .select('email, name, photo_url')
     .eq('email', email)
     .maybeSingle();
 
@@ -82,11 +44,36 @@ export async function getPlayerByEmail(email: string): Promise<Player | null> {
     throw error;
   }
 
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
 
-  return mapPlayerRow(data);
+  return { nome: data.name, email: data.email, photoUrl: data.photo_url || '' };
+}
+
+export async function getPlayers(): Promise<Player[]> {
+  const [playersRes, statsRes, framesRes] = await Promise.all([
+    supabase.from('players').select('email, name, photo_url'),
+    supabase.from('player_stats').select('*'),
+    supabase.from('player_awards').select('player_email, award_type').eq('selected', true),
+  ]);
+
+  if (playersRes.error) throw playersRes.error;
+  if (statsRes.error) throw statsRes.error;
+
+  const statsByEmail = new Map((statsRes.data || []).map((row) => [String(row.player_email).toLowerCase(), row]));
+  const frameByEmail = new Map(
+    (framesRes.data || []).map((row) => [String(row.player_email).toLowerCase(), row.award_type as string])
+  );
+
+  return (playersRes.data || []).map((p) => {
+    const key = String(p.email).toLowerCase();
+    return {
+      nome: p.name,
+      email: p.email,
+      photoUrl: p.photo_url || '',
+      selectedFrame: frameByEmail.get(key) || null,
+      ...computeStats(statsByEmail.get(key)),
+    };
+  });
 }
 
 export async function isEmailWhitelisted(email: string): Promise<boolean> {
@@ -102,45 +89,4 @@ export async function isEmailWhitelisted(email: string): Promise<boolean> {
   }
 
   return !!data;
-}
-
-export interface SpecialCardData {
-  name: string;
-  description: string;
-  color: string;
-  templateUrl: string;
-  color_1: string | null;
-  color_2: string | null;
-  color_3: string | null;
-  color_4: string | null;
-  color_5: string | null;
-}
-
-export async function getSpecialCardData(template: string): Promise<SpecialCardData | null> {
-  const { data, error } = await supabase
-    .from('special_cards')
-    .select('*')
-    .eq('template_id', template)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Errore nel recupero dati card special:', error);
-    return null;
-  }
-
-  if (!data) {
-    return null;
-  }
-
-  return {
-    name: data.name || 'Card Special',
-    description: data.description || 'Descrizione non disponibile',
-    color: data.color || '#B45309',
-    templateUrl: data.template_image || '',
-    color_1: data.color_1,
-    color_2: data.color_2,
-    color_3: data.color_3,
-    color_4: data.color_4,
-    color_5: data.color_5,
-  };
 }

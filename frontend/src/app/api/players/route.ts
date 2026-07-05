@@ -9,13 +9,16 @@ export async function GET() {
       players.map((p) => ({
         nome: p.nome,
         email: p.email,
-        foto: p.foto,
+        foto: p.photoUrl,
         ATT: p.ATT,
-        DIF: p.DEF,
-        VEL: p.VEL,
         PAS: p.PAS,
-        FOR: p.FOR,
+        DIF: p.DIF,
         POR: p.POR,
+        overall: p.overall,
+        tier: p.tier,
+        ranked: p.ranked,
+        rkMatches: p.rkMatches,
+        selectedFrame: p.selectedFrame,
       }))
     );
   } catch (error) {

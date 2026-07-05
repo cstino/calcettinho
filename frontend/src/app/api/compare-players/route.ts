@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
-
-function calcOverall(p: { attacco: number; difesa: number; velocita: number; forza: number; passaggio: number; portiere: number }) {
-  const values = [p.attacco, p.difesa, p.velocita, p.forza, p.passaggio, p.portiere].map((v) => Number(v) || 0);
-  const top5 = values.sort((a, b) => b - a).slice(0, 5);
-  return Math.round(top5.reduce((sum, v) => sum + v, 0) / 5);
-}
+import { computeStats } from '@/utils/playerRating';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     const { data: playersData, error: playersError } = await supabase
       .from('players')
-      .select('*')
+      .select('email, name, photo_url')
       .in('email', [player1Email, player2Email]);
 
     if (playersError) throw playersError;
@@ -29,60 +24,49 @@ export async function POST(request: NextRequest) {
 
     if (statsError) throw statsError;
 
-    const votesData: Record<string, { upVotes: number; downVotes: number }> = {
-      [player1Email]: { upVotes: 0, downVotes: 0 },
-      [player2Email]: { upVotes: 0, downVotes: 0 },
-    };
+    const statsByEmail = new Map((statsData || []).map((row) => [String(row.player_email).toLowerCase(), row]));
 
-    (statsData || []).forEach((row) => {
-      if (votesData[row.player_email]) {
-        votesData[row.player_email].upVotes = row.up_votes || 0;
-        votesData[row.player_email].downVotes = row.down_votes || 0;
-      }
-    });
+    function buildPlayer(email: string) {
+      const p = (playersData || []).find((row) => String(row.email).toLowerCase() === email.toLowerCase());
+      if (!p) return null;
 
-    const playersMap = new Map();
-    (playersData || []).forEach((row) => {
-      playersMap.set(row.email, {
-        id: row.email,
-        name: row.name,
-        email: row.email,
-        overall: calcOverall(row),
-        attacco: Number(row.attacco),
-        difesa: Number(row.difesa),
-        velocità: Number(row.velocita),
-        forza: Number(row.forza),
-        passaggio: Number(row.passaggio),
-        portiere: Number(row.portiere),
-      });
-    });
+      const statsRow = statsByEmail.get(email.toLowerCase());
+      const computed = computeStats(statsRow);
 
-    const statsMap = new Map();
-    (statsData || []).forEach((row) => {
-      statsMap.set(row.player_email, {
-        gol: row.gol || 0,
-        partiteDisputate: row.partite_disputate || 0,
-        partiteVinte: row.partite_vinte || 0,
-        partitePareggiate: row.partite_pareggiate || 0,
-        partitePerse: row.partite_perse || 0,
-        assistenze: row.assistenze || 0,
-        cartelliniGialli: row.cartellini_gialli || 0,
-        cartelliniRossi: row.cartellini_rossi || 0,
-        minutiGiocati: row.minuti_giocati || 0,
-      });
-    });
+      return {
+        id: p.email,
+        name: p.name,
+        email: p.email,
+        overall: computed.overall,
+        tier: computed.tier,
+        ranked: computed.ranked,
+        rkMatches: computed.rkMatches,
+        ATT: computed.ATT,
+        PAS: computed.PAS,
+        DIF: computed.DIF,
+        POR: computed.POR,
+        ratings: { difAvg: computed.difAvg, porAvg: computed.porAvg, mvpAvg: computed.mvpAvg },
+        stats: {
+          gol: statsRow?.gol || 0,
+          partiteDisputate: statsRow?.partite_disputate || 0,
+          partiteVinte: statsRow?.partite_vinte || 0,
+          partitePareggiate: statsRow?.partite_pareggiate || 0,
+          partitePerse: statsRow?.partite_perse || 0,
+          assistenze: statsRow?.assistenze || 0,
+          cartelliniGialli: statsRow?.cartellini_gialli || 0,
+          cartelliniRossi: statsRow?.cartellini_rossi || 0,
+        },
+      };
+    }
 
-    const player1Data = playersMap.get(player1Email);
-    const player2Data = playersMap.get(player2Email);
+    const player1 = buildPlayer(player1Email);
+    const player2 = buildPlayer(player2Email);
 
-    if (!player1Data || !player2Data) {
+    if (!player1 || !player2) {
       return NextResponse.json({ error: 'Uno o entrambi i giocatori non trovati' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      player1: { ...player1Data, stats: statsMap.get(player1Email) || {}, votes: votesData[player1Email] },
-      player2: { ...player2Data, stats: statsMap.get(player2Email) || {}, votes: votesData[player2Email] },
-    });
+    return NextResponse.json({ player1, player2 });
   } catch (error) {
     console.error('Errore nel confronto giocatori:', error);
     return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 });
