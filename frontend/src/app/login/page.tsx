@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import Logo from "../components/Logo";
 import { Mail, LogIn, AlertCircle } from 'lucide-react';
@@ -123,12 +124,13 @@ export default function LoginPage() {
           <div className="mt-8 text-center">
             <p className="text-gray-400 text-sm font-runtime">
               Non hai accesso?{" "}
-              <button 
-                onClick={() => {/* TODO: Implementa richiesta accesso */}}
-                className="text-green-400 hover:text-green-300 underline"
-              >
-                Richiedi l'invito
-              </button>
+              <Link href="/richiedi-accesso" className="text-green-400 hover:text-green-300 underline">
+                Richiedi l&apos;invito
+              </Link>
+              {" · "}
+              <Link href="/registrati" className="text-green-400 hover:text-green-300 underline">
+                Ho già un codice
+              </Link>
             </p>
           </div>
         </div>

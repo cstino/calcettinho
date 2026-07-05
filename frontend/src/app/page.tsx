@@ -656,6 +656,18 @@ export default function Home() {
                   Funzionalità Principali
                 </h2>
 
+                {/* Admin: Pannello di gestione */}
+                <AdminOnly>
+                  <div className="mb-6 flex justify-center">
+                    <Link
+                      href="/admin"
+                      className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-runtime font-semibold transition-all duration-300 shadow-lg hover:shadow-2xl transform hover:scale-105 border border-green-400/40"
+                    >
+                      🛠️ Pannello Admin
+                    </Link>
+                  </div>
+                </AdminOnly>
+
                 {/* Admin: Controllo retroattivo milestone */}
                 <AdminOnly>
                   <div className="mb-10 flex justify-center">
